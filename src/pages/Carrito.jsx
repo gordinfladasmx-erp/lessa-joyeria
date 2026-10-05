@@ -156,24 +156,27 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
               <span>${subtotal.toFixed(2)}</span>
             </div>
 
-            <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center'}}>
-              <select
-                value={descuentoTipo}
-                onChange={(e) => setDescuentoTipo(e.target.value)}
-                style={{padding: '0.5rem', flex: 1}}
-              >
-                <option value="monto">Descuento ($)</option>
-                <option value="porcentaje">Descuento (%)</option>
-              </select>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={descuentoValor}
-                onChange={(e) => setDescuentoValor(e.target.value)}
-                placeholder="0"
-                style={{padding: '0.5rem', width: '80px'}}
-              />
+            <div style={{padding: '1rem', background: '#f9f9f9', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #e8c4d6'}}>
+              <label style={{display: 'block', fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem', fontWeight: '600'}}>Aplicar descuento</label>
+              <div style={{display: 'flex', gap: '0.5rem'}}>
+                <select
+                  value={descuentoTipo}
+                  onChange={(e) => setDescuentoTipo(e.target.value)}
+                  style={{padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '0.9rem'}}
+                >
+                  <option value="monto">Monto ($)</option>
+                  <option value="porcentaje">Porcentaje (%)</option>
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={descuentoValor}
+                  onChange={(e) => setDescuentoValor(e.target.value)}
+                  placeholder="0"
+                  style={{padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: '4px', flex: 1, fontSize: '0.9rem'}}
+                />
+              </div>
             </div>
 
             {descuentoCalculado > 0 && (

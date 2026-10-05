@@ -21,7 +21,7 @@ export default function Catalogo({ onAddToCart }) {
     try {
       const [{ data: cats }, { data: prods }] = await Promise.all([
         sb.from('categorias').select('*'),
-        sb.from('productos').select('*').eq('activo', true),
+        sb.from('productos').select('*').eq('activo', true).range(0, 10000),
       ])
       setCategorias(cats || [])
       setProductos(prods || [])

@@ -38,13 +38,6 @@
     # Cross-Origin Resource Policy — solo este origen puede usar los recursos
     Cross-Origin-Resource-Policy = "same-origin"
 
-    # CSP principal:
-    #   script-src  → solo este dominio; unsafe-inline necesario por Vite/React
-    #   style-src   → unsafe-inline necesario por Tailwind/inline styles
-    #   connect-src → solo Supabase (REST + Realtime WS) + Netlify functions propias
-    #   img-src     → data: (íconos inline), blob: (previews), https: (storage Supabase)
-    #   frame-ancestors 'none' ← refuerza X-Frame-Options en browsers modernos
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://awards.infcdn.net https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https://xljujzeptkjlprsayiga.supabase.co wss://xljujzeptkjlprsayiga.supabase.co; font-src 'self' data: https://awards.infcdn.net https://fonts.gstatic.com; frame-src https://maps.google.com https://www.google.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
 
 # ── Netlify Functions — CORS reforzado ──────────────────────────────────
 # Las functions ya incluyen CORS headers en el handler;

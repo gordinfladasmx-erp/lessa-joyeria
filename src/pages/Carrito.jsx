@@ -27,18 +27,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
 
     setEnviando(true)
     try {
-      const itemsConDescuento = items.map(item => ({
-        ...item,
-        descuento_aplicado: descuentoTipo,
-        valor_descuento: descuentoValor
-      }))
-
       const pedido = {
         numero_pedido: `LESSA-${Date.now()}`,
         nombre_cliente: nombre,
         email_cliente: email,
         whatsapp: whatsapp,
-        items: itemsConDescuento,
+        items: items,
         total: total,
         estado: 'pendiente',
         notas: notas,

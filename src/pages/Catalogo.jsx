@@ -8,6 +8,7 @@ export default function Catalogo({ onAddToCart }) {
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [loading, setLoading] = useState(true)
   const [filtrados, setFiltrados] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     cargarDatos()
@@ -15,7 +16,7 @@ export default function Catalogo({ onAddToCart }) {
 
   useEffect(() => {
     filtrarProductos()
-  }, [productos, selectedCategory])
+  }, [productos, selectedCategory, searchTerm])
 
   const cargarDatos = async () => {
     try {
@@ -40,13 +41,18 @@ export default function Catalogo({ onAddToCart }) {
   }
 
   const filtrarProductos = () => {
-    if (!selectedCategory) {
-      setFiltrados(productos)
-    } else {
-      setFiltrados(
-        productos.filter((p) => p.categoria_id === selectedCategory)
+    let result = productos
+    if (selectedCategory) {
+      result = result.filter((p) => p.categoria_id === selectedCategory)
+    }
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter((p) =>
+        p.nombre?.toLowerCase().includes(term) ||
+        p.sku?.toLowerCase().includes(term)
       )
     }
+    setFiltrados(result)
   }
 
   if (loading) {
@@ -56,6 +62,16 @@ export default function Catalogo({ onAddToCart }) {
   return (
     <div className="catalogo">
       <h1>Catálogo</h1>
+
+      <div className="search-box">
+        <input
+          type="text"
+          placeholder="Buscar por código o nombre..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+      </div>
 
       <div className="categorias">
         <button

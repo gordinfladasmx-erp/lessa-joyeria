@@ -9,8 +9,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
   const [notas, setNotas] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [exito, setExito] = useState(false)
+  const [descuentoMonto, setDescuentoMonto] = useState(0)
+  const [descuentoPorcentaje, setDescuentoPorcentaje] = useState(0)
 
-  const total = items.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+  const descuentoCalculado = descuentoMonto || (subtotal * descuentoPorcentaje / 100)
+  const total = Math.max(0, subtotal - descuentoCalculado)
 
   const handleCheckout = async (e) => {
     e.preventDefault()
@@ -27,6 +31,8 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
         email_cliente: email,
         whatsapp: whatsapp,
         items: items,
+        subtotal: subtotal,
+        descuento: descuentoCalculado,
         total: total,
         estado: 'pendiente',
         notas: notas,
@@ -125,8 +131,14 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
             <h2>Resumen</h2>
             <div className="subtotal">
               <span>Subtotal:</span>
-              <span>${total.toFixed(2)}</span>
+              <span>${subtotal.toFixed(2)}</span>
             </div>
+            {descuentoCalculado > 0 && (
+              <div className="subtotal" style={{color: '#28a745'}}>
+                <span>Descuento:</span>
+                <span>-${descuentoCalculado.toFixed(2)}</span>
+              </div>
+            )}
             <div className="total">
               <span>Total:</span>
               <span>${total.toFixed(2)}</span>
@@ -160,6 +172,35 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
                 type="tel"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Descuento en monto ($)</label>
+              <input
+                type="number"
+                value={descuentoMonto}
+                onChange={(e) => {
+                  setDescuentoMonto(parseFloat(e.target.value) || 0)
+                  setDescuentoPorcentaje(0)
+                }}
+                step="0.01"
+                min="0"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>O descuento en porcentaje (%)</label>
+              <input
+                type="number"
+                value={descuentoPorcentaje}
+                onChange={(e) => {
+                  setDescuentoPorcentaje(parseFloat(e.target.value) || 0)
+                  setDescuentoMonto(0)
+                }}
+                step="0.01"
+                min="0"
+                max="100"
               />
             </div>
 

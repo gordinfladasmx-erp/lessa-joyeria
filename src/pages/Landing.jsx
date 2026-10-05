@@ -32,7 +32,7 @@ export default function Landing() {
         </div>
       </div>
 
-      <div className="contact-section">
+      <div className="contact-section" style={{marginBottom: '3rem'}}>
         <h2>¿Preguntas?</h2>
         <p>Contactanos por WhatsApp o email</p>
         <div className="contact-buttons">
@@ -43,6 +43,10 @@ export default function Landing() {
             ✉ Email
           </a>
         </div>
+      </div>
+
+      <div style={{textAlign: 'center', padding: '2rem', borderTop: '1px solid #ddd'}}>
+        <Link to="/admin" style={{color: '#999', textDecoration: 'none', fontSize: '0.9rem'}}>Administración</Link>
       </div>
     </div>
   )

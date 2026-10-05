@@ -1,0 +1,4 @@
+/*
+  Content-Security-Policy: default-src *; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src *
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff

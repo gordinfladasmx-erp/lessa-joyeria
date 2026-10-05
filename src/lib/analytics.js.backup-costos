@@ -1,0 +1,585 @@
+import { sb } from './supabase'
+import { startOfDay, endOfDay, startOfWeek, endOfWeek,
+         startOfMonth, endOfMonth, startOfQuarter, endOfQuarter,
+         startOfYear, endOfYear, subDays, subWeeks, subMonths,
+         subQuarters, subYears, format } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+export const fmt      = d => format(d, 'yyyy-MM-dd')
+export const fmtLabel = (d, period) => {
+  const map = {
+    diario:'dd MMM', semanal:'dd MMM', mensual:"MMM ''yy",
+    trimestral:"'Q'Q yy", anual:'yyyy',
+    '2anios':'MMM yy', '3anios':'MMM yy', '4anios':'MMM yy',
+  }
+  return format(d, map[period] || 'dd MMM', { locale: es })
+}
+
+export function getPeriodRange(period, anchor = new Date()) {
+  const fns = {
+    diario:     [startOfDay, endOfDay],
+    semanal:    [d=>startOfWeek(d,{weekStartsOn:1}), d=>endOfWeek(d,{weekStartsOn:1})],
+    mensual:    [startOfMonth, endOfMonth],
+    trimestral: [startOfQuarter, endOfQuarter],
+    anual:      [startOfYear, endOfYear],
+    '2anios':   [d=>startOfYear(subYears(d,1)), endOfYear],
+    '3anios':   [d=>startOfYear(subYears(d,2)), endOfYear],
+    '4anios':   [d=>startOfYear(subYears(d,3)), endOfYear],
+  }
+  const [s,e] = fns[period] || fns.diario
+  return { from: fmt(s(anchor)), to: fmt(e(anchor)) }
+}
+
+export function getPrevRange(period, anchor = new Date()) {
+  const subFn = {
+    diario:subDays, semanal:subWeeks, mensual:subMonths,
+    trimestral:subQuarters, anual:subYears,
+    '2anios':subYears, '3anios':subYears, '4anios':subYears,
+  }
+  const prev = subFn[period]?.(anchor, 1) || subDays(anchor,1)
+  return getPeriodRange(period, prev)
+}
+
+// Paginated fetch
+async function fetchAll(table, select, from, to) {
+  const PAGE = 1000
+  let all = [], idx = 0, done = false
+  while (!done) {
+    const { data, error } = await sb.from(table).select(select)
+      .gte('fecha', from).lte('fecha', to)
+      .order('fecha', { ascending: true })
+      .range(idx, idx + PAGE - 1)
+    if (error) throw error
+    all = all.concat(data || [])
+    if (!data || data.length < PAGE) done = true
+    else idx += PAGE
+  }
+  return all
+}
+
+export async function fetchVentasRange(from, to) {
+  return fetchAll('ventas', 'id,fecha,created_at,producto,categoria,canal,unidades,importe,metodo_pago,cliente', from, to)
+}
+
+export async function fetchGastosRange(from, to) {
+  return fetchAll('gastos', 'fecha,proveedor,concepto,categoria_gasto,metodo_pago,monto', from, to)
+}
+
+export async function fetchVentasCatRange(from, to) {
+  return fetchAll('ventas_cat', 'fecha,categoria,importe,unidades', from, to)
+}
+
+export async function fetchKpiPeriod(period, anchor = new Date(), customFrom = null, customTo = null) {
+  const cur  = customFrom ? { from:customFrom, to:customTo } : getPeriodRange(period, anchor)
+  const prev = getPrevRange(period, anchor)
+
+  const [curV, prevV, curG, prevG] = await Promise.all([
+    fetchVentasRange(cur.from, cur.to),
+    fetchVentasRange(prev.from, prev.to),
+    fetchGastosRange(cur.from, cur.to),
+    fetchGastosRange(prev.from, prev.to),
+  ])
+
+  const aggV = rows => ({ ventas:rows.reduce((s,r)=>s+(r.importe||0),0), unidades:rows.reduce((s,r)=>s+(r.unidades||0),0) })
+  const aggG = rows => rows.reduce((s,r)=>s+(r.monto||0),0)
+  const pct  = (a,b) => b===0?null:Math.round((a-b)/b*100)
+
+  const c=aggV(curV), p=aggV(prevV), cg=aggG(curG), pg=aggG(prevG)
+  return {
+    ventas:c.ventas, ventasVsPrev:pct(c.ventas,p.ventas),
+    unidades:c.unidades, unidadesVsPrev:pct(c.unidades,p.unidades),
+    gastos:cg, gastosVsPrev:pct(cg,pg),
+    utilidad:c.ventas-cg,
+    margen:c.ventas?Math.round((c.ventas-cg)/c.ventas*100):0,
+  }
+}
+
+export async function fetchSeries(period, n=12, customFrom=null, customTo=null) {
+  const useMonthly = ['2anios','3anios','4anios','rango'].includes(period)
+
+  let from, to
+  if (customFrom && customTo) { from=customFrom; to=customTo }
+  else {
+    const subFn = { diario:subDays,semanal:subWeeks,mensual:subMonths,trimestral:subQuarters,anual:subYears,'2anios':subYears,'3anios':subYears,'4anios':subYears }
+    const oldest = subFn[period]?.(new Date(), n-1) || subDays(new Date(), n-1)
+    from = getPeriodRange(useMonthly?'mensual':period, oldest).from
+    to   = getPeriodRange(useMonthly?'mensual':period, new Date()).to
+  }
+
+  const [ventas, gastos] = await Promise.all([
+    fetchVentasRange(from, to),
+    fetchGastosRange(from, to),
+  ])
+
+  const key = (fecha) => {
+    const d = new Date(fecha+'T00:00:00')
+    if (period==='diario'||customFrom)  return format(d,'yyyy-MM-dd')
+    if (period==='semanal')             return format(startOfWeek(d,{weekStartsOn:1}),'yyyy-MM-dd')
+    if (period==='mensual'||useMonthly) return format(d,'yyyy-MM')
+    if (period==='trimestral')          return format(d,'yyyy')+'-Q'+Math.ceil((d.getMonth()+1)/3)
+    if (period==='anual')               return format(d,'yyyy')
+    return format(d,'yyyy-MM')
+  }
+
+  const vMap={}, gMap={}, uMap={}
+  ventas.forEach(r=>{ const k=key(r.fecha); vMap[k]=(vMap[k]||0)+(r.importe||0); uMap[k]=(uMap[k]||0)+(r.unidades||0) })
+  gastos.forEach(r=>{ const k=key(r.fecha); gMap[k]=(gMap[k]||0)+(r.monto||0) })
+
+  const labels=[], vArr=[], gArr=[], uArr=[], utilArr=[]
+
+  if (customFrom && customTo) {
+    const d1=new Date(customFrom+'T00:00:00'), d2=new Date(customTo+'T00:00:00')
+    for (let d=new Date(d1); d<=d2; d.setDate(d.getDate()+1)) {
+      const k=format(d,'yyyy-MM-dd')
+      labels.push(format(d,'dd MMM',{locale:es}))
+      const v=Math.round(vMap[k]||0), g=Math.round(gMap[k]||0)
+      vArr.push(v); gArr.push(g); uArr.push(Math.round(uMap[k]||0)); utilArr.push(v-g)
+    }
+  } else if (useMonthly) {
+    const nMeses = period==='2anios'?24:period==='3anios'?36:period==='4anios'?48:n
+    for (let i=nMeses-1; i>=0; i--) {
+      const d=subMonths(new Date(),i)
+      const k=format(d,'yyyy-MM')
+      labels.push(format(d,"MMM ''yy",{locale:es}))
+      const v=Math.round(vMap[k]||0), g=Math.round(gMap[k]||0)
+      vArr.push(v); gArr.push(g); uArr.push(Math.round(uMap[k]||0)); utilArr.push(v-g)
+    }
+  } else {
+    const subFn={diario:subDays,semanal:subWeeks,mensual:subMonths,trimestral:subQuarters,anual:subYears}
+    for (let i=n-1; i>=0; i--) {
+      const d=subFn[period]?.(new Date(),i)||subDays(new Date(),i)
+      const k=key(fmt(d))
+      labels.push(fmtLabel(d,period))
+      const v=Math.round(vMap[k]||0), g=Math.round(gMap[k]||0)
+      vArr.push(v); gArr.push(g); uArr.push(Math.round(uMap[k]||0)); utilArr.push(v-g)
+    }
+  }
+  return { labels, ventas:vArr, gastos:gArr, unidades:uArr, utilidad:utilArr }
+}
+
+export async function fetchTopProductos(from, to, limit=10) {
+  const rows = await fetchVentasCatRange(from, to)
+  const map={}
+  rows.forEach(r=>{
+    const k = r.categoria||'Otros'
+    if (!map[k]) map[k]={producto:k,familia:k,importe:0,unidades:0}
+    map[k].importe  += (r.importe||0)
+    map[k].unidades += (r.unidades||0)
+  })
+  return Object.values(map).sort((a,b)=>b.importe-a.importe).slice(0,limit)
+    .map(x=>({...x,importe:Math.round(x.importe),unidades:Math.round(x.unidades)}))
+}
+
+export async function fetchPorCategoria(from, to) {
+  const rows = await fetchVentasCatRange(from, to)
+  const map={}
+  rows.forEach(r=>{
+    const c=r.categoria||'Otros'
+    if (!map[c]) map[c]={categoria:c,importe:0,unidades:0}
+    map[c].importe  += (r.importe||0)
+    map[c].unidades += (r.unidades||0)
+  })
+  return Object.values(map).map(x=>({...x,importe:Math.round(x.importe),unidades:Math.round(x.unidades)}))
+    .sort((a,b)=>b.importe-a.importe)
+}
+
+export async function fetchRentabilidadCategoria(from, to, canalesFiltro=[]) {
+  const PLATAFORMAS = ['Uber','Uber Chilakiles','DiDi','DiDi Chilakiles','Rappi']
+
+  const [ventas, productos, config] = await Promise.all([
+    fetchVentasRange(from, to),
+    sb.from('productos').select('nombre,costo_unitario').then(r=>r.data||[]),
+    sb.from('config_comisiones').select('id,porcentaje').then(r=>r.data||[])
+  ])
+
+  // Cargar comisiones desde BD con fallback a valores por defecto
+  const getCom = (id, def) => {
+    const c = config.find(x=>x.id===id)
+    return c ? (c.porcentaje/100) : def
+  }
+  const CARGO_TC   = getCom('tarjeta', 0.045)
+  const CARGO_PLAT_UBER  = getCom('uber',  0.46)
+  const CARGO_PLAT_DIDI  = getCom('didi',  0.46)
+  const CARGO_PLAT_RAPPI = getCom('rappi', 0.46)
+  const costoMap = {}
+  const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
+  productos.forEach(p => {
+    costoMap[normalize(p.nombre)] = p.costo_unitario||0
+    costoMap[p.nombre] = p.costo_unitario||0 // también con acento
+  })
+
+  const NOMBRE_MAP = {
+    'chilakiles naturales':'Naturales','chilakiles gratinados':'Gratinados',
+    'chilakiles rellenos':'Rellenos','crokantes y otros chilakiles':'Kostrakiles',
+  }
+  const getCosto = (nombre) => {
+    const nombreBase = (nombre||'').replace(/\s*\(.*?\)/g,'').trim()
+    const mapped = NOMBRE_MAP[normalize(nombreBase)] || NOMBRE_MAP[normalize(nombre)]
+    if (mapped) return costoMap[normalize(mapped)] || costoMap[mapped] || 0
+    return costoMap[normalize(nombreBase)] || costoMap[nombreBase] ||
+           costoMap[normalize(nombre)]     || costoMap[nombre]     || 0
+  }
+
+  const ventasFilt = canalesFiltro.length>0
+    ? ventas.filter(r=>canalesFiltro.includes(r.canal||r.metodo_pago))
+    : ventas
+
+  const map = {}
+  ventasFilt.filter(r=>r.producto!=='Venta dia').forEach(r => {
+    const cat = r.categoria||'Otros'
+    if (!map[cat]) map[cat] = { categoria:cat, importe:0, costo:0, comision:0, unidades:0 }
+    const imp = r.importe||0
+    map[cat].importe  += imp
+    map[cat].unidades += r.unidades||0
+    const costo = getCosto(r.producto)
+    map[cat].costo += costo * (r.unidades||0)
+    // Agregar comisión de plataforma si aplica
+    if (PLATAFORMAS.includes(r.canal)) {
+      const rate = r.canal.includes('Uber') ? CARGO_PLAT_UBER
+                 : r.canal.includes('DiDi') ? CARGO_PLAT_DIDI
+                 : CARGO_PLAT_RAPPI
+      map[cat].comision += Math.round(imp * rate)
+    }
+    // Agregar comisión tarjeta si aplica
+    if (r.canal === 'Tarjeta' || r.metodo_pago === 'Tarjeta') {
+      map[cat].comision += Math.round(imp * CARGO_TC)
+    }
+  })
+
+  return Object.values(map).map(x=>({
+    ...x,
+    importe:   Math.round(x.importe),
+    costo:     Math.round(x.costo),
+    comision:  Math.round(x.comision),
+    utilidad:  Math.round(x.importe - x.costo - x.comision),
+    margen:    x.importe>0 ? Math.round((x.importe-x.costo-x.comision)/x.importe*100) : 0,
+  })).sort((a,b)=>b.importe-a.importe)
+}
+
+export async function fetchPorCanal(from, to) {
+  const rows = await fetchVentasRange(from, to)
+  const map={}
+  rows.forEach(r=>{
+    const c=r.canal||r.metodo_pago||'Sin dato'
+    if (!map[c]) map[c]={canal:c,importe:0,unidades:0}
+    map[c].importe  += (r.importe||0)
+    map[c].unidades += (r.unidades||0)
+  })
+  return Object.values(map).map(x=>({...x,importe:Math.round(x.importe)})).sort((a,b)=>b.importe-a.importe)
+}
+
+export async function fetchSeriesCat(from, to, period='mensual') {
+  // Series de importe y unidades por categoría para gráficas
+  const rows = await fetchVentasCatRange(from, to)
+  const cats = [...new Set(rows.map(r=>r.categoria))].filter(Boolean)
+
+  const key = (fecha) => {
+    const d = new Date(fecha+'T00:00:00')
+    if (period==='diario') return format(d,'yyyy-MM-dd')
+    if (period==='mensual'||['2anios','3anios','4anios'].includes(period)) return format(d,'yyyy-MM')
+    if (period==='anual') return format(d,'yyyy')
+    return format(d,'yyyy-MM')
+  }
+
+  // Agrupar por periodo y categoría
+  const byPeriodCat = {}
+  rows.forEach(r=>{
+    const k=key(r.fecha), cat=r.categoria||'Otros'
+    if (!byPeriodCat[k]) byPeriodCat[k]={}
+    byPeriodCat[k][cat] = (byPeriodCat[k][cat]||0) + (r.importe||0)
+  })
+
+  const periods = Object.keys(byPeriodCat).sort()
+  return { periods, cats, byPeriodCat }
+}
+
+export async function fetchGastosPorCategoria(from, to) {
+  const rows = await fetchGastosRange(from, to)
+  const map={}
+  rows.forEach(r=>{
+    const c=r.categoria_gasto||'Otros'
+    if (!map[c]) map[c]={categoria:c,monto:0}
+    map[c].monto += (r.monto||0)
+  })
+  return Object.values(map).map(x=>({...x,monto:Math.round(x.monto)})).sort((a,b)=>b.monto-a.monto)
+}
+
+export async function fetchComparativo(period, anchor=new Date(), nAnios=3) {
+  const series = []
+  for (let i=0; i<nAnios; i++) {
+    const anclaje = subYears(anchor, i)
+    const { from, to } = getPeriodRange(period, anclaje)
+    const [ventas, gastos] = await Promise.all([
+      fetchVentasRange(from, to),
+      fetchGastosRange(from, to),
+    ])
+    const v=ventas.reduce((s,r)=>s+(r.importe||0),0)
+    const g=gastos.reduce((s,r)=>s+(r.monto||0),0)
+    const u=ventas.reduce((s,r)=>s+(r.unidades||0),0)
+    series.push({
+      anio:anclaje.getFullYear(),
+      label:i===0?'Este año':'Hace '+(i===1?'1 año':i+' años'),
+      ventas:Math.round(v),gastos:Math.round(g),
+      utilidad:Math.round(v-g),unidades:Math.round(u),
+      from,to,
+    })
+  }
+  return series.reverse()
+}
+
+// ── HELPER: rango de fechas según rango + granularidad ──────
+export function getRangoFechas(rango, rangoDesde, rangoHasta) {
+  const hoy = new Date()
+  if (rango === 'rango' && rangoDesde && rangoHasta) {
+    return { from: rangoDesde, to: rangoHasta }
+  }
+  if (rango === 'hoy') {
+    return { from: fmt(hoy), to: fmt(hoy) }
+  }
+  if (rango === 'semana') {
+    return { from: fmt(startOfWeek(hoy,{weekStartsOn:1})), to: fmt(endOfWeek(hoy,{weekStartsOn:1})) }
+  }
+  if (rango === 'mes') {
+    return { from: fmt(startOfMonth(hoy)), to: fmt(endOfMonth(hoy)) }
+  }
+  if (rango === 'trim') {
+    return { from: fmt(startOfQuarter(hoy)), to: fmt(endOfQuarter(hoy)) }
+  }
+  const anios = rango==='1anio'?1:rango==='2anios'?2:3
+  const desde = new Date(hoy)
+  desde.setFullYear(hoy.getFullYear() - anios)
+  desde.setMonth(0); desde.setDate(1)
+  return { from: fmt(desde), to: fmt(endOfYear(hoy)) }
+}
+
+// ── SERIES con rango + granularidad ──────────────────────────
+export async function fetchSeriesRangoGran(rango, granularidad, rangoDesde, rangoHasta, canalesFiltro=[]) {
+  const { from, to } = getRangoFechas(rango, rangoDesde, rangoHasta)
+  const [ventasRaw, gastos] = await Promise.all([
+    fetchVentasRange(from, to),
+    fetchGastosRange(from, to),
+  ])
+  const ventas = canalesFiltro.length>0
+    ? ventasRaw.filter(r=>canalesFiltro.includes(r.canal||r.metodo_pago))
+    : ventasRaw
+
+  const key = (fecha) => {
+    const d = new Date(fecha+'T00:00:00')
+    if (granularidad==='diario')     return format(d,'yyyy-MM-dd')
+    if (granularidad==='semanal')    return format(startOfWeek(d,{weekStartsOn:1}),'yyyy-MM-dd')
+    if (granularidad==='mensual')    return format(d,'yyyy-MM')
+    if (granularidad==='trimestral') return format(d,'yyyy')+'-Q'+Math.ceil((d.getMonth()+1)/3)
+    if (granularidad==='anual')      return format(d,'yyyy')
+    return format(d,'yyyy-MM')
+  }
+
+  const label = (fecha) => {
+    const d = new Date(fecha+'T00:00:00')
+    if (granularidad==='diario')     return format(d,'dd MMM',{locale:es})
+    if (granularidad==='semanal')    return format(d,'dd MMM',{locale:es})
+    if (granularidad==='mensual')    return format(d,"MMM ''yy",{locale:es})
+    if (granularidad==='trimestral') return 'Q'+Math.ceil((d.getMonth()+1)/3)+' '+d.getFullYear().toString().slice(2)
+    if (granularidad==='anual')      return format(d,'yyyy')
+    return format(d,"MMM ''yy",{locale:es})
+  }
+
+  // Bucket data — separar costo del resto de gastos
+  const vMap={}, gMap={}, cMap={}, uMap={}, lblMap={}
+  ventas.forEach(r=>{ const k=key(r.fecha); vMap[k]=(vMap[k]||0)+(r.importe||0); uMap[k]=(uMap[k]||0)+(r.unidades||0); if(!lblMap[k])lblMap[k]=label(r.fecha) })
+  gastos.forEach(r=>{ 
+    const k=key(r.fecha)
+    gMap[k]=(gMap[k]||0)+(r.monto||0)
+    if(r.categoria_gasto==='Costo') cMap[k]=(cMap[k]||0)+(r.monto||0)
+    if(!lblMap[k])lblMap[k]=label(r.fecha)
+  })
+
+  // Generate ordered periods without gaps — only periods with data
+  const allKeys = [...new Set([...Object.keys(vMap), ...Object.keys(gMap)])].sort()
+
+  const labels=[], vArr=[], gArr=[], cArr=[], uArr=[], utilArr=[], pctCostoArr=[]
+  allKeys.forEach(k=>{
+    labels.push(lblMap[k]||k)
+    const v=Math.round(vMap[k]||0), g=Math.round(gMap[k]||0), c=Math.round(cMap[k]||0)
+    vArr.push(v); gArr.push(g); cArr.push(c); uArr.push(Math.round(uMap[k]||0)); utilArr.push(v-g)
+    pctCostoArr.push(v>0?Math.round(c/v*100):0)
+  })
+
+  return { labels, ventas:vArr, gastos:gArr, costo:cArr, unidades:uArr, utilidad:utilArr, pctCosto:pctCostoArr, from, to }
+}
+
+export async function fetchKpiRangoGran(rango, granularidad, rangoDesde, rangoHasta, canalesFiltro=[]) {
+  const { from, to } = getRangoFechas(rango, rangoDesde, rangoHasta)
+  const [ventasRaw, gastos] = await Promise.all([
+    fetchVentasRange(from, to),
+    fetchGastosRange(from, to),
+  ])
+  const ventas = canalesFiltro.length>0
+    ? ventasRaw.filter(r=>canalesFiltro.includes(r.canal||r.metodo_pago))
+    : ventasRaw
+  const v = ventas.reduce((s,r)=>s+(r.importe||0),0)
+  const u = ventas.reduce((s,r)=>s+(r.unidades||0),0)
+  const g = gastos.reduce((s,r)=>s+(r.monto||0),0)
+  return { ventas:Math.round(v), unidades:Math.round(u), gastos:Math.round(g), utilidad:Math.round(v-g), margen:v?Math.round((v-g)/v*100):0 }
+}
+
+export async function fetchCatSeriesRangoGran(rango, granularidad, rangoDesde, rangoHasta) {
+  const { from, to } = getRangoFechas(rango, rangoDesde, rangoHasta)
+  const rows = await fetchVentasCatRange(from, to)
+
+  const key = (fecha) => {
+    const d = new Date(fecha+'T00:00:00')
+    if (granularidad==='diario')     return format(d,'yyyy-MM-dd')
+    if (granularidad==='semanal')    return format(startOfWeek(d,{weekStartsOn:1}),'yyyy-MM-dd')
+    if (granularidad==='mensual')    return format(d,'yyyy-MM')
+    if (granularidad==='trimestral') return format(d,'yyyy')+'-Q'+Math.ceil((d.getMonth()+1)/3)
+    if (granularidad==='anual')      return format(d,'yyyy')
+    return format(d,'yyyy-MM')
+  }
+
+  const impMap={}, udsMap={}
+  rows.forEach(r=>{
+    const k=key(r.fecha), cat=r.categoria||'Otros'
+    if(!impMap[k])impMap[k]={}
+    if(!udsMap[k])udsMap[k]={}
+    impMap[k][cat]=(impMap[k][cat]||0)+(r.importe||0)
+    udsMap[k][cat]=(udsMap[k][cat]||0)+(r.unidades||0)
+  })
+
+  const cats = [...new Set(rows.map(r=>r.categoria))].filter(Boolean)
+  const periodKeys = [...new Set(Object.keys(impMap))].sort()
+
+  return { periodKeys, cats, impMap, udsMap, from, to }
+}
+
+// ── PROMEDIO DIARIO POR CATEGORÍA MES A MES ──────────────────
+export async function fetchPromedioDiarioMes(anios = [2024, 2025, 2026]) {
+  const desde = `${Math.min(...anios)}-01-01`
+  const hasta = `${Math.max(...anios)}-12-31`
+  const rows = await fetchVentasCatRange(desde, hasta)
+
+  // Contar días con ventas por mes
+  const diasPorMes = {}
+  const ventasPorMes = {}
+
+  rows.forEach(r => {
+    const d = new Date(r.fecha+'T00:00:00')
+    const mesKey = format(d, 'yyyy-MM')
+    const cat = r.categoria || 'Otros'
+
+    if (!diasPorMes[mesKey]) diasPorMes[mesKey] = new Set()
+    diasPorMes[mesKey].add(r.fecha)
+
+    if (!ventasPorMes[mesKey]) ventasPorMes[mesKey] = {}
+    if (!ventasPorMes[mesKey][cat]) ventasPorMes[mesKey][cat] = { importe:0, unidades:0 }
+    ventasPorMes[mesKey][cat].importe  += r.importe  || 0
+    ventasPorMes[mesKey][cat].unidades += r.unidades || 0
+  })
+
+  const cats = [...new Set(rows.map(r=>r.categoria).filter(Boolean))]
+  const meses = [...new Set(rows.map(r=>format(new Date(r.fecha+'T00:00:00'),'yyyy-MM')))].sort()
+
+  // Calcular promedio diario = total / días con ventas
+  const result = {}
+  meses.forEach(mes => {
+    const dias = diasPorMes[mes]?.size || 1
+    result[mes] = {}
+    cats.forEach(cat => {
+      const v = ventasPorMes[mes]?.[cat] || { importe:0, unidades:0 }
+      result[mes][cat] = {
+        importe:  Math.round(v.importe  / dias),
+        unidades: Math.round(v.unidades / dias),
+        dias,
+      }
+    })
+  })
+
+  return { meses, cats, result }
+}
+
+// ── COMPARATIVO DE PERÍODOS ENTRE AÑOS ───────────────────────
+export async function fetchComparativoPeriodos(mesDesde, mesHasta, anios) {
+  // mesDesde/mesHasta: 1-12, anios: [2024,2025,2026]
+  const allData = {}
+  for (const anio of anios) {
+    const desde = `${anio}-${String(mesDesde).padStart(2,'0')}-01`
+    const hastaDate = new Date(anio, mesHasta, 0) // último día del mesHasta
+    const hasta = format(hastaDate, 'yyyy-MM-dd')
+    const [ventasRaw, gastosRaw] = await Promise.all([
+      fetchAll('ventas', 'fecha,importe,unidades,categoria', desde, hasta),
+      fetchAll('gastos', 'fecha,monto,categoria_gasto', desde, hasta),
+    ])
+    const ventas   = (ventasRaw||[]).reduce((s,r)=>s+(r.importe||0),0)
+    const unidades = (ventasRaw||[]).reduce((s,r)=>s+(r.unidades||0),0)
+    const gastos   = (gastosRaw||[]).reduce((s,r)=>s+(r.monto||0),0)
+    const diasConVentas = [...new Set((ventasRaw||[]).map(r=>r.fecha))].length
+
+    // Por mes dentro del período
+    const porMes = {}
+    ;(ventasRaw||[]).forEach(r => {
+      const mes = format(new Date(r.fecha+'T00:00:00'),'MM')
+      if (!porMes[mes]) porMes[mes] = { importe:0, unidades:0, gastos:0 }
+      porMes[mes].importe  += r.importe  || 0
+      porMes[mes].unidades += r.unidades || 0
+    })
+    ;(gastosRaw||[]).forEach(r => {
+      const mes = format(new Date(r.fecha+'T00:00:00'),'MM')
+      if (!porMes[mes]) porMes[mes] = { importe:0, unidades:0, gastos:0 }
+      porMes[mes].gastos += r.monto || 0
+    })
+    // Calcular utilidad y alias ventas por mes
+    Object.keys(porMes).forEach(mes => {
+      porMes[mes].utilidad = porMes[mes].importe - porMes[mes].gastos
+      porMes[mes].ventas   = porMes[mes].importe
+    })
+
+    allData[anio] = { ventas: Math.round(ventas), unidades: Math.round(unidades),
+      gastos: Math.round(gastos), utilidad: Math.round(ventas-gastos),
+      diasConVentas, porMes }
+  }
+  return allData
+}
+
+// ── CAGR ─────────────────────────────────────────────────────
+export function calcCAGR(valorInicial, valorFinal, anios) {
+  if (!valorInicial || valorInicial <= 0 || anios <= 0) return null
+  return Math.round(((valorFinal / valorInicial) ** (1 / anios) - 1) * 1000) / 10
+}
+
+export async function fetchAnualParaCAGR() {
+  const anios = [2024, 2025, 2026]
+  const result = {}
+  for (const anio of anios) {
+    const desde = `${anio}-01-01`
+    const hasta = anio === 2026 ? format(new Date(), 'yyyy-MM-dd') : `${anio}-12-31`
+    const meses = anio === 2026
+      ? (new Date().getMonth() + new Date().getDate()/30)
+      : 12
+    const [v, g] = await Promise.all([
+      fetchAll('ventas', 'importe,unidades', desde, hasta),
+      fetchAll('gastos', 'monto', desde, hasta),
+    ])
+    const ventas   = (v||[]).reduce((s,r)=>s+(r.importe||0),0)
+    const unidades = (v||[]).reduce((s,r)=>s+(r.unidades||0),0)
+    const gastos   = (g||[]).reduce((s,r)=>s+(r.monto||0),0)
+    result[anio] = {
+      ventas:    Math.round(ventas / meses * 12),
+      unidades:  Math.round(unidades / meses * 12),
+      gastos:    Math.round(gastos / meses * 12),
+      utilidad:  Math.round((ventas - gastos) / meses * 12),
+      meses,
+    }
+  }
+  return result
+}
+export function trendline(data) {
+  const n = data.length
+  if (n < 2) return data.map(()=>null)
+  const valid = data.map((v,i)=>({x:i,y:v||0}))
+  const sumX  = valid.reduce((s,p)=>s+p.x,0)
+  const sumY  = valid.reduce((s,p)=>s+p.y,0)
+  const sumXY = valid.reduce((s,p)=>s+p.x*p.y,0)
+  const sumX2 = valid.reduce((s,p)=>s+p.x*p.x,0)
+  const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX) || 0
+  const intercept = (sumY - slope*sumX) / n
+  return valid.map(p => Math.round(intercept + slope*p.x))
+}

@@ -1,0 +1,796 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { sb } from '../lib/supabase.js'
+import ExportBtn from '../components/ExportBtn.jsx'
+
+const fmtM  = v => '$' + Math.round(v||0).toLocaleString('es-MX')
+const today = () => new Date().toISOString().slice(0,10)
+const fmtD  = d => new Date(d+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+const difColor = d => Math.abs(d)<1?'var(--text2)':d>0?'#1D9E75':'#E24B4A'
+const difLabel = d => Math.abs(d)<1?'✓ Cuadrado':d>0?`+${fmtM(d)} sobrante`:`${fmtM(d)} faltante`
+
+const PLAT_FIELDS = [
+  { id:'plat_uber',     label:'Uber Eats',      canal:'Uber' },
+  { id:'plat_uber_chi', label:'Uber Chilakiles', canal:'Uber Chilakiles' },
+  { id:'plat_didi',     label:'DiDi Food',       canal:'DiDi' },
+  { id:'plat_didi_chi', label:'DiDi Chilakiles', canal:'DiDi Chilakiles' },
+  { id:'plat_rappi',    label:'Rappi',           canal:'Rappi' },
+  { id:'plat_ola',      label:'Ola',             canal:'Ola' },
+]
+
+const EMPTY_FORM = {
+  fecha: today(),
+  efvo_billetes:'', efvo_monedas:'',
+  tc_reportado:'',
+  plat_uber:'', plat_uber_chi:'', plat_didi:'', plat_didi_chi:'', plat_rappi:'', plat_ola:'',
+  ajuste_efvo:'', ajuste_efvo_nota:'',
+  ajuste_tc:'', ajuste_tc_nota:'',
+  notas:'', cerrado_por:''
+}
+
+export default function CierreDia({ role }) {
+  const [fecha,      setFecha]      = useState(today())
+  const [form,       setForm]       = useState(EMPTY_FORM)
+  const [sys,        setSys]        = useState(null)
+  const [cierre,     setCierre]     = useState(null)
+  const [historial,  setHistorial]  = useState([])
+  const [loading,    setLoading]    = useState(false)
+  const [saving,     setSaving]     = useState(false)
+  const [msg,        setMsg]        = useState(null)
+  const [tab,        setTab]        = useState('cierre')
+  const [traspasos,  setTraspasos]  = useState([])
+  const [fTraspaso,  setFTraspaso]  = useState({origen:'Efectivo',destino:'Tarjeta',monto:'',concepto:''})
+  const [savingTr,   setSavingTr]   = useState(false)
+  const esViewer = role === 'viewer'
+
+  const loadTraspasos = useCallback(async (f) => {
+    const { data } = await sb.from('traspasos_caja').select('*').eq('fecha', f).order('created_at',{ascending:false})
+    setTraspasos(data||[])
+  }, [])
+
+  useEffect(() => { loadTraspasos(fecha) }, [fecha])
+
+  const loadSys = useCallback(async (f) => {
+    setLoading(true)
+    const [{ data: ventas }, { data: gastos }, { data: cierreExistente }, { data: cierreAnterior }] = await Promise.all([
+      sb.from('ventas').select('metodo_pago,canal,importe,unidades').eq('fecha', f),
+      sb.from('gastos').select('monto,metodo_pago,categoria_gasto').eq('fecha', f),
+      sb.from('cierres_dia').select('*').eq('fecha', f).maybeSingle(),
+      sb.from('cierres_dia').select('efvo_real,tc_real,saldo_final_efvo,saldo_final_tc,saldo_fin_uber,saldo_fin_uber_chi,saldo_fin_didi,saldo_fin_didi_chi,saldo_fin_rappi,saldo_fin_ola').lt('fecha', f).order('fecha',{ascending:false}).limit(1),
+    ])
+
+    const ventasEfvo  = (ventas||[]).filter(v=>v.metodo_pago==='Efectivo').reduce((s,v)=>s+(v.importe||0),0)
+    const ventasTc    = (ventas||[]).filter(v=>v.metodo_pago==='Tarjeta').reduce((s,v)=>s+(v.importe||0),0)
+    const ventasPlat  = (ventas||[]).filter(v=>v.metodo_pago==='Plataforma').reduce((s,v)=>s+(v.importe||0),0)
+    const totalVentas = ventasEfvo + ventasTc + ventasPlat
+    const totalUds    = (ventas||[]).reduce((s,v)=>s+(v.unidades||0),0)
+
+    // Gastos reales por canal (excluir comisiones de plataforma/tarjeta que no son pagos físicos)
+    const gastosReales = (gastos||[]).filter(g=>g.categoria_gasto!=='Gasto de ventas'&&g.categoria_gasto!=='Ajuste caja')
+    const gastosEfvo = gastosReales.filter(g=>!g.metodo_pago||g.metodo_pago==='Efectivo'||g.metodo_pago===null).reduce((s,g)=>s+(g.monto||0),0)
+    const gastosTc   = gastosReales.filter(g=>g.metodo_pago&&g.metodo_pago.toLowerCase().includes('tarjeta')).reduce((s,g)=>s+(g.monto||0),0)
+    const gastosTransf = gastosReales.filter(g=>g.metodo_pago&&(g.metodo_pago.toLowerCase().includes('transfer')||g.metodo_pago.toLowerCase().includes('spei'))).reduce((s,g)=>s+(g.monto||0),0)
+    const totalGastos= gastosReales.reduce((s,g)=>s+(g.monto||0),0)
+
+    // Comisiones de ventas (informativas, no afectan cashflow físico)
+    const comisionesTc   = (gastos||[]).filter(g=>g.categoria_gasto==='Gasto de ventas'&&(g.concepto?.toLowerCase().includes('clip')||g.concepto?.toLowerCase().includes('tarjeta')||g.concepto?.toLowerCase().includes('mixto'))).reduce((s,g)=>s+(g.monto||0),0)
+    const comisionesPlat = (gastos||[]).filter(g=>g.categoria_gasto==='Gasto de ventas'&&!g.concepto?.toLowerCase().includes('clip')&&!g.concepto?.toLowerCase().includes('tarjeta')&&!g.concepto?.toLowerCase().includes('mixto')).reduce((s,g)=>s+(g.monto||0),0)
+    const totalComisiones = comisionesTc + comisionesPlat
+
+    const prev = cierreAnterior && cierreAnterior[0]
+    const saldoInicialEfvo = prev?.saldo_final_efvo ?? prev?.efvo_real ?? 0
+    const saldoInicialTc   = prev?.saldo_final_tc   ?? prev?.tc_real   ?? 0
+
+    const teorEfvo = saldoInicialEfvo + ventasEfvo - gastosEfvo
+    const teorTc   = saldoInicialTc   + ventasTc   - gastosTc - gastosTransf
+    const teorPlat = ventasPlat
+
+    const byCanal = {}
+    ;(ventas||[]).forEach(v => { byCanal[v.canal] = (byCanal[v.canal]||0) + (v.importe||0) })
+
+    // Saldo plataformas = lo que captura el usuario en el cierre (lo que muestra cada app)
+    // Si ya hay cierre guardado hoy, usar esos valores; si no, mostrar solo ventas del día como referencia
+    const saldoActualPlat = {
+      'Uber':            cierreExistente?.plat_uber     || byCanal['Uber']||0,
+      'Uber Chilakiles': cierreExistente?.plat_uber_chi || byCanal['Uber Chilakiles']||0,
+      'DiDi':            cierreExistente?.plat_didi     || byCanal['DiDi']||0,
+      'DiDi Chilakiles': cierreExistente?.plat_didi_chi || byCanal['DiDi Chilakiles']||0,
+      'Rappi':           cierreExistente?.plat_rappi    || byCanal['Rappi']||0,
+      'Ola':             cierreExistente?.plat_ola      || byCanal['Ola']||0,
+    }
+
+    setSys({ ventasEfvo, ventasTc, ventasPlat, totalVentas, totalUds,
+      gastosEfvo, gastosTc, gastosTransf, totalGastos,
+      comisionesTc, comisionesPlat, totalComisiones,
+      saldoInicialEfvo, saldoInicialTc,
+      saldoActualPlat,
+      teorEfvo, teorTc, teorPlat,
+      utilidad: totalVentas - totalGastos, byCanal })
+
+    if (cierreExistente) {
+      setCierre(cierreExistente)
+      setForm({ fecha:f,
+        efvo_billetes: cierreExistente.efvo_billetes||'',
+        efvo_monedas:  cierreExistente.efvo_monedas||'',
+        tc_reportado:  cierreExistente.tc_reportado||'',
+        plat_uber: cierreExistente.plat_uber||'', plat_uber_chi: cierreExistente.plat_uber_chi||'',
+        plat_didi: cierreExistente.plat_didi||'', plat_didi_chi: cierreExistente.plat_didi_chi||'',
+        plat_rappi: cierreExistente.plat_rappi||'', plat_ola: cierreExistente.plat_ola||'',
+        ajuste_efvo: cierreExistente.ajuste_efvo||'', ajuste_efvo_nota: cierreExistente.ajuste_efvo_nota||'',
+        ajuste_tc: cierreExistente.ajuste_tc||'', ajuste_tc_nota: cierreExistente.ajuste_tc_nota||'',
+        notas: cierreExistente.notas||'', cerrado_por: cierreExistente.cerrado_por||'' })
+    } else {
+      setCierre(null)
+      setForm({...EMPTY_FORM, fecha:f})
+    }
+    setLoading(false)
+  }, [])
+
+  const loadHistorial = useCallback(async () => {
+    const { data } = await sb.from('cierres_dia').select('*').order('fecha',{ascending:false}).limit(30)
+    setHistorial(data||[])
+  }, [])
+
+  useEffect(() => { loadSys(fecha); loadHistorial() }, [fecha])
+
+  const n = id => parseFloat(form[id]||0)||0
+  const efvoReal = n('efvo_billetes') + n('efvo_monedas')
+  const tcReal   = n('tc_reportado')
+  const platReal = PLAT_FIELDS.reduce((s,f2)=>s+n(f2.id),0)
+  const difEfvo  = sys ? efvoReal - sys.teorEfvo : 0
+  const difTc    = sys ? tcReal   - sys.teorTc   : 0
+  const difPlat  = sys ? platReal - sys.teorPlat  : 0
+  const saldoFinalEfvo = efvoReal + n('ajuste_efvo')
+  const saldoFinalTc   = tcReal   + n('ajuste_tc')
+
+  const handleSave = async () => {
+    if (!sys) return
+    setSaving(true)
+    try {
+      const payload = {
+        fecha,
+        saldo_inicial_efvo: sys.saldoInicialEfvo, saldo_inicial_tc: sys.saldoInicialTc,
+        efvo_billetes: n('efvo_billetes'), efvo_monedas: n('efvo_monedas'),
+        efvo_real: efvoReal, tc_real: tcReal, plat_real: platReal,
+        tc_reportado: n('tc_reportado'),
+        plat_uber: n('plat_uber'), plat_uber_chi: n('plat_uber_chi'),
+        plat_didi: n('plat_didi'), plat_didi_chi: n('plat_didi_chi'),
+        plat_rappi: n('plat_rappi'), plat_ola: n('plat_ola'),
+        sys_efvo: sys.ventasEfvo, sys_tc: sys.ventasTc, sys_plat: sys.ventasPlat,
+        sys_total: sys.totalVentas, sys_unidades: sys.totalUds,
+        gastos_efvo: sys.gastosEfvo, gastos_tc: sys.gastosTc, gastos_total: sys.totalGastos,
+        teor_efvo: sys.teorEfvo, teor_tc: sys.teorTc, teor_plat: sys.teorPlat,
+        dif_efvo: difEfvo, dif_tc: difTc, dif_plat: difPlat,
+        ajuste_efvo: n('ajuste_efvo'), ajuste_efvo_nota: form.ajuste_efvo_nota||null,
+        ajuste_tc: n('ajuste_tc'), ajuste_tc_nota: form.ajuste_tc_nota||null,
+        saldo_final_efvo: saldoFinalEfvo, saldo_final_tc: saldoFinalTc,
+        saldo_fin_uber:     n('plat_uber'),
+        saldo_fin_uber_chi: n('plat_uber_chi'),
+        saldo_fin_didi:     n('plat_didi'),
+        saldo_fin_didi_chi: n('plat_didi_chi'),
+        saldo_fin_rappi:    n('plat_rappi'),
+        saldo_fin_ola:      n('plat_ola'),
+        saldo_ini_uber:     sys.saldoIniPlat?.['Uber']||0,
+        saldo_ini_uber_chi: sys.saldoIniPlat?.['Uber Chilakiles']||0,
+        saldo_ini_didi:     sys.saldoIniPlat?.['DiDi']||0,
+        saldo_ini_didi_chi: sys.saldoIniPlat?.['DiDi Chilakiles']||0,
+        saldo_ini_rappi:    sys.saldoIniPlat?.['Rappi']||0,
+        saldo_ini_ola:      sys.saldoIniPlat?.['Ola']||0,
+        notas: form.notas||null, cerrado_por: form.cerrado_por||null,
+      }
+      const { error } = cierre
+        ? await sb.from('cierres_dia').update(payload).eq('id', cierre.id)
+        : await sb.from('cierres_dia').insert(payload)
+      if (error) throw error
+      setMsg({ ok:true, text:`Cierre guardado ✓ — Saldo final efectivo: ${fmtM(saldoFinalEfvo)} · Tarjeta: ${fmtM(saldoFinalTc)}` })
+      loadSys(fecha); loadHistorial()
+    } catch(e) { setMsg({ ok:false, text:e.message }) }
+    setSaving(false)
+    setTimeout(()=>setMsg(null), 5000)
+  }
+
+  const inp = (id, label, placeholder='0', type='number') => (
+    <div className="form-group">
+      <div className="form-label">{label}</div>
+      <input className="form-input" type={type} placeholder={placeholder}
+        value={form[id]} onChange={e=>setForm(f=>({...f,[id]:e.target.value}))} disabled={esViewer}/>
+    </div>
+  )
+
+  const CashRow = ({label, val, color, bold, border}) => (
+    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,
+      paddingBottom:border?4:0,borderBottom:border?'0.5px solid var(--border)':'none'}}>
+      <span style={{color:'var(--text2)'}}>{label}</span>
+      <span style={{fontWeight:bold?700:500,color:color||'var(--text1)'}}>{fmtM(val)}</span>
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
+        <div>
+          <div style={{fontSize:14,fontWeight:600}}>Cierre de día — Cashflow por canal</div>
+          <div style={{fontSize:11,color:'var(--text2)'}}>{fmtD(fecha)}</div>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+          <input className="form-input" type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{width:160}}/>
+          {['cierre','cashflow','traspasos','historial'].map(t=>(
+            <button key={t} className={`psw-btn${tab===t?' active':''}`} onClick={()=>setTab(t)}>
+              {t==='cierre'?'Cierre del día':t==='cashflow'?'Cashflow':t==='traspasos'?'Traspasos':'Historial'}
+            </button>
+          ))}
+          <ExportBtn titulo="Cierre del día" getElement={()=>document.querySelector('.content')}/>
+        </div>
+      </div>
+
+      {msg && <div style={{padding:'8px 14px',borderRadius:'var(--r-sm)',marginBottom:12,
+        background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12,fontWeight:500}}>{msg.text}</div>}
+
+      {loading ? <div className="loading-screen" style={{height:300}}><div className="spinner"/></div> : <>
+
+      {/* KPIs */}
+      {sys && (
+        <div className="metrics" style={{gridTemplateColumns:'repeat(4,minmax(0,1fr))',marginBottom:10}}>
+          {[
+            {label:'Ventas del día',  val:sys.totalVentas,  color:'#378ADD'},
+            {label:'Unidades',        val:sys.totalUds,     color:'#1D9E75', uds:true},
+            {label:'Gastos del día',  val:sys.totalGastos,  color:'#E24B4A'},
+            {label:'Utilidad del día',val:sys.utilidad,     color:sys.utilidad>=0?'#1D9E75':'#E24B4A'},
+          ].map(k=>(
+            <div key={k.label} className="mc">
+              <div className="mc-label">{k.label}</div>
+              <div className="mc-value" style={{color:k.color,fontSize:16}}>{k.uds?Math.round(k.val)+' uds':fmtM(k.val)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* TOTALES POR CANAL — siempre visible */}
+      {sys && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,marginBottom:14}}>
+          {/* Efectivo */}
+          <div style={{background:'#E6F1FB',borderRadius:'var(--r-lg)',padding:'14px 16px',border:'0.5px solid #B5D4F4'}}>
+            <div style={{fontSize:11,color:'#185FA5',fontWeight:600,marginBottom:6}}>💵 Efectivo</div>
+            <div style={{fontSize:22,fontWeight:700,color:'#185FA5',marginBottom:8}}>{fmtM(sys.teorEfvo)}</div>
+            <div style={{fontSize:11,color:'#378ADD',lineHeight:1.8}}>
+              <div>S.inicial: {fmtM(sys.saldoInicialEfvo)}</div>
+              <div>+ Ventas: {fmtM(sys.ventasEfvo)}</div>
+              <div>− Gastos: {fmtM(sys.gastosEfvo)}</div>
+            </div>
+            <div style={{marginTop:6,paddingTop:6,borderTop:'0.5px solid #B5D4F4',fontSize:10,fontWeight:600,color:'#185FA5'}}>
+              Debe haber: {fmtM(sys.teorEfvo)}
+            </div>
+          </div>
+          {/* Tarjeta */}
+          <div style={{background:'#EEEDFE',borderRadius:'var(--r-lg)',padding:'14px 16px',border:'0.5px solid #AFA9EC'}}>
+            <div style={{fontSize:11,color:'#534AB7',fontWeight:600,marginBottom:6}}>💳 Tarjeta</div>
+            <div style={{fontSize:22,fontWeight:700,color:'#534AB7',marginBottom:8}}>{fmtM(sys.teorTc)}</div>
+            <div style={{fontSize:11,color:'#7F77DD',lineHeight:1.9}}>
+              <div>S.inicial: {fmtM(sys.saldoInicialTc)}</div>
+              <div>+ Ventas: {fmtM(sys.ventasTc)}</div>
+              <div>− Gastos: {fmtM(sys.gastosTc)}</div>
+              {sys.comisionesTc>0 && <div style={{color:'#E24B4A'}}>− Comisiones: {fmtM(sys.comisionesTc)}</div>}
+            </div>
+            <div style={{marginTop:6,paddingTop:6,borderTop:'0.5px solid #AFA9EC',fontSize:10,fontWeight:600,color:'#534AB7'}}>
+              Debe reportar: {fmtM(sys.teorTc)}
+              {sys.comisionesTc>0 && <span style={{color:'#E24B4A',marginLeft:6}}>Neto: {fmtM(sys.teorTc-sys.comisionesTc)}</span>}
+            </div>
+          </div>
+          {/* Plataformas */}
+          <div style={{background:'#FCEBEB',borderRadius:'var(--r-lg)',padding:'14px 16px',border:'0.5px solid #F09595'}}>
+            <div style={{fontSize:11,color:'#A32D2D',fontWeight:600,marginBottom:6}}>🛵 Plataformas</div>
+            <div style={{fontSize:22,fontWeight:700,color:'#A32D2D',marginBottom:8}}>{fmtM(Object.values(sys.saldoActualPlat||{}).reduce((s,v)=>s+v,0))}</div>
+            <div style={{fontSize:11,color:'#E24B4A',lineHeight:1.9}}>
+              {PLAT_FIELDS.map(p=>{
+                const saldoAct = sys.saldoActualPlat?.[p.canal]||0
+                const saldoIni = sys.saldoIniPlat?.[p.canal]||0
+                const ventasHoy = sys.byCanal?.[p.canal]||0
+                return (
+                  <div key={p.canal} style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                    <span style={{color:'#A32D2D'}}>{p.label}</span>
+                    <div style={{textAlign:'right'}}>
+                      <span style={{fontWeight:600}}>{fmtM(saldoAct)}</span>
+                      {ventasHoy>0 && <span style={{fontSize:9,color:'#888',display:'block'}}>hoy: +{fmtM(ventasHoy)}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+              {sys.comisionesPlat>0 && (
+                <div style={{color:'#E24B4A',marginTop:4,paddingTop:4,borderTop:'0.5px solid #F09595'}}>
+                  − Comisiones: {fmtM(sys.comisionesPlat)}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* TOTAL */}
+          {(() => {
+            const totalPlat = Object.values(sys.saldoActualPlat||{}).reduce((s,v)=>s+v,0)
+            const totalGeneral = sys.teorEfvo + sys.teorTc + totalPlat
+            return (
+              <div style={{background:'#EAF3DE',borderRadius:'var(--r-lg)',padding:'14px 16px',border:'0.5px solid #C0DD97'}}>
+                <div style={{fontSize:11,color:'#3B6D11',fontWeight:600,marginBottom:6}}>💰 Total acumulado</div>
+                <div style={{fontSize:22,fontWeight:700,color:'#3B6D11',marginBottom:8}}>{fmtM(totalGeneral)}</div>
+                <div style={{fontSize:11,color:'#639922',lineHeight:1.8}}>
+                  <div>Efectivo: {fmtM(sys.teorEfvo)}</div>
+                  <div>Tarjeta: {fmtM(sys.teorTc)}</div>
+                  <div>Plataformas: {fmtM(totalPlat)}</div>
+                </div>
+                <div style={{marginTop:6,paddingTop:6,borderTop:'0.5px solid #C0DD97',fontSize:10,fontWeight:600,color:'#3B6D11'}}>
+                  Utilidad del día: {fmtM(sys.utilidad)}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* SALDO INICIAL MANUAL — cuando no hay cierre anterior */}
+      {sys && sys.saldoInicialEfvo===0 && sys.saldoInicialTc===0 && !cierre && (
+        <div style={{padding:'10px 14px',borderRadius:'var(--r-md)',marginBottom:14,background:'#FFF9E6',border:'0.5px solid #EF9F27',fontSize:11}}>
+          <div style={{fontWeight:600,color:'#8A5A00',marginBottom:8}}>⚠ Sin cierre anterior — captura el saldo inicial de hoy</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div className="form-group">
+              <div className="form-label">Saldo inicial efectivo</div>
+              <input className="form-input" type="number" placeholder="0"
+                value={form.saldo_inicial_efvo_manual||''}
+                onChange={e=>{
+                  const v = parseFloat(e.target.value)||0
+                  setForm(f=>({...f, saldo_inicial_efvo_manual:e.target.value}))
+                  setSys(s=>({...s,
+                    saldoInicialEfvo:v,
+                    teorEfvo:v+s.ventasEfvo-s.gastosEfvo
+                  }))
+                }}/>
+            </div>
+            <div className="form-group">
+              <div className="form-label">Saldo inicial tarjeta</div>
+              <input className="form-input" type="number" placeholder="0"
+                value={form.saldo_inicial_tc_manual||''}
+                onChange={e=>{
+                  const v = parseFloat(e.target.value)||0
+                  setForm(f=>({...f, saldo_inicial_tc_manual:e.target.value}))
+                  setSys(s=>({...s,
+                    saldoInicialTc:v,
+                    teorTc:v+s.ventasTc-s.gastosTc
+                  }))
+                }}/>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CIERRE ── */}
+      {tab==='cierre' && sys && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {/* CONTEO FÍSICO */}
+          <div className="card">
+            <div className="ct" style={{marginBottom:14}}>Conteo físico de caja</div>
+
+            {/* Efectivo */}
+            <div style={{fontSize:11,fontWeight:600,color:'#378ADD',marginBottom:6}}>💵 Efectivo</div>
+            <div style={{padding:'10px 12px',background:'#E6F1FB',borderRadius:'var(--r-sm)',marginBottom:10,fontSize:12,lineHeight:2}}>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>Saldo inicial</span><strong>{fmtM(sys.saldoInicialEfvo)}</strong>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>+ Ventas efectivo</span><strong style={{color:'#1D9E75'}}>{fmtM(sys.ventasEfvo)}</strong>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>− Gastos efectivo</span><strong style={{color:'#E24B4A'}}>{fmtM(sys.gastosEfvo)}</strong>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid #B5D4F4',marginTop:4,paddingTop:4}}>
+                <span style={{fontWeight:700}}>Debe haber en caja</span>
+                <strong style={{color:'#185FA5',fontSize:14}}>{fmtM(sys.teorEfvo)}</strong>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+              {inp('efvo_billetes','Billetes contados')}
+              {inp('efvo_monedas','Monedas contadas')}
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'8px 12px',
+              background:Math.abs(difEfvo)<1?'#EAF3DE':difEfvo>0?'#EAF3DE':'#FCEBEB',
+              borderRadius:'var(--r-sm)',marginBottom:10}}>
+              <span>Total contado: <strong>{fmtM(efvoReal)}</strong></span>
+              <span style={{fontWeight:700,color:difColor(difEfvo)}}>{difLabel(difEfvo)}</span>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+              {inp('ajuste_efvo','Ajuste efectivo (+/−)','ej. −500 retiro')}
+              {inp('ajuste_efvo_nota','Motivo del ajuste','Retiro, depósito...','text')}
+            </div>
+            {n('ajuste_efvo')!==0 && (
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'6px 12px',
+                background:'#FFF9E6',borderRadius:'var(--r-sm)',marginBottom:14,border:'0.5px solid #EF9F27'}}>
+                <span>Saldo final con ajuste</span>
+                <strong style={{color:'#EF9F27'}}>{fmtM(saldoFinalEfvo)}</strong>
+              </div>
+            )}
+
+            {/* Tarjeta */}
+            <div style={{fontSize:11,fontWeight:600,color:'#7F77DD',marginBottom:6,marginTop:6}}>💳 Tarjeta</div>
+            <div style={{padding:'10px 12px',background:'#EEEDFE',borderRadius:'var(--r-sm)',marginBottom:10,fontSize:12,lineHeight:2}}>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>Saldo inicial</span><strong>{fmtM(sys.saldoInicialTc)}</strong>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>+ Ventas tarjeta</span><strong style={{color:'#1D9E75'}}>{fmtM(sys.ventasTc)}</strong>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <span>− Gastos tarjeta</span><strong style={{color:'#E24B4A'}}>{fmtM(sys.gastosTc)}</strong>
+              </div>
+              {sys.gastosTransf>0 && (
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span>− Transferencias</span><strong style={{color:'#E24B4A'}}>{fmtM(sys.gastosTransf)}</strong>
+                </div>
+              )}
+              <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid #AFA9EC',marginTop:4,paddingTop:4}}>
+                <span style={{fontWeight:700}}>Debe reportar terminal</span>
+                <strong style={{color:'#534AB7',fontSize:14}}>{fmtM(sys.teorTc)}</strong>
+              </div>
+            </div>
+            <div style={{marginBottom:8}}>{inp('tc_reportado','Monto reportado en terminal')}</div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'8px 12px',
+              background:Math.abs(difTc)<1?'#EAF3DE':difTc>0?'#EAF3DE':'#FCEBEB',
+              borderRadius:'var(--r-sm)',marginBottom:10}}>
+              <span>Reportado: <strong>{fmtM(tcReal)}</strong></span>
+              <span style={{fontWeight:700,color:difColor(difTc)}}>{difLabel(difTc)}</span>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+              {inp('ajuste_tc','Ajuste tarjeta (+/−)','ej. −200 comisión')}
+              {inp('ajuste_tc_nota','Motivo del ajuste','Comisión, retiro...','text')}
+            </div>
+
+            {/* Plataformas */}
+            <div style={{fontSize:11,fontWeight:600,color:'#E24B4A',marginBottom:6,marginTop:6}}>🛵 Plataformas</div>
+            <div style={{padding:'10px 12px',background:'#FCEBEB',borderRadius:'var(--r-sm)',marginBottom:10,fontSize:11,lineHeight:1.8}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontWeight:600,marginBottom:4}}>
+                <span>Ventas POS (bruto)</span><strong style={{color:'#1D9E75'}}>{fmtM(sys.ventasPlat)}</strong>
+              </div>
+              {Object.entries(sys.byCanal)
+                .filter(([c])=>['Uber','Uber Chilakiles','DiDi','DiDi Chilakiles','Rappi','Ola'].includes(c))
+                .map(([c,v])=>(
+                  <div key={c} style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'#A32D2D'}}>
+                    <span>{c}</span><span>{fmtM(v)}</span>
+                  </div>
+                ))}
+            </div>
+
+            <div style={{fontSize:11,color:'var(--text2)',marginBottom:8,padding:'6px 10px',background:'#FFF9E6',borderRadius:'var(--r-sm)',border:'0.5px solid #EF9F27'}}>
+              💡 Captura lo que <strong>realmente deposita</strong> cada plataforma (ya descontadas sus comisiones)
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+              {PLAT_FIELDS.map(f2=>{
+                const ventasSistema = sys.byCanal?.[f2.canal]||0
+                const depositado = parseFloat(form[f2.id]||0)||0
+                const difPlat = depositado>0 ? depositado - ventasSistema : null
+                return (
+                  <div key={f2.id} className="form-group">
+                    <div className="form-label">{f2.label}</div>
+                    <input className="form-input" type="number" placeholder={ventasSistema>0?'POS: '+Math.round(ventasSistema):'0'}
+                      value={form[f2.id]} onChange={e=>setForm(f=>({...f,[f2.id]:e.target.value}))} disabled={esViewer}/>
+                    {depositado>0 && (
+                      <div style={{fontSize:10,marginTop:2,color:difColor(difPlat)}}>
+                        POS: {fmtM(ventasSistema)} · Dif: {difPlat>0?'+':''}{fmtM(difPlat)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Total diferencia plataformas */}
+            {platReal > 0 && (
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'8px 12px',
+                background:Math.abs(difPlat)<1?'#EAF3DE':'#FCEBEB',borderRadius:'var(--r-sm)',marginBottom:14,
+                border:`0.5px solid ${Math.abs(difPlat)<1?'#86C442':'#F09595'}`}}>
+                <span>Depositado real vs POS: <strong>{fmtM(platReal)}</strong></span>
+                <span style={{fontWeight:700,color:difColor(difPlat)}}>Dif: {difPlat>0?'+':''}{fmtM(difPlat)}</span>
+              </div>
+            )}
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+              {inp('notas','Notas','Observaciones...','text')}
+              {inp('cerrado_por','Cerrado por','Nombre','text')}
+            </div>
+
+            {!esViewer && (
+              <button className="btn btn-primary" style={{width:'100%',padding:10}} onClick={handleSave} disabled={saving}>
+                {saving?'Guardando...':(cierre?'Actualizar cierre':'Guardar cierre del día')}
+              </button>
+            )}
+          </div>
+
+          {/* RESUMEN CASHFLOW */}
+          <div className="card">
+            <div className="ct" style={{marginBottom:14}}>Resumen cashflow del día</div>
+
+            {/* Efectivo */}
+            <div style={{marginBottom:12,padding:12,background:'var(--bg)',borderRadius:'var(--r-md)'}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#378ADD',marginBottom:8}}>💵 Efectivo</div>
+              <CashRow label="Saldo inicial"     val={sys.saldoInicialEfvo}/>
+              <CashRow label="+ Ventas efectivo" val={sys.ventasEfvo}  color="#1D9E75"/>
+              <CashRow label="− Gastos efectivo" val={-sys.gastosEfvo} color="#E24B4A"/>
+              <CashRow label="= Saldo teórico"   val={sys.teorEfvo}    color="#378ADD" bold border/>
+              <CashRow label="Conteo físico"      val={efvoReal}        bold/>
+              <CashRow label="Diferencia"         val={difEfvo}         color={difColor(difEfvo)} bold/>
+              {n('ajuste_efvo')!==0 && <CashRow label="Ajuste" val={n('ajuste_efvo')} color="#EF9F27"/>}
+              <CashRow label="Saldo final"        val={saldoFinalEfvo}  color="#378ADD" bold/>
+            </div>
+
+            {/* Tarjeta */}
+            <div style={{marginBottom:12,padding:12,background:'var(--bg)',borderRadius:'var(--r-md)'}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#7F77DD',marginBottom:8}}>💳 Tarjeta</div>
+              <CashRow label="Saldo inicial"    val={sys.saldoInicialTc}/>
+              <CashRow label="+ Ventas tarjeta" val={sys.ventasTc}  color="#1D9E75"/>
+              <CashRow label="− Gastos tarjeta" val={-sys.gastosTc} color="#E24B4A"/>
+              <CashRow label="= Saldo teórico"  val={sys.teorTc}    color="#7F77DD" bold border/>
+              <CashRow label="Reportado terminal" val={tcReal}       bold/>
+              <CashRow label="Diferencia"        val={difTc}         color={difColor(difTc)} bold/>
+              <CashRow label="Saldo final"       val={saldoFinalTc}  color="#7F77DD" bold/>
+            </div>
+
+            {/* Plataformas */}
+            <div style={{marginBottom:12,padding:12,background:'var(--bg)',borderRadius:'var(--r-md)'}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#E24B4A',marginBottom:8}}>🛵 Plataformas</div>
+              <CashRow label="Ventas POS (bruto)" val={sys.ventasPlat} color="#1D9E75"/>
+              <CashRow label="Depositado real"    val={platReal}       bold/>
+              <CashRow label="Diferencia (comisiones)" val={difPlat}   color={difColor(difPlat)} bold border/>
+              {PLAT_FIELDS.map(f2=>{
+                const pos = sys.byCanal?.[f2.canal]||0
+                const dep = parseFloat(form[f2.id]||0)||0
+                if (pos===0 && dep===0) return null
+                return (
+                  <div key={f2.canal} style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:3}}>
+                    <span>{f2.label}</span>
+                    <span>POS: {fmtM(pos)} → Dep: {fmtM(dep)} {dep>0&&pos>0?'('+Math.round((pos-dep)/pos*100)+'% com.)':''}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Estado */}
+            <div style={{padding:12,borderRadius:'var(--r-md)',
+              background:Math.abs(difEfvo)+Math.abs(difTc)+Math.abs(difPlat)<3?'#EAF3DE':'#FCEBEB',
+              border:`0.5px solid ${Math.abs(difEfvo)+Math.abs(difTc)+Math.abs(difPlat)<3?'#86C442':'#E24B4A'}`}}>
+              <div style={{fontSize:12,fontWeight:600,
+                color:Math.abs(difEfvo)+Math.abs(difTc)+Math.abs(difPlat)<3?'#3B6D11':'#A32D2D'}}>
+                {Math.abs(difEfvo)+Math.abs(difTc)+Math.abs(difPlat)<3
+                  ? '✓ Caja cuadrada — todo en orden'
+                  : `⚠ Efvo: ${difLabel(difEfvo)} · TC: ${difLabel(difTc)} · Plat: ${difLabel(difPlat)}`}
+              </div>
+              {cierre && <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>
+                Guardado{cierre.cerrado_por?' por '+cierre.cerrado_por:''}
+              </div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CASHFLOW ACUMULADO ── */}
+      {tab==='cashflow' && (
+        <div className="card">
+          <div className="ch"><div className="ct">Cashflow acumulado por canal</div>
+            <span style={{fontSize:11,color:'var(--text3)'}}>Últimos 30 días</span></div>
+          {historial.length===0
+            ? <div style={{textAlign:'center',padding:'40px 0',color:'var(--text3)'}}>Sin cierres registrados</div>
+            : <div style={{overflowX:'auto'}}>
+                <table className="tbl" style={{minWidth:900}}>
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th className="num">S.Ini Efvo</th>
+                      <th className="num">+Ventas</th>
+                      <th className="num">−Gastos</th>
+                      <th className="num">Teórico</th>
+                      <th className="num">Real Efvo</th>
+                      <th className="num">Dif Efvo</th>
+                      <th className="num" style={{color:'#378ADD'}}>S.Final Efvo</th>
+                      <th className="num">TC Real</th>
+                      <th className="num">Plat</th>
+                      <th className="num">Utilidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historial.map(c=>(
+                      <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>{setFecha(c.fecha);setTab('cierre')}}>
+                        <td style={{whiteSpace:'nowrap',fontSize:11,fontWeight:500}}>
+                          {new Date(c.fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'})}
+                        </td>
+                        <td className="num" style={{fontSize:11}}>{fmtM(c.saldo_inicial_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11,color:'#1D9E75'}}>{fmtM(c.sys_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11,color:'#E24B4A'}}>{fmtM(c.gastos_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11,color:'#378ADD'}}>{fmtM(c.teor_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11,fontWeight:600}}>{fmtM(c.efvo_real||0)}</td>
+                        <td className="num" style={{fontSize:11,fontWeight:600,color:difColor(c.dif_efvo||0)}}>{difLabel(c.dif_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11,fontWeight:700,color:'#378ADD'}}>{fmtM(c.saldo_final_efvo||0)}</td>
+                        <td className="num" style={{fontSize:11}}>{fmtM(c.tc_real||0)}</td>
+                        <td className="num" style={{fontSize:11}}>{fmtM(c.plat_real||0)}</td>
+                        <td className="num" style={{fontSize:11,fontWeight:600,color:(c.sys_total-c.gastos_total)>=0?'#1D9E75':'#E24B4A'}}>
+                          {fmtM((c.sys_total||0)-(c.gastos_total||0))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{fontWeight:700}}>
+                      <td>TOTAL</td>
+                      <td className="num">—</td>
+                      <td className="num" style={{color:'#1D9E75'}}>{fmtM(historial.reduce((s,c)=>s+(c.sys_efvo||0),0))}</td>
+                      <td className="num" style={{color:'#E24B4A'}}>{fmtM(historial.reduce((s,c)=>s+(c.gastos_efvo||0),0))}</td>
+                      <td className="num">—</td>
+                      <td className="num">{fmtM(historial.reduce((s,c)=>s+(c.efvo_real||0),0))}</td>
+                      <td className="num">—</td>
+                      <td className="num" style={{color:'#378ADD'}}>—</td>
+                      <td className="num">{fmtM(historial.reduce((s,c)=>s+(c.tc_real||0),0))}</td>
+                      <td className="num">{fmtM(historial.reduce((s,c)=>s+(c.plat_real||0),0))}</td>
+                      <td className="num" style={{color:'#1D9E75'}}>{fmtM(historial.reduce((s,c)=>s+((c.sys_total||0)-(c.gastos_total||0)),0))}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+          }
+        </div>
+      )}
+
+      {/* ── TRASPASOS ── */}
+      {tab==='traspasos' && (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {/* NUEVO TRASPASO */}
+          <div className="card">
+            <div className="ct" style={{marginBottom:14}}>Registrar traspaso</div>
+            <div style={{fontSize:11,color:'var(--text2)',marginBottom:14,lineHeight:1.7}}>
+              Mueve dinero entre cuentas — efectivo a banco, cobro de plataforma, depósito, etc.
+              Los traspasos afectan el saldo final de cada cuenta al cerrar el día.
+            </div>
+
+            <div className="form-group" style={{marginBottom:10}}>
+              <div className="form-label">Origen (de dónde sale)</div>
+              <select className="form-input" value={fTraspaso.origen} onChange={e=>setFTraspaso(x=>({...x,origen:e.target.value}))}>
+                <option>Efectivo</option>
+                <option>Tarjeta</option>
+                <option>Uber Eats</option>
+                <option>Uber Chilakiles</option>
+                <option>DiDi Food</option>
+                <option>DiDi Chilakiles</option>
+                <option>Rappi</option>
+                <option>Ola</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom:10}}>
+              <div className="form-label">Destino (a dónde va)</div>
+              <select className="form-input" value={fTraspaso.destino} onChange={e=>setFTraspaso(x=>({...x,destino:e.target.value}))}>
+                <option>Tarjeta</option>
+                <option>Efectivo</option>
+                <option>Banco (fuera del sistema)</option>
+                <option>Uber Eats</option>
+                <option>Uber Chilakiles</option>
+                <option>DiDi Food</option>
+                <option>DiDi Chilakiles</option>
+                <option>Rappi</option>
+                <option>Ola</option>
+              </select>
+            </div>
+
+            <div className="form-group" style={{marginBottom:10}}>
+              <div className="form-label">Monto</div>
+              <input className="form-input" type="number" placeholder="0" value={fTraspaso.monto}
+                onChange={e=>setFTraspaso(x=>({...x,monto:e.target.value}))}/>
+            </div>
+
+            <div className="form-group" style={{marginBottom:14}}>
+              <div className="form-label">Concepto</div>
+              <input className="form-input" type="text" placeholder="Depósito a banco, cobro Uber, retiro..." value={fTraspaso.concepto}
+                onChange={e=>setFTraspaso(x=>({...x,concepto:e.target.value}))}/>
+            </div>
+
+            {fTraspaso.monto>0 && (
+              <div style={{padding:'10px 12px',background:'#E6F1FB',borderRadius:'var(--r-md)',marginBottom:14,fontSize:11}}>
+                <strong>{fTraspaso.origen}</strong> → <strong>{fTraspaso.destino}</strong>: <strong style={{color:'#185FA5'}}>{fmtM(parseFloat(fTraspaso.monto)||0)}</strong>
+              </div>
+            )}
+
+            {!esViewer && (
+              <button onClick={async()=>{
+                if (!fTraspaso.monto || !fTraspaso.concepto) return
+                setSavingTr(true)
+                const { error } = await sb.from('traspasos_caja').insert({
+                  fecha, origen:fTraspaso.origen, destino:fTraspaso.destino,
+                  monto:parseFloat(fTraspaso.monto)||0, concepto:fTraspaso.concepto
+                })
+                if (!error) {
+                  setFTraspaso(x=>({...x,monto:'',concepto:''}))
+                  loadTraspasos(fecha)
+                  loadSys(fecha)
+                }
+                setSavingTr(false)
+              }} disabled={savingTr||!fTraspaso.monto||!fTraspaso.concepto}
+                style={{width:'100%',padding:10,borderRadius:'var(--r-md)',border:'none',
+                  background:'#378ADD',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600}}>
+                {savingTr?'Registrando...':'Registrar traspaso'}
+              </button>
+            )}
+          </div>
+
+          {/* HISTORIAL TRASPASOS */}
+          <div className="card">
+            <div className="ch">
+              <div className="ct">Traspasos del día</div>
+              <span style={{fontSize:11,color:'var(--text3)'}}>{traspasos.length} movimientos</span>
+            </div>
+            {traspasos.length===0
+              ? <div style={{textAlign:'center',padding:'30px 0',color:'var(--text3)',fontSize:11}}>Sin traspasos registrados hoy</div>
+              : <table className="tbl">
+                  <thead><tr><th>Origen</th><th>Destino</th><th className="num">Monto</th><th>Concepto</th>{role==='admin'&&<th></th>}</tr></thead>
+                  <tbody>
+                    {traspasos.map(t=>(
+                      <tr key={t.id}>
+                        <td><span style={{fontSize:10,padding:'1px 8px',borderRadius:99,background:'#E6F1FB',color:'#185FA5'}}>{t.origen}</span></td>
+                        <td><span style={{fontSize:10,padding:'1px 8px',borderRadius:99,background:'#EAF3DE',color:'#3B6D11'}}>{t.destino}</span></td>
+                        <td className="num" style={{fontWeight:600}}>{fmtM(t.monto)}</td>
+                        <td style={{fontSize:11,color:'var(--text2)'}}>{t.concepto}</td>
+                        {role==='admin' && <td>
+                          <button onClick={async()=>{
+                            if (!confirm('¿Eliminar este traspaso?')) return
+                            await sb.from('traspasos_caja').delete().eq('id',t.id)
+                            loadTraspasos(fecha)
+                            loadSys(fecha)
+                          }} style={{fontSize:10,padding:'1px 7px',borderRadius:'var(--r-sm)',border:'0.5px solid #E24B4A',color:'#E24B4A',background:'transparent',cursor:'pointer'}}>✕</button>
+                        </td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{fontWeight:700}}>
+                      <td colSpan={2}>Total movido</td>
+                      <td className="num">{fmtM(traspasos.reduce((s,t)=>s+t.monto,0))}</td>
+                      <td colSpan={role==='admin'?2:1}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* ── HISTORIAL ── */}
+      {tab==='historial' && (
+        <div className="card">
+          <div className="ch"><div className="ct">Historial de cierres</div>
+            <span style={{fontSize:11,color:'var(--text3)'}}>{historial.length} registros</span></div>
+          <div style={{overflowX:'auto'}}>
+            <table className="tbl" style={{minWidth:700}}>
+              <thead>
+                <tr><th>Fecha</th><th className="num">Ventas</th><th className="num">Gastos</th>
+                  <th className="num">Utilidad</th><th className="num">Efvo real</th>
+                  <th className="num">TC real</th><th className="num">Plat real</th>
+                  <th>Estado</th><th>Cerrado por</th></tr>
+              </thead>
+              <tbody>
+                {historial.map(c=>{
+                  const dif=Math.abs(c.dif_efvo||0)+Math.abs(c.dif_tc||0)+Math.abs(c.dif_plat||0)
+                  return (
+                    <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>{setFecha(c.fecha);setTab('cierre')}}>
+                      <td style={{whiteSpace:'nowrap'}}>{new Date(c.fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'})}</td>
+                      <td className="num">{fmtM(c.sys_total)}</td>
+                      <td className="num">{fmtM(c.gastos_total)}</td>
+                      <td className="num" style={{color:(c.sys_total-c.gastos_total)>=0?'#1D9E75':'#E24B4A',fontWeight:600}}>{fmtM(c.sys_total-c.gastos_total)}</td>
+                      <td className="num">{fmtM(c.efvo_real||0)}</td>
+                      <td className="num">{fmtM(c.tc_real||0)}</td>
+                      <td className="num">{fmtM(c.plat_real||0)}</td>
+                      <td><span style={{fontSize:11,padding:'2px 8px',borderRadius:99,
+                        background:dif<3?'#EAF3DE':dif<100?'#FFF9E6':'#FCEBEB',
+                        color:dif<3?'#3B6D11':dif<100?'#8A5A00':'#A32D2D'}}>
+                        {dif<3?'Cuadrado':dif<100?'Dif menor':'Revisar'}</span></td>
+                      <td style={{fontSize:11,color:'var(--text2)'}}>{c.cerrado_por||'—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      </>}
+    </div>
+  )
+}

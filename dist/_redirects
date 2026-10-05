@@ -1,0 +1,6 @@
+/home      /landing.html   200
+/menu      /menu.html      200
+/encuesta  /encuesta.html  200
+/ERP       /index.html     200
+/ERP/*     /index.html     200
+/          /home           301

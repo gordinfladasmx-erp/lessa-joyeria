@@ -1,0 +1,767 @@
+import React, { useState, useEffect } from 'react'
+import { sb } from '../lib/supabase.js'
+import * as XLSX from 'xlsx'
+
+const today = () => new Date().toISOString().slice(0,10)
+const fmtD  = d => new Date(d+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+
+const TABLAS = [
+  { id:'ventas',             label:'Ventas',             desc:'Registros de ventas e ingresos',        color:'#378ADD' },
+  { id:'gastos',             label:'Gastos',             desc:'Registros de gastos y egresos',         color:'#E24B4A' },
+  { id:'comandas',           label:'Comandas',           desc:'Comandas del POS (abiertas y cobradas)', color:'#1D9E75' },
+  { id:'cierres_dia',        label:'Cierres de dia',     desc:'Registros de cierre y cuadratura',      color:'#EF9F27' },
+  { id:'inventario_maestro', label:'Almacén',            desc:'Movimientos de inventario unificado',   color:'#D85A30' },
+  { id:'produccion',         label:'Produccion (legacy)',desc:'Registros de produccion (tabla vieja)', color:'#7F77DD' },
+  { id:'inventario_diario',  label:'Inventario (legacy)',desc:'Inventario diario (tabla vieja)',        color:'#888780' },
+]
+
+export default function Admin() {
+  const [seccion, setSeccion] = useState('limpieza')
+  const [modo,    setModo]    = useState('fecha')   // fecha | rango
+  const [fecha,   setFecha]   = useState(today())
+  const [desde,   setDesde]   = useState(today())
+  const [hasta,   setHasta]   = useState(today())
+  const [tablas,  setTablas]  = useState({ventas:true,gastos:true,comandas:true,cierres_dia:false,produccion:false,inventario_diario:false})
+  const [loading, setLoading] = useState(false)
+  const [preview, setPreview] = useState(null)
+  const [confirm, setConfirm] = useState(false)
+  const [msg,     setMsg]     = useState(null)
+  const [log,     setLog]     = useState([])
+
+  const togTabla = t => setTablas(x=>({...x,[t]:!x[t]}))
+
+  const seleccionadas = TABLAS.filter(t=>tablas[t.id])
+
+  const previewDelete = async () => {
+    setLoading(true)
+    setPreview(null)
+    try {
+      const f1 = modo==='fecha' ? fecha : desde
+      const f2 = modo==='fecha' ? fecha : hasta
+      const counts = {}
+      for (const t of seleccionadas) {
+        const col = t.id === 'cierres_dia' ? 'fecha' : 'fecha'
+        const { count } = await sb.from(t.id).select('*',{count:'exact',head:true}).gte(col,f1).lte(col,f2)
+        counts[t.id] = count || 0
+      }
+      setPreview({ f1, f2, counts })
+      setConfirm(false)
+    } catch(e) { setMsg({ok:false,text:e.message}) }
+    setLoading(false)
+  }
+
+  const ejecutarDelete = async () => {
+    if (!preview) return
+    setLoading(true)
+    setConfirm(false)
+    try {
+      const deleted = {}
+      for (const t of seleccionadas) {
+        const { count } = await sb.from(t.id).select('*',{count:'exact',head:true}).gte('fecha',preview.f1).lte('fecha',preview.f2)
+        await sb.from(t.id).delete().gte('fecha',preview.f1).lte('fecha',preview.f2)
+        deleted[t.id] = count || 0
+      }
+      const entry = {
+        ts: new Date().toLocaleTimeString('es-MX'),
+        f1: preview.f1, f2: preview.f2,
+        tablas: seleccionadas.map(t=>t.label).join(', '),
+        counts: deleted,
+      }
+      setLog(l=>[entry,...l.slice(0,19)])
+      setMsg({ok:true, text:`Eliminados correctamente. ${Object.values(deleted).reduce((s,v)=>s+v,0)} registros borrados.`})
+      setPreview(null)
+    } catch(e) { setMsg({ok:false,text:e.message}) }
+    setLoading(false)
+    setTimeout(()=>setMsg(null),5000)
+  }
+
+  return (
+    <div>
+      {/* TABS */}
+      <div style={{display:'flex',gap:6,marginBottom:16}}>
+        {[{id:'limpieza',label:'Limpieza de datos'},{id:'comisiones',label:'Comisiones'},{id:'horarios',label:'Horarios'},{id:'usuarios',label:'Usuarios'},{id:'backup',label:'Backup'}].map(s=>(
+          <button key={s.id} onClick={()=>setSeccion(s.id)}
+            style={{padding:'6px 16px',borderRadius:'var(--r-md)',fontSize:12,fontWeight:500,cursor:'pointer',
+              border:`1.5px solid ${seccion===s.id?'var(--accent)':'var(--border-md)'}`,
+              background:seccion===s.id?'var(--accent)22':'transparent',
+              color:seccion===s.id?'var(--accent)':'var(--text2)'}}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {seccion==='usuarios' && <AdminUsuarios/>}
+      {seccion==='horarios' && <HorariosAdmin/>}
+      {seccion==='backup'   && <AdminBackup/>}
+      {seccion==='comisiones' && <AdminComisiones/>}
+
+      {seccion==='limpieza' && <>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:600,color:'#E24B4A'}}>⚠ Limpieza de datos</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>Solo visible para administradores. Las eliminaciones son permanentes e irreversibles.</div>
+      </div>
+
+      {msg && <div style={{padding:'9px 14px',borderRadius:'var(--r-md)',marginBottom:12,background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12,fontWeight:500}}>{msg.text}</div>}
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        {/* PANEL DE LIMPIEZA */}
+        <div className="card">
+          <div className="ct" style={{marginBottom:14}}>Eliminar datos de prueba</div>
+
+          {/* Modo */}
+          <div style={{display:'flex',gap:6,marginBottom:14}}>
+            {[{id:'fecha',label:'Fecha especifica'},{id:'rango',label:'Rango de fechas'}].map(m=>(
+              <button key={m.id} onClick={()=>setModo(m.id)}
+                style={{flex:1,padding:'7px 12px',borderRadius:'var(--r-sm)',fontSize:12,cursor:'pointer',fontWeight:500,
+                  border:`1.5px solid ${modo===m.id?'var(--accent)':'var(--border-md)'}`,
+                  background:modo===m.id?'var(--accent)22':'transparent',
+                  color:modo===m.id?'var(--accent)':'var(--text2)'}}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Fechas */}
+          {modo==='fecha' ? (
+            <div className="form-group" style={{marginBottom:14}}>
+              <div className="form-label">Fecha a limpiar</div>
+              <input className="form-input" type="date" value={fecha} onChange={e=>setFecha(e.target.value)}/>
+            </div>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+              <div className="form-group">
+                <div className="form-label">Desde</div>
+                <input className="form-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)}/>
+              </div>
+              <div className="form-group">
+                <div className="form-label">Hasta</div>
+                <input className="form-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)}/>
+              </div>
+            </div>
+          )}
+
+          {/* Tablas */}
+          <div style={{fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Tablas a limpiar</div>
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:14}}>
+            {TABLAS.map(t=>(
+              <div key={t.id} onClick={()=>togTabla(t.id)}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderRadius:'var(--r-sm)',
+                  border:`1px solid ${tablas[t.id]?t.color+'66':'var(--border)'}`,
+                  background:tablas[t.id]?t.color+'11':'var(--bg)',cursor:'pointer'}}>
+                <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${tablas[t.id]?t.color:'var(--border-md)'}`,
+                  background:tablas[t.id]?t.color:'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {tablas[t.id]&&<span style={{color:'#fff',fontSize:10,lineHeight:1}}>✓</span>}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:12,fontWeight:500,color:tablas[t.id]?t.color:'var(--text)'}}>{t.label}</div>
+                  <div style={{fontSize:10,color:'var(--text3)'}}>{t.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {seleccionadas.length===0 && <div style={{fontSize:11,color:'#E24B4A',marginBottom:10}}>Selecciona al menos una tabla.</div>}
+
+          <button className="btn" style={{width:'100%',padding:9,marginBottom:8,background:'var(--accent)',color:'#fff',border:'none',borderRadius:'var(--r-sm)',cursor:'pointer',fontSize:13,fontWeight:600}}
+            onClick={previewDelete} disabled={loading||seleccionadas.length===0}>
+            {loading?'Consultando...':'Ver cuantos registros se eliminaran'}
+          </button>
+
+          {/* Preview */}
+          {preview && (
+            <div style={{background:'#FFF9E6',border:'1px solid #EF9F27',borderRadius:'var(--r-md)',padding:14,marginTop:4}}>
+              <div style={{fontSize:12,fontWeight:600,color:'#8A5A00',marginBottom:8}}>
+                Registros a eliminar {preview.f1===preview.f2?`el ${fmtD(preview.f1)}`:`del ${preview.f1} al ${preview.f2}`}:
+              </div>
+              <table style={{width:'100%',fontSize:12}}>
+                <tbody>
+                  {seleccionadas.map(t=>(
+                    <tr key={t.id}>
+                      <td style={{padding:'2px 0',color:'var(--text)'}}>{t.label}</td>
+                      <td style={{textAlign:'right',fontWeight:600,color:preview.counts[t.id]>0?'#E24B4A':'var(--text3)'}}>{preview.counts[t.id]} registros</td>
+                    </tr>
+                  ))}
+                  <tr style={{borderTop:'1px solid #EF9F2744'}}>
+                    <td style={{padding:'6px 0',fontWeight:700}}>Total</td>
+                    <td style={{textAlign:'right',fontWeight:700,color:'#E24B4A'}}>{Object.values(preview.counts).reduce((s,v)=>s+v,0)} registros</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {!confirm ? (
+                <button onClick={()=>setConfirm(true)}
+                  style={{width:'100%',marginTop:10,padding:9,borderRadius:'var(--r-sm)',border:'none',background:'#E24B4A',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600}}>
+                  Eliminar permanentemente
+                </button>
+              ) : (
+                <div>
+                  <div style={{fontSize:11,color:'#A32D2D',margin:'8px 0',textAlign:'center',fontWeight:600}}>
+                    ¿Estas seguro? Esta accion NO se puede deshacer.
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <button onClick={()=>setConfirm(false)} style={{flex:1,padding:8,borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:12}}>Cancelar</button>
+                    <button onClick={ejecutarDelete} disabled={loading}
+                      style={{flex:2,padding:8,borderRadius:'var(--r-sm)',border:'none',background:'#A32D2D',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:700}}>
+                      {loading?'Eliminando...':'SI, ELIMINAR TODO'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* LOG */}
+        <div className="card">
+          <div className="ct" style={{marginBottom:14}}>Registro de eliminaciones</div>
+          {log.length===0
+            ? <div style={{color:'var(--text3)',fontSize:12,textAlign:'center',padding:'30px 0'}}>Sin eliminaciones en esta sesion</div>
+            : log.map((e,i)=>(
+                <div key={i} style={{padding:'10px 0',borderBottom:'0.5px solid var(--border)'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4}}>
+                    <span style={{fontWeight:600,color:'#E24B4A'}}>Eliminacion</span>
+                    <span style={{color:'var(--text3)'}}>{e.ts}</span>
+                  </div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginBottom:3}}>
+                    Fechas: {e.f1}{e.f1!==e.f2?' al '+e.f2:''}
+                  </div>
+                  <div style={{fontSize:11,color:'var(--text2)',marginBottom:3}}>Tablas: {e.tablas}</div>
+                  <div style={{fontSize:11,fontWeight:600,color:'#E24B4A'}}>
+                    {Object.values(e.counts).reduce((s,v)=>s+v,0)} registros eliminados
+                  </div>
+                </div>
+              ))
+          }
+
+          {/* Info util */}
+          <div style={{marginTop:16,padding:12,background:'var(--bg)',borderRadius:'var(--r-md)'}}>
+            <div style={{fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Atajos rapidos</div>
+            {[
+              { label:'Limpiar hoy (ventas+gastos+comandas)', onClick:()=>{setModo('fecha');setFecha(today());setTablas({ventas:true,gastos:true,comandas:true,cierres_dia:false,produccion:false,inventario_diario:false})} },
+              { label:'Limpiar hoy (produccion+inventario)', onClick:()=>{setModo('fecha');setFecha(today());setTablas({ventas:false,gastos:false,comandas:false,cierres_dia:false,produccion:true,inventario_diario:true})} },
+              { label:'Limpiar todo hoy', onClick:()=>{setModo('fecha');setFecha(today());setTablas({ventas:true,gastos:true,comandas:true,cierres_dia:true,produccion:true,inventario_diario:true})} },
+              { label:'Limpiar ayer', onClick:()=>{const d=new Date();d.setDate(d.getDate()-1);setModo('fecha');setFecha(d.toISOString().slice(0,10));setTablas({ventas:true,gastos:true,comandas:true,cierres_dia:false,produccion:false,inventario_diario:false})} },
+            ].map(a=>(
+              <button key={a.label} onClick={a.onClick}
+                style={{display:'block',width:'100%',marginBottom:6,padding:'6px 10px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:11,textAlign:'left',color:'var(--text2)'}}>
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      </>}
+    </div>
+  )
+}
+
+// ── MÓDULO DE USUARIOS ────────────────────────────────────────
+const ADMIN_FN = '/.netlify/functions/admin-users'
+const ROLES = ['admin','mesero','viewer']
+const ROLE_LABEL = { admin:'Administrador', mesero:'Mesero', viewer:'Solo lectura' }
+
+async function callAdminFn(body) {
+  const { data: { session } } = await sb.auth.getSession()
+  const token = session?.access_token
+  const res = await fetch(ADMIN_FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body)
+  })
+  return { res, data: await res.json() }
+}
+
+export function AdminUsuarios() {
+  const [usuarios,  setUsuarios]  = useState([])
+  const [loading,   setLoading]   = useState(false)
+  const [saving,    setSaving]    = useState(false)
+  const [msg,       setMsg]       = useState(null)
+  const [tab,       setTab]       = useState('lista')
+  const [form,      setForm]      = useState({ email:'', password:'', rol:'mesero' })
+
+  const loadUsuarios = async () => {
+    setLoading(true)
+    try {
+      const { res, data } = await callAdminFn({ action: 'list' })
+      if (!res.ok) throw new Error(data.error || 'Error al cargar usuarios')
+      const users = data.users || []
+      const { data: roles } = await sb.from('user_roles').select('user_id, role')
+      const roleMap = {}
+      ;(roles||[]).forEach(r => { roleMap[r.user_id] = r.role })
+      setUsuarios(users.map(u => ({ ...u, role: roleMap[u.id] || 'mesero' })))
+    } catch(e) { setMsg({ ok:false, text:e.message }) }
+    setLoading(false)
+  }
+
+  useEffect(()=>{ loadUsuarios() }, [])
+
+  const crearUsuario = async () => {
+    if (!form.email || !form.password) return setMsg({ ok:false, text:'Email y contraseña son obligatorios' })
+    if (form.password.length < 6) return setMsg({ ok:false, text:'La contraseña debe tener al menos 6 caracteres' })
+    setSaving(true)
+    try {
+      const { res, data: user } = await callAdminFn({
+        action: 'create',
+        userData: { email: form.email, password: form.password, email_confirm: true }
+      })
+      if (!res.ok) throw new Error(user.msg || user.message || user.error || 'Error al crear usuario')
+      await sb.from('user_roles').insert({ user_id: user.id, role: form.rol, nombre: ROLE_LABEL[form.rol] })
+      setMsg({ ok:true, text:`Usuario ${form.email} creado con rol ${ROLE_LABEL[form.rol]}` })
+      setForm({ email:'', password:'', rol:'mesero' })
+      setTab('lista')
+      loadUsuarios()
+    } catch(e) { setMsg({ ok:false, text:e.message }) }
+    setSaving(false)
+    setTimeout(()=>setMsg(null), 4000)
+  }
+
+  const cambiarRol = async (userId, nuevoRol) => {
+    setUsuarios(prev => prev.map(u => u.id===userId ? {...u, role:nuevoRol} : u))
+    const { error } = await sb.from('user_roles')
+      .upsert({ user_id: userId, role: nuevoRol, nombre: ROLE_LABEL[nuevoRol] }, { onConflict: 'user_id' })
+    if (error) {
+      setMsg({ ok:false, text:'Error: '+error.message })
+      loadUsuarios()
+    } else {
+      setMsg({ ok:true, text:'Rol actualizado' })
+      setTimeout(()=>setMsg(null), 2000)
+    }
+  }
+
+  const eliminarUsuario = async (userId, email) => {
+    if (!confirm(`¿Eliminar usuario ${email}? Esta acción no se puede deshacer.`)) return
+    const { res } = await callAdminFn({ action: 'delete', userId })
+    if (res.ok) {
+      await sb.from('user_roles').delete().eq('user_id', userId)
+      loadUsuarios()
+    }
+  }
+
+  const ROLE_COLOR = { admin:'#1D9E75', mesero:'#378ADD', viewer:'#888780', 'sin rol':'#E24B4A' }
+
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
+        <div className="period-sw">
+          <button className={`psw-btn${tab==='lista'?' active':''}`} onClick={()=>setTab('lista')}>Usuarios</button>
+          <button className={`psw-btn${tab==='nuevo'?' active':''}`} onClick={()=>setTab('nuevo')}>+ Nuevo usuario</button>
+        </div>
+      </div>
+
+      {msg && <div style={{padding:'9px 14px',borderRadius:'var(--r-md)',marginBottom:12,background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12,fontWeight:500}}>{msg.text}</div>}
+
+      {tab==='nuevo' && (
+        <div className="card" style={{maxWidth:420}}>
+          <div className="ch"><div className="ct">Crear nuevo usuario</div></div>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div>
+              <label style={{fontSize:11,color:'var(--text2)',display:'block',marginBottom:4}}>Email</label>
+              <input className="form-input" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="usuario@chilakileando.com" style={{width:'100%'}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--text2)',display:'block',marginBottom:4}}>Contraseña (mínimo 6 caracteres)</label>
+              <input className="form-input" type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))} placeholder="••••••••" style={{width:'100%'}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--text2)',display:'block',marginBottom:4}}>Rol</label>
+              <select className="form-input" value={form.rol} onChange={e=>setForm(f=>({...f,rol:e.target.value}))} style={{width:'100%'}}>
+                {ROLES.map(r=><option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+              </select>
+              <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>
+                Admin: acceso total · Mesero: comanda y gastos · Solo lectura: dashboards y análisis
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={crearUsuario} disabled={saving} style={{flex:1,padding:9,borderRadius:'var(--r-md)',background:'var(--accent)',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:600}}>
+                {saving?'Creando...':'Crear usuario'}
+              </button>
+              <button onClick={()=>setTab('lista')} style={{padding:'9px 16px',borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13}}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab==='lista' && (
+        <div className="card">
+          <div className="ch"><div className="ct">Usuarios del sistema</div>
+            <div style={{fontSize:11,color:'var(--text2)'}}>{usuarios.length} usuarios</div>
+          </div>
+          {loading?<div className="loading-screen" style={{height:100}}><div className="spinner"/></div>
+          :<table className="tbl">
+            <thead><tr><th>Email</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+            <tbody>
+              {usuarios.map(u=>(
+                <tr key={u.id}>
+                  <td style={{fontSize:12,fontWeight:500}}>{u.email}</td>
+                  <td>
+                    <select value={ROLES.includes(u.role)?u.role:'mesero'} onChange={e=>cambiarRol(u.id,e.target.value)}
+                      style={{fontSize:11,padding:'2px 6px',borderRadius:'var(--r-sm)',border:`1px solid ${ROLE_COLOR[u.role]||'var(--border-md)'}`,background:'transparent',color:ROLE_COLOR[u.role]||'var(--text)',cursor:'pointer'}}>
+                      {ROLES.map(r=><option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                    </select>
+                  </td>
+                  <td style={{fontSize:11,color:'var(--text3)'}}>{u.created_at?new Date(u.created_at).toLocaleDateString('es-MX'):'-'}</td>
+                  <td>
+                    <button onClick={()=>eliminarUsuario(u.id,u.email)}
+                      style={{fontSize:11,padding:'2px 8px',borderRadius:'var(--r-sm)',border:'0.5px solid #E24B4A',color:'#E24B4A',background:'transparent',cursor:'pointer'}}>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── BACKUP ────────────────────────────────────────────────────
+async function fetchAllPages(table, select) {
+  const PAGE = 1000; let all=[], idx=0, done=false
+  while (!done) {
+    const { data } = await sb.from(table).select(select).order('fecha',{ascending:true}).range(idx,idx+PAGE-1)
+    all = all.concat(data||[])
+    if (!data||data.length<PAGE) done=true; else idx+=PAGE
+  }
+  return all
+}
+
+export function AdminBackup() {
+  const [loading,   setLoading]   = useState(false)
+  const [msg,       setMsg]       = useState(null)
+  const [ultimoBK,  setUltimoBK]  = useState(null)
+
+  useEffect(()=>{
+    const u = localStorage.getItem('ultimo_backup')
+    if (u) setUltimoBK(u)
+  },[])
+
+  const generarBackup = async () => {
+    setLoading(true); setMsg(null)
+    try {
+      const [ventas, ventasCat, gastos, inventario, produccion, cierres, productos] = await Promise.all([
+        fetchAllPages('ventas','id,fecha,producto,categoria,canal,metodo_pago,unidades,importe,cliente'),
+        fetchAllPages('ventas_cat','fecha,categoria,importe,unidades'),
+        fetchAllPages('gastos','id,fecha,concepto,categoria_gasto,proveedor,monto,metodo_pago,notas'),
+        fetchAllPages('inventario_diario','fecha,producto,tipo,cantidad_inicial,cantidad_producida,cantidad_vendida,cantidad_final'),
+        fetchAllPages('produccion','fecha,guiso,tipo,cantidad_litros,destino,notas'),
+        fetchAllPages('cierres_dia','fecha,sys_total,sys_tc,sys_plat,gastos_total,dif_efvo,dif_tc,cerrado_por,notas'),
+        sb.from('productos').select('codigo,nombre,precio_base,precio_extra,costo_unitario,activo,familias(nombre)').then(r=>r.data||[]),
+      ])
+
+      const wb = XLSX.utils.book_new()
+      const fecha = new Date().toISOString().slice(0,10)
+
+      // Resumen
+      const totV = ventas.reduce((s,r)=>s+(r.importe||0),0)
+      const totG = gastos.reduce((s,r)=>s+(r.monto||0),0)
+      const ws0 = XLSX.utils.aoa_to_sheet([
+        ['Backup Chilakileando ERP',''],
+        ['Generado',new Date().toLocaleString('es-MX')],
+        ['Total ventas',Math.round(totV)],
+        ['Total gastos',Math.round(totG)],
+        ['Utilidad',Math.round(totV-totG)],
+        ['Registros ventas',ventas.length],
+        ['Registros gastos',gastos.length],
+      ])
+      XLSX.utils.book_append_sheet(wb, ws0, 'Resumen')
+
+      // Ventas
+      if (ventas.length) {
+        const ws = XLSX.utils.json_to_sheet(ventas.map(r=>({
+          Fecha:r.fecha, Producto:r.producto, Categoria:r.categoria,
+          Canal:r.canal, Pago:r.metodo_pago, Uds:r.unidades, Importe:r.importe, Cliente:r.cliente||''
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Ventas')
+      }
+
+      // Ventas por categoría
+      if (ventasCat.length) {
+        const ws = XLSX.utils.json_to_sheet(ventasCat.map(r=>({
+          Fecha:r.fecha, Categoria:r.categoria, Importe:r.importe, Unidades:r.unidades
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Ventas por categoria')
+      }
+
+      // Gastos
+      if (gastos.length) {
+        const ws = XLSX.utils.json_to_sheet(gastos.map(r=>({
+          Fecha:r.fecha, Concepto:r.concepto, Categoria:r.categoria_gasto,
+          Proveedor:r.proveedor||'', Monto:r.monto, Pago:r.metodo_pago||'', Notas:r.notas||''
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Gastos')
+      }
+
+      // Inventario
+      if (inventario.length) {
+        const ws = XLSX.utils.json_to_sheet(inventario.map(r=>({
+          Fecha:r.fecha, Producto:r.producto, Tipo:r.tipo,
+          Inicial:r.cantidad_inicial, Producido:r.cantidad_producida,
+          Vendido:r.cantidad_vendida, Final:r.cantidad_final
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
+      }
+
+      // Produccion
+      if (produccion.length) {
+        const ws = XLSX.utils.json_to_sheet(produccion.map(r=>({
+          Fecha:r.fecha, Producto:r.guiso, Tipo:r.tipo,
+          Litros:r.cantidad_litros, Destino:r.destino, Notas:r.notas||''
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Produccion')
+      }
+
+      // Cierres
+      if (cierres.length) {
+        const ws = XLSX.utils.json_to_sheet(cierres.map(r=>({
+          Fecha:r.fecha, Ventas:r.sys_total, Gastos:r.gastos_total,
+          Utilidad:(r.sys_total||0)-(r.gastos_total||0),
+          'Dif Efvo':r.dif_efvo||0, 'Dif TC':r.dif_tc||0,
+          'Cerrado por':r.cerrado_por||'', Notas:r.notas||''
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Cierres')
+      }
+
+      // Precios
+      if (productos.length) {
+        const ws = XLSX.utils.json_to_sheet(productos.map(r=>({
+          Codigo:r.codigo||'', Nombre:r.nombre, Familia:r.familias?.nombre||'',
+          Precio:r.precio_base, 'Guiso extra':r.precio_extra||0,
+          Costo:r.costo_unitario||0, Activo:r.activo?'Sí':'No'
+        })))
+        XLSX.utils.book_append_sheet(wb, ws, 'Precios')
+      }
+
+      XLSX.writeFile(wb, `Chilakileando-Backup-${fecha}.xlsx`)
+      const ts = new Date().toLocaleString('es-MX')
+      localStorage.setItem('ultimo_backup', ts)
+      setUltimoBK(ts)
+      setMsg({ ok:true, text:`Backup descargado — ${wb.SheetNames.length} hojas · ${ventas.length} ventas · ${gastos.length} gastos` })
+    } catch(e) { setMsg({ ok:false, text:'Error: '+e.message }) }
+    setLoading(false)
+    setTimeout(()=>setMsg(null), 5000)
+  }
+
+  return (
+    <div>
+      {msg && <div style={{padding:'9px 14px',borderRadius:'var(--r-md)',marginBottom:12,
+        background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12}}>{msg.text}</div>}
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        {/* BACKUP MANUAL */}
+        <div className="card">
+          <div className="ch"><div className="ct">Backup manual</div></div>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:16,lineHeight:1.6}}>
+            Descarga un archivo Excel completo con todas las tablas del sistema:
+            ventas, gastos, inventario, producción, cierres y precios.
+          </div>
+          {ultimoBK && (
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:12,padding:'6px 10px',background:'var(--bg)',borderRadius:'var(--r-sm)'}}>
+              Último backup: {ultimoBK}
+            </div>
+          )}
+          <button onClick={generarBackup} disabled={loading}
+            style={{width:'100%',padding:12,borderRadius:'var(--r-md)',border:'none',
+              background:loading?'var(--border)':'var(--accent)',color:loading?'var(--text3)':'#fff',
+              cursor:loading?'not-allowed':'pointer',fontSize:13,fontWeight:600}}>
+            {loading?'⏳ Generando backup...':'⬇ Descargar backup completo'}
+          </button>
+        </div>
+
+        {/* BACKUP AUTOMÁTICO */}
+        <div className="card">
+          <div className="ch"><div className="ct">Backup automático semanal</div></div>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:12,lineHeight:1.6}}>
+            Se envía automáticamente cada lunes a las 6:00 AM al correo:
+          </div>
+          <div style={{padding:'8px 12px',background:'var(--bg)',borderRadius:'var(--r-md)',marginBottom:12,fontSize:12,fontWeight:600}}>
+            gordinfladasmx@gmail.com
+          </div>
+          <div style={{fontSize:11,color:'var(--text3)',marginBottom:16,lineHeight:1.5}}>
+            El backup incluye todos los datos hasta el domingo anterior.
+            Configurado vía Supabase Edge Functions + pg_cron.
+          </div>
+          <div style={{padding:'10px 12px',background:'#EAF3DE',borderRadius:'var(--r-md)',fontSize:11,color:'#3B6D11'}}>
+            ✓ Activo — próximo envío: lunes {(() => {
+              const d = new Date(); const day = d.getDay()
+              const diff = day===1?7:((1+7-day)%7)||7
+              d.setDate(d.getDate()+diff)
+              return d.toLocaleDateString('es-MX',{day:'numeric',month:'long'})
+            })()}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ADMIN COMISIONES ─────────────────────────────────────────
+function AdminComisiones() {
+  const [comisiones, setComisiones] = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [saving,     setSaving]     = useState(null)
+  const [msg,        setMsg]        = useState(null)
+
+  useEffect(() => {
+    sb.from('config_comisiones').select('*').order('id')
+      .then(({ data }) => { setComisiones(data||[]); setLoading(false) })
+  }, [])
+
+  const actualizar = async (id, porcentaje) => {
+    setSaving(id)
+    const { error } = await sb.from('config_comisiones')
+      .update({ porcentaje: parseFloat(porcentaje)||0, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) setMsg({ ok:false, text:'Error: '+error.message })
+    else {
+      setComisiones(prev => prev.map(c => c.id===id ? {...c, porcentaje:parseFloat(porcentaje)||0} : c))
+      setMsg({ ok:true, text:'Comisión actualizada' })
+      setTimeout(()=>setMsg(null), 3000)
+    }
+    setSaving(null)
+  }
+
+  if (loading) return <div className="loading-screen" style={{height:200}}><div className="spinner"/></div>
+
+  return (
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:600}}>Parametrización de comisiones</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>
+          Estos valores se usan en el cálculo de rentabilidad por canal y en el cobro de comandas.
+        </div>
+      </div>
+      {msg && <div style={{padding:'8px 14px',borderRadius:'var(--r-md)',marginBottom:12,
+        background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12}}>{msg.text}</div>}
+      <div className="card">
+        <table className="tbl">
+          <thead>
+            <tr><th>Canal / Concepto</th><th className="num">% actual</th><th className="num" style={{width:180}}>Nuevo %</th><th></th></tr>
+          </thead>
+          <tbody>
+            {comisiones.map(c => {
+              const [val, setVal] = [c._val, v => setComisiones(prev => prev.map(x => x.id===c.id?{...x,_val:v}:x))]
+              const inputVal = c._val !== undefined ? c._val : c.porcentaje
+              return (
+                <tr key={c.id}>
+                  <td style={{fontWeight:500}}>{c.label}</td>
+                  <td className="num">
+                    <span style={{padding:'2px 10px',borderRadius:99,fontSize:11,
+                      background:c.porcentaje>0?'#FCEBEB':'#EAF3DE',
+                      color:c.porcentaje>0?'#A32D2D':'#3B6D11',fontWeight:600}}>
+                      {c.porcentaje}%
+                    </span>
+                  </td>
+                  <td className="num">
+                    <input type="number" min="0" max="100" step="0.1"
+                      defaultValue={c.porcentaje}
+                      onChange={e => setComisiones(prev => prev.map(x => x.id===c.id?{...x,_val:e.target.value}:x))}
+                      style={{width:100,padding:'4px 8px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',
+                        fontSize:12,textAlign:'right',background:'var(--surface)',color:'var(--text1)'}}/>
+                    <span style={{fontSize:11,color:'var(--text2)',marginLeft:4}}>%</span>
+                  </td>
+                  <td>
+                    <button onClick={()=>actualizar(c.id, c._val!==undefined?c._val:c.porcentaje)}
+                      disabled={saving===c.id}
+                      style={{padding:'4px 12px',borderRadius:'var(--r-sm)',border:'none',
+                        background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>
+                      {saving===c.id?'…':'Guardar'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{marginTop:12,padding:'10px 14px',borderRadius:'var(--r-md)',background:'#EAF3DE',fontSize:11,color:'#3B6D11',lineHeight:1.7}}>
+        <strong>Los cambios aplican inmediatamente</strong> en:<br/>
+        • Gráficas de rentabilidad por categoría y canal<br/>
+        • Cálculo de neto al cobrar comandas con tarjeta<br/>
+        • Registro automático de comisiones como gastos
+      </div>
+    </div>
+  )
+}
+// ── HORARIOS DE TRABAJO ───────────────────────────────────────
+export function HorariosAdmin() {
+  const [horarios, setHorarios] = React.useState([])
+  const [saving,   setSaving]   = React.useState(null)
+  const [msg,      setMsg]      = React.useState(null)
+
+  React.useEffect(() => {
+    sb.from('horarios').select('*').order('dia').then(({ data }) => {
+      if (data) setHorarios(data)
+    })
+  }, [])
+
+  const guardar = async (h) => {
+    setSaving(h.dia)
+    const { error } = await sb.from('horarios').update({
+      activo: h.activo, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin
+    }).eq('dia', h.dia)
+    if (error) setMsg({ ok:false, text:'Error: '+error.message })
+    else setMsg({ ok:true, text:'Horario actualizado' })
+    setSaving(null)
+    setTimeout(()=>setMsg(null), 3000)
+  }
+
+  const update = (dia, field, val) => {
+    setHorarios(prev => prev.map(h => h.dia===dia ? {...h, [field]:val} : h))
+  }
+
+  return (
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:14,fontWeight:600}}>Horarios de trabajo</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>
+          Fuera de estos horarios, los meseros no podrán acceder al sistema.
+        </div>
+      </div>
+      {msg && <div style={{padding:'8px 14px',borderRadius:'var(--r-md)',marginBottom:12,
+        background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12}}>{msg.text}</div>}
+      <div className="card">
+        <table className="tbl">
+          <thead>
+            <tr><th>Día</th><th>Abierto</th><th>Apertura</th><th>Cierre</th><th></th></tr>
+          </thead>
+          <tbody>
+            {horarios.map(h => (
+              <tr key={h.dia}>
+                <td style={{fontWeight:500}}>{h.dia_nombre}</td>
+                <td>
+                  <input type="checkbox" checked={h.activo}
+                    onChange={e=>update(h.dia,'activo',e.target.checked)}
+                    style={{width:16,height:16,cursor:'pointer'}}/>
+                </td>
+                <td>
+                  <input type="time" value={h.hora_inicio} disabled={!h.activo}
+                    onChange={e=>update(h.dia,'hora_inicio',e.target.value)}
+                    style={{padding:'4px 8px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',
+                      fontSize:12,background:'var(--surface)',color:'var(--text1)',opacity:h.activo?1:0.4}}/>
+                </td>
+                <td>
+                  <input type="time" value={h.hora_fin} disabled={!h.activo}
+                    onChange={e=>update(h.dia,'hora_fin',e.target.value)}
+                    style={{padding:'4px 8px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',
+                      fontSize:12,background:'var(--surface)',color:'var(--text1)',opacity:h.activo?1:0.4}}/>
+                </td>
+                <td>
+                  <button onClick={()=>guardar(h)} disabled={saving===h.dia}
+                    style={{padding:'4px 12px',borderRadius:'var(--r-sm)',border:'none',
+                      background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>
+                    {saving===h.dia?'…':'Guardar'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+

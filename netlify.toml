@@ -1,0 +1,58 @@
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  directory = "netlify/functions"
+
+# ── Security Headers — todas las rutas ──────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Clickjacking: impide que la app se cargue en cualquier iframe
+    X-Frame-Options = "DENY"
+
+    # MIME-sniffing: el navegador respeta el Content-Type declarado
+    X-Content-Type-Options = "nosniff"
+
+    # Solo envía el origin en el Referer (no la URL completa)
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # HSTS: fuerza HTTPS por 1 año
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+    # Deshabilita APIs de browser que no se usan
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()"
+
+    # Cross-Origin Opener Policy — protege de ataques Spectre cross-origin
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+
+    # Cross-Origin Resource Policy — solo este origen puede usar los recursos
+    Cross-Origin-Resource-Policy = "same-origin"
+
+    # CSP principal:
+    #   script-src  → solo este dominio; unsafe-inline necesario por Vite/React
+    #   style-src   → unsafe-inline necesario por Tailwind/inline styles
+    #   connect-src → solo Supabase (REST + Realtime WS) + Netlify functions propias
+    #   img-src     → data: (íconos inline), blob: (previews), https: (storage Supabase)
+    #   frame-ancestors 'none' ← refuerza X-Frame-Options en browsers modernos
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://awards.infcdn.net https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https://hcxnpcxvcdqzcxdvjjey.supabase.co wss://hcxnpcxvcdqzcxdvjjey.supabase.co https://api.anthropic.com; font-src 'self' data: https://awards.infcdn.net https://fonts.gstatic.com; frame-src https://maps.google.com https://www.google.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+
+# ── Netlify Functions — CORS reforzado ──────────────────────────────────
+# Las functions ya incluyen CORS headers en el handler;
+# este bloque agrega los de preflight a nivel CDN.
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin  = "https://chilakileando-erp.netlify.app"
+    Access-Control-Allow-Methods = "GET, POST, PATCH, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Max-Age       = "86400"

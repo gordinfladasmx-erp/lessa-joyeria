@@ -1,0 +1,280 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { sb } from '../lib/supabase.js'
+
+const ESTADO_COLOR = {
+  abierta: '#378ADD', en_cocina: '#EF9F27', lista: '#1D9E75',
+  pendiente_pago: '#7F77DD', cobrada: '#888'
+}
+const ESTADO_LABEL = {
+  abierta: 'Abierta', en_cocina: '🔥 En cocina',
+  lista: '✓ Lista', pendiente_pago: '💳 Pago pendiente', cobrada: 'Cobrada'
+}
+const TIPO_COLOR = { mesa: '#378ADD', llevar: '#EF9F27', plataforma: '#7F77DD' }
+const TIPO_LABEL = { mesa: '🪑 Mesa', llevar: '🛍 Llevar', plataforma: '🛵 Plataforma' }
+
+const fmtM = v => '$' + Math.round(v || 0).toLocaleString('es-MX')
+
+function tiempoTranscurrido(fecha) {
+  if (!fecha) return ''
+  const mins = Math.floor((Date.now() - new Date(fecha)) / 60000)
+  if (mins < 1) return 'Ahora'
+  if (mins < 60) return mins + ' min'
+  return Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm'
+}
+
+function colorTiempo(fecha, estado) {
+  if (!fecha || estado === 'lista' || estado === 'cobrada') return '#1D9E75'
+  const mins = Math.floor((Date.now() - new Date(fecha)) / 60000)
+  if (mins > 20) return '#E24B4A'
+  if (mins > 12) return '#EF9F27'
+  return '#1D9E75'
+}
+
+function ComandaCard({ comanda, onCambiarEstado }) {
+  const items = comanda.items || []
+  const total = items.reduce((s, i) => s + (i.subtotal || 0), 0)
+  const tiempoRef = comanda.enviado_cocina_at || comanda.created_at
+  const ctColor = colorTiempo(tiempoRef, comanda.estado)
+
+  return (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 'var(--r-lg)',
+      border: `2px solid ${ESTADO_COLOR[comanda.estado] || '#ccc'}`,
+      padding: 14, marginBottom: 10
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+            <span style={{
+              fontSize: 13, fontWeight: 700, color: TIPO_COLOR[comanda.tipo] || '#888',
+              background: (TIPO_COLOR[comanda.tipo] || '#888') + '18',
+              padding: '2px 8px', borderRadius: 99
+            }}>
+              {TIPO_LABEL[comanda.tipo] || comanda.tipo}
+              {comanda.tipo === 'mesa' && comanda.mesa ? ` ${comanda.mesa}` : ''}
+            </span>
+            {comanda.cliente && (
+              <span style={{ fontSize: 11, color: 'var(--text2)' }}>{comanda.cliente}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text3)' }}>
+            #{comanda.id?.slice(-4).toUpperCase()}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: ctColor }}>
+            ⏱ {tiempoTranscurrido(tiempoRef)}
+          </div>
+          <div style={{ fontSize: 11, color: ESTADO_COLOR[comanda.estado] || '#888', fontWeight: 600 }}>
+            {ESTADO_LABEL[comanda.estado] || comanda.estado}
+          </div>
+        </div>
+      </div>
+
+      {/* Items */}
+      <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: 8, marginBottom: 10 }}>
+        {items.map((item, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            marginBottom: 6, padding: '4px 0',
+            borderBottom: i < items.length - 1 ? '0.5px solid var(--border)' : 'none'
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>
+                {item.qty > 1 && <span style={{ color: '#E24B4A', marginRight: 4 }}>{item.qty}x</span>}
+                {item.plato?.nombre || item.nombre || '—'}
+              </div>
+              {item.desc && (
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, lineHeight: 1.4 }}>
+                  {item.desc}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: item.subtotal === 0 ? '#1D9E75' : 'var(--text1)', marginLeft: 8 }}>
+              {item.subtotal === 0 ? 'GRATIS' : fmtM(item.subtotal)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Total */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: 'var(--text2)' }}>Total</span>
+        <strong style={{ fontSize: 14 }}>{fmtM(total)}</strong>
+      </div>
+
+      {/* Acciones */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {comanda.estado === 'abierta' && (
+          <button onClick={() => onCambiarEstado(comanda.id, 'en_cocina')}
+            style={{ flex: 1, padding: '7px 0', borderRadius: 'var(--r-sm)', border: 'none', background: '#EF9F27', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            🔥 Enviar a cocina
+          </button>
+        )}
+        {comanda.estado === 'en_cocina' && (
+          <button onClick={() => onCambiarEstado(comanda.id, 'lista')}
+            style={{ flex: 1, padding: '7px 0', borderRadius: 'var(--r-sm)', border: 'none', background: '#1D9E75', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            ✓ Marcar lista
+          </button>
+        )}
+        {comanda.estado === 'lista' && (
+          <div style={{ flex: 1, padding: '7px 0', borderRadius: 'var(--r-sm)', background: '#EAF3DE', color: '#3B6D11', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>
+            ✓ Lista para entregar
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function KDS() {
+  const [comandas, setComandas] = useState([])
+  const [filtroTipo, setFiltroTipo] = useState('todos')
+  const [filtroEstado, setFiltroEstado] = useState('activas')
+  const [loading, setLoading] = useState(true)
+  const [, setTick] = useState(0)
+
+  const load = useCallback(async () => {
+    const { data } = await sb.from('comandas_activas')
+      .select('*')
+      .not('estado', 'eq', 'eliminada')
+      .not('estado', 'eq', 'cobrada')
+      .order('created_at', { ascending: true })
+    setComandas(data || [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  // Realtime
+  useEffect(() => {
+    const ch = sb.channel('kds-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comandas_activas' }, load)
+      .subscribe()
+    return () => sb.removeChannel(ch)
+  }, [load])
+
+  // Timer para actualizar tiempos
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  const cambiarEstado = async (id, nuevoEstado) => {
+    const updates = { estado: nuevoEstado, updated_at: new Date().toISOString() }
+    if (nuevoEstado === 'en_cocina') updates.enviado_cocina_at = new Date().toISOString()
+    await sb.from('comandas_activas').update(updates).eq('id', id)
+    setComandas(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c))
+  }
+
+  const tipos = ['todos', 'mesa', 'llevar', 'plataforma']
+  const estados = ['activas', 'abierta', 'en_cocina', 'lista']
+
+  const filtradas = comandas.filter(c => {
+    if (filtroTipo !== 'todos' && c.tipo !== filtroTipo) return false
+    if (filtroEstado === 'activas') return ['abierta', 'en_cocina', 'lista', 'pendiente_pago'].includes(c.estado)
+    return c.estado === filtroEstado
+  })
+
+  // Agrupar por tipo para vista de columnas
+  const porTipo = {
+    mesa: filtradas.filter(c => c.tipo === 'mesa'),
+    llevar: filtradas.filter(c => c.tipo === 'llevar'),
+    plataforma: filtradas.filter(c => c.tipo === 'plataforma'),
+  }
+
+  const counts = {
+    abierta: comandas.filter(c => c.estado === 'abierta').length,
+    en_cocina: comandas.filter(c => c.estado === 'en_cocina').length,
+    lista: comandas.filter(c => c.estado === 'lista').length,
+  }
+
+  if (loading) return <div className="loading-screen"><div className="spinner" /></div>
+
+  return (
+    <div>
+      {/* KPIs rápidos */}
+      <div className="metrics" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 14 }}>
+        {[
+          { label: 'Abiertas', val: counts.abierta, color: '#378ADD' },
+          { label: 'En cocina', val: counts.en_cocina, color: '#EF9F27' },
+          { label: 'Listas', val: counts.lista, color: '#1D9E75' },
+        ].map(k => (
+          <div key={k.label} className="mc">
+            <div className="mc-label">{k.label}</div>
+            <div className="mc-value" style={{ color: k.color, fontSize: 28 }}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {tipos.map(t => (
+          <button key={t} onClick={() => setFiltroTipo(t)}
+            className={`psw-btn${filtroTipo === t ? ' active' : ''}`}
+            style={{ fontSize: 11 }}>
+            {t === 'todos' ? 'Todos los tipos' : TIPO_LABEL[t]}
+          </button>
+        ))}
+        <div style={{ width: 1, background: 'var(--border)', margin: '0 4px' }} />
+        {estados.map(e => (
+          <button key={e} onClick={() => setFiltroEstado(e)}
+            className={`psw-btn${filtroEstado === e ? ' active' : ''}`}
+            style={{ fontSize: 11 }}>
+            {e === 'activas' ? 'Todas activas' : ESTADO_LABEL[e]}
+          </button>
+        ))}
+        <button onClick={load} style={{ marginLeft: 'auto', padding: '3px 12px', borderRadius: 99, fontSize: 11, border: '0.5px solid var(--border-md)', background: 'transparent', cursor: 'pointer', color: 'var(--text2)' }}>
+          🔄 Actualizar
+        </button>
+      </div>
+
+      {/* Vista de columnas por tipo */}
+      {filtroTipo === 'todos' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          {Object.entries(porTipo).map(([tipo, items]) => (
+            <div key={tipo}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
+                padding: '6px 12px', borderRadius: 'var(--r-md)',
+                background: (TIPO_COLOR[tipo] || '#888') + '18'
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: TIPO_COLOR[tipo] }}>
+                  {TIPO_LABEL[tipo]}
+                </span>
+                <span style={{
+                  fontSize: 11, background: TIPO_COLOR[tipo], color: '#fff',
+                  borderRadius: 99, padding: '1px 7px', fontWeight: 600
+                }}>{items.length}</span>
+              </div>
+              {items.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text3)', fontSize: 12 }}>
+                  Sin comandas
+                </div>
+              ) : (
+                items.map(c => (
+                  <ComandaCard key={c.id} comanda={c} onCambiarEstado={cambiarEstado} />
+                ))
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div>
+          {filtradas.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
+              Sin comandas con estos filtros
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
+              {filtradas.map(c => (
+                <ComandaCard key={c.id} comanda={c} onCambiarEstado={cambiarEstado} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

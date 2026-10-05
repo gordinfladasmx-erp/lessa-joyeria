@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chilakileando la Gordinflada · Aguascalientes</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+<link href="https://awards.infcdn.net/2024/badge-circledLeaves27.css" rel="stylesheet"/>
+<link href="https://awards.infcdn.net/2024/circle_v3.css" rel="stylesheet"/>
+<link href="https://awards.infcdn.net/2026/circle_v2.css" rel="stylesheet"/>
+<meta name="description" content="Chilakileando la Gordi'nflada — Innovamos las formas y sabores de tus antojos. Ingredientes frescos directo del productor. Plaza San Miguel, Aguascalientes.">
+<meta property="og:title" content="Chilakileando la Gordinflada">
+<meta property="og:description" content="Los mejores chilakiles de Aguascalientes. Ven a desayunar con nosotros.">
+<meta property="og:image" content="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════
+   VARIABLES DE MARCA — edita aquí los colores
+   ════════════════════════════════════════════ */
+:root {
+  --red:        #E63946;
+  --red-dark:   #C1121F;
+  --red-light:  #FFF0F0;
+  --green:      #2D9E6A;
+  --yellow:     #F4A261;
+  --bg:         #F7F5F2;
+  --surface:    #FFFFFF;
+  --dark:       #1C1C1E;
+  --dark2:      #2C2C2E;
+  --text:       #1C1C1E;
+  --text2:      #6E6E73;
+  --text3:      #AEAEB2;
+  --border:     #E5E5EA;
+  --r:          20px;
+  --r-sm:       12px;
+  --shadow:     0 4px 20px rgba(0,0,0,.08);
+  --shadow-lg:  0 12px 48px rgba(0,0,0,.15);
+}
+
+/* ── RESET ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+
+/* ── HELPER: imagen placeholder ──
+   Cuando no hay foto real, muestra un recuadro con texto indicativo.
+   Reemplaza el div.img-placeholder por un <img src="tu-foto.jpg"> */
+.img-ph{
+  background:linear-gradient(135deg,#ede8e1,#ddd5c8);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;height:100%;color:#b0a898;font-size:11px;font-weight:700;
+  text-align:center;gap:8px;padding:20px;
+}
+.img-ph span{font-size:28px;opacity:.5}
+
+/* ════════════════════
+   NAV
+   ════════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0 20px;height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-logo{display:flex;align-items:center;gap:10px}
+/* LOGO NAV: reemplaza /logo.png con tu imagen */
+.nav-logo img{width:34px;height:34px;border-radius:10px;object-fit:cover}
+.nav-logo span{font-size:14px;font-weight:900;color:var(--red);white-space:nowrap}
+.nav-links{display:flex;gap:2px;align-items:center}
+.nav-links a{
+  font-size:12px;font-weight:700;color:var(--text2);
+  padding:6px 12px;border-radius:99px;transition:all .15s;white-space:nowrap
+}
+.nav-links a:hover{background:var(--red-light);color:var(--red)}
+.nav-wa{
+  background:var(--green)!important;color:#fff!important;
+  border-radius:99px!important;margin-left:6px;
+}
+@media(max-width:680px){.nav-links .nl-hide{display:none}}
+
+/* ════════════════════
+   HERO
+   ════════════════════ */
+#hero{
+  min-height:100vh;background:var(--red);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:80px 24px 80px;text-align:center;position:relative;overflow:hidden;
+}
+#hero::before{
+  content:'';position:absolute;inset:0;
+  background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E");
+}
+/* LOGO HERO: reemplaza /logo.png con tu imagen */
+.hero-logo{
+  width:110px;height:110px;border-radius:28px;
+  border:4px solid rgba(255,255,255,.3);
+  object-fit:cover;margin-bottom:22px;position:relative;
+  box-shadow:0 8px 40px rgba(0,0,0,.25);
+}
+.hero-title{
+  font-size:clamp(30px,7vw,60px);font-weight:900;color:#fff;
+  line-height:1.1;margin-bottom:10px;position:relative;
+  text-shadow:0 2px 16px rgba(0,0,0,.15);
+}
+.hero-sub{
+  font-size:clamp(14px,3vw,18px);color:rgba(255,255,255,.85);
+  margin-bottom:36px;font-weight:600;position:relative;
+  line-height:1.7;max-width:520px;
+}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;position:relative}
+.btn{
+  padding:14px 26px;border-radius:99px;font-size:14px;font-weight:800;
+  cursor:pointer;border:none;font-family:'Nunito',sans-serif;
+  display:inline-flex;align-items:center;gap:8px;transition:all .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn-white{background:#fff;color:var(--red);box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.btn-green{background:var(--green);color:#fff;box-shadow:0 4px 20px rgba(45,158,106,.4)}
+.btn-outline{background:transparent;border:2px solid rgba(255,255,255,.4);color:#fff}
+.hero-scroll{
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.5);font-size:20px;animation:bounce 2.2s infinite;
+}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(9px)}}
+
+/* ════════════════════
+   SECCIONES (base)
+   ════════════════════ */
+section{padding:80px 24px}
+.si{max-width:1100px;margin:0 auto}
+.s-tag{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:10px}
+.s-title{font-size:clamp(24px,5vw,40px);font-weight:900;line-height:1.15;margin-bottom:14px}
+.s-sub{font-size:15px;color:var(--text2);line-height:1.75;max-width:560px}
+
+/* ════════════════════
+   HISTORIA
+   ════════════════════ */
+#historia{background:var(--surface)}
+.hist-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+/* IMAGEN HISTORIA: reemplaza .img-ph por <img src="/img/landing/historia.jpg" alt="..."> */
+.hist-img{border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;box-shadow:var(--shadow-lg)}
+.hist-text p{font-size:15px;color:var(--text2);line-height:1.85;margin-bottom:14px}
+.hist-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.hb{background:var(--bg);border-radius:99px;padding:8px 16px;font-size:12px;font-weight:700;color:var(--text2);border:1.5px solid var(--border)}
+@media(max-width:760px){.hist-grid{grid-template-columns:1fr;gap:32px}}
+
+/* ════════════════════
+   SABORES
+   ════════════════════ */
+#sabores{background:var(--dark)}
+#sabores .s-tag{color:var(--yellow)}
+#sabores .s-title{color:#fff}
+#sabores .s-sub{color:rgba(255,255,255,.55)}
+.sabores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;margin-top:40px}
+.sc{
+  background:var(--dark2);border-radius:var(--r);overflow:hidden;
+  border:1px solid rgba(255,255,255,.07);
+  transition:transform .2s,box-shadow .2s;cursor:default;
+}
+.sc:hover{transform:translateY(-5px);box-shadow:0 20px 48px rgba(0,0,0,.35)}
+.sc-img{overflow:hidden;background:var(--dark2)}
+.sc-img img{width:100%;height:auto;display:block}
+.sc-img .img-ph{aspect-ratio:4/3;width:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:rgba(255,255,255,.3);gap:8px;font-size:12px}
+.sc-body{padding:16px 18px}
+.sc-cat{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--yellow);opacity:.7;margin-bottom:4px}
+.sc-name{font-size:16px;font-weight:900;color:#fff;margin-bottom:6px}
+.sc-price{font-size:20px;font-weight:900;color:var(--yellow)}
+
+/* ════════════════════
+   VIDEOS
+   ════════════════════ */
+#videos{background:var(--bg)}
+.videos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;margin-top:40px}
+/* VIDEO: reemplaza REEMPLAZA_VIDEO_ID por el ID de tu video de YouTube */
+.vw{border-radius:var(--r);overflow:hidden;aspect-ratio:16/9;background:#000;box-shadow:var(--shadow-lg)}
+.vw iframe{width:100%;height:100%;border:none}
+/* Placeholder cuando no hay video configurado */
+.vw-ph{
+  width:100%;height:100%;background:var(--dark2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;color:rgba(255,255,255,.4);font-size:13px;font-weight:700;
+}
+.vw-ph span{font-size:40px;opacity:.3}
+
+/* ════════════════════
+   MENÚ CTA
+   ════════════════════ */
+#menu-cta{
+  background:linear-gradient(135deg,var(--red) 0%,var(--red-dark) 100%);
+  padding:90px 24px;text-align:center;position:relative;overflow:hidden;
+}
+#menu-cta::before{content:'🌶️';position:absolute;font-size:220px;opacity:.06;right:-10px;top:-30px;line-height:1}
+#menu-cta .s-title{color:#fff}
+#menu-cta .s-sub{color:rgba(255,255,255,.8);margin:0 auto 36px;text-align:center}
+.btn-menu{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:17px 38px;background:#fff;color:var(--red);
+  border-radius:99px;font-size:16px;font-weight:900;
+  box-shadow:var(--shadow-lg);transition:all .15s;
+}
+.btn-menu:hover{transform:scale(1.03)}
+
+/* ════════════════════
+   OPINIONES
+   ════════════════════ */
+#opiniones{background:var(--surface)}
+.nps-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:40px}
+.nps-card{
+  background:var(--bg);border-radius:var(--r-sm);padding:16px 22px;
+  border:1.5px solid var(--border);display:flex;align-items:center;gap:14px;
+}
+.nps-num{font-size:36px;font-weight:900;color:var(--green);line-height:1}
+.nps-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.nps-note{font-size:13px;font-weight:700;color:var(--green)}
+.stars{color:var(--yellow);font-size:16px;letter-spacing:2px}
+/* Carrusel */
+.carousel-wrap{position:relative;overflow:hidden;margin:0 -8px}
+.carousel-track{display:flex;gap:14px;transition:transform .4s cubic-bezier(.4,0,.2,1);padding:4px 8px 12px}
+.carousel-track .rc{min-width:280px;max-width:280px;flex-shrink:0}
+.carousel-dots{display:flex;justify-content:center;gap:8px;margin-top:16px}
+.cdot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:background .2s,transform .2s}
+.cdot.active{background:var(--red);transform:scale(1.3)}
+.carousel-btn{position:absolute;top:50%;transform:translateY(-50%);background:var(--bg);border:1.5px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;z-index:2;transition:background .2s}
+.carousel-btn:hover{background:var(--red-light)}
+.carousel-btn.prev{left:0}
+.carousel-btn.next{right:0}
+/* Cards */
+.rc{background:var(--bg);border-radius:var(--r-sm);padding:20px;border:1.5px solid var(--border)}
+.rc-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.rc-av{width:40px;height:40px;border-radius:50%;background:var(--red-light);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;font-weight:900;color:var(--red)}
+.rc-name{font-size:14px;font-weight:800;line-height:1.2}
+.rc-date{font-size:11px;color:var(--text3)}
+.rc-stars{color:var(--yellow);font-size:13px;margin-bottom:8px}
+.rc-text{font-size:13px;color:var(--text2);line-height:1.65;font-style:italic}
+.reviews-loading{text-align:center;padding:50px;color:var(--text3);font-size:14px}
+/* Diplomas dentro de opiniones */
+.diplomas-row{display:flex;justify-content:center;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-top:48px;padding-top:32px;border-top:1px solid var(--border)}
+.diploma-img{width:100%;display:block;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);transition:transform .2s}
+.diploma-img:hover{transform:scale(1.02)}
+.diploma-link{display:block;max-width:220px;width:100%;text-decoration:none}
+.diploma-link-wide{max-width:280px}
+
+/* ════════════════════
+   PERSONAJES / AVATARS
+   ════════════════════ */
+#personajes{background:var(--bg)}
+.pers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px;margin-top:40px}
+/* AVATAR: reemplaza .img-ph con <img src="/img/landing/avatar-NOMBRE.png" alt="..."> */
+.pers-card{text-align:center}
+.pers-img{aspect-ratio:1;border-radius:var(--r);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow)}
+.pers-img img,.pers-img .img-ph{width:100%;height:100%;object-fit:cover;border-radius:var(--r)}
+.pers-name{font-size:14px;font-weight:900;margin-bottom:2px}
+.pers-rol{font-size:11px;color:var(--text3);font-weight:600}
+
+/* ════════════════════
+   CONTACTO
+   ════════════════════ */
+#contacto{background:var(--dark);padding:80px 0 0}
+.cont-inner{max-width:1100px;margin:0 auto;padding:0 24px}
+.cont-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-bottom:56px}
+.cont-info .s-tag{color:var(--yellow)}
+.cont-info .s-title{color:#fff}
+.info-item{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}
+.info-icon{
+  width:44px;height:44px;border-radius:12px;
+  background:rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex-shrink:0;
+}
+.info-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.info-value{font-size:14px;font-weight:600;color:#fff;line-height:1.55}
+.horario-box{
+  background:rgba(255,255,255,.05);border-radius:var(--r-sm);
+  padding:14px 16px;margin-top:16px;border:1px solid rgba(255,255,255,.08)
+}
+.hor-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px;color:rgba(255,255,255,.6)}
+.hor-row.today{color:var(--yellow);font-weight:800}
+.hor-row .cerrado{color:rgba(255,255,255,.25)}
+.social-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}
+.soc-btn{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;
+  border-radius:99px;font-size:12px;font-weight:700;
+  border:1.5px solid rgba(255,255,255,.15);color:#fff;transition:all .15s;
+}
+.soc-btn:hover{background:rgba(255,255,255,.1)}
+.soc-btn.wa{background:var(--green);border-color:var(--green)}
+.soc-btn.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border-color:transparent}
+.soc-btn.fb{background:#1877F2;border-color:transparent}
+.soc-btn.tt{background:#010101;border-color:rgba(255,255,255,.2)}
+.mapa-wrap{border-radius:var(--r);overflow:hidden;height:100%;min-height:340px;box-shadow:var(--shadow-lg)}
+.mapa-wrap iframe{width:100%;height:100%;border:none}
+.cont-footer{border-top:1px solid rgba(255,255,255,.07);padding:24px;text-align:center}
+.footer-txt{font-size:12px;color:rgba(255,255,255,.25)}
+@media(max-width:760px){.cont-grid{grid-template-columns:1fr;gap:40px}.mapa-wrap{height:280px}}
+
+/* ════════════════════
+   ACCESO RÁPIDO
+   ════════════════════ */
+#acceso{background:var(--surface);padding:0 24px;margin-top:-1px}
+.acceso-inner{max-width:1100px;margin:0 auto;padding:0 0 56px}
+.acceso-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;
+  transform:translateY(-40px);
+}
+.ac{
+  background:var(--surface);border-radius:var(--r);
+  padding:24px 20px;text-align:center;
+  border:1.5px solid var(--border);
+  box-shadow:var(--shadow-lg);
+  transition:all .2s;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  text-decoration:none;color:var(--text);
+}
+.ac:hover{transform:translateY(-4px);border-color:var(--red);box-shadow:0 16px 48px rgba(230,57,70,.15)}
+.ac-icon{font-size:32px;line-height:1}
+.ac-title{font-size:15px;font-weight:900;color:var(--text)}
+.ac-sub{font-size:11px;color:var(--text3);font-weight:600;line-height:1.4}
+.ac.red{border-color:var(--red);background:var(--red-light)}
+.ac.red .ac-title{color:var(--red)}
+.ac.green{border-color:var(--green);background:#EAF7F0}
+.ac.green .ac-title{color:var(--green)}
+
+/* ── ANIMACIONES ENTRADA ── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .65s ease,transform .65s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:.1s}
+.reveal-d2{transition-delay:.2s}
+.reveal-d3{transition-delay:.3s}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════
+     NAV
+     ════════════════════════════════════════════ -->
+<nav>
+  <a href="/home" class="nav-logo">
+    <img src="/logo.png" alt="Chilakileando logo" onerror="this.style.display='none'">
+    <span>Chilakileando</span>
+  </a>
+  <div class="nav-links">
+    <a href="#historia"  class="nl-hide">Historia</a>
+    <a href="#sabores"   class="nl-hide">Sabores</a>
+    <a href="#videos"    class="nl-hide">Videos</a>
+    <a href="#opiniones" class="nl-hide">Opiniones</a>
+    <a href="#contacto"  class="nl-hide">Contacto</a>
+    <a href="/menu"      class="nl-hide" style="color:var(--red);font-weight:900">🍽 Menú</a>
+    <a href="/encuesta"  class="nl-hide">📋 Encuesta</a>
+    <a href="/ERP"       class="nl-hide">⚙️ ERP</a>
+    <a href="https://wa.me/524494935377" target="_blank" class="nav-wa">💬 WhatsApp</a>
+  </div>
+</nav>
+
+
+<!-- ════════════════════════════════════════════
+     HERO
+     ════════════════════════════════════════════ -->
+<section id="hero">
+  <!-- LOGO HERO: reemplaza /logo.png -->
+  <img src="/logo.png" alt="Chilakileando la Gordinflada" class="hero-logo" onerror="this.style.display='none'">
+
+  <h1 class="hero-title">Chilakileando<br>la Gordinflada</h1>
+
+  <p class="hero-sub">
+    Innovamos las formas y sabores de tus antojos.<br>
+    Ingredientes frescos directo del productor a tu paladar.
+  </p>
+
+  <div class="hero-btns">
+    <a href="/menu" class="btn btn-white">🍽 Ver Menú</a>
+    <!-- WHATSAPP HERO: reemplaza el número -->
+    <a href="https://wa.me/524494935377" target="_blank" class="btn btn-green">💬 Pedir por WhatsApp</a>
+    <a href="#historia" class="btn btn-outline">Nuestra historia ↓</a>
+  </div>
+
+  <div class="hero-scroll">↓</div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     ACCESO RÁPIDO
+     ════════════════════════════════════════════ -->
+<section id="acceso">
+  <div class="acceso-inner">
+    <div class="acceso-grid">
+      <a href="/menu" class="ac red">
+        <span class="ac-icon">🍽</span>
+        <span class="ac-title">Ver Menú</span>
+        <span class="ac-sub">Ordena en línea</span>
+      </a>
+      <a href="https://wa.me/524494935377" target="_blank" class="ac green">
+        <span class="ac-icon">💬</span>
+        <span class="ac-title">WhatsApp</span>
+        <span class="ac-sub">Pide directo</span>
+      </a>
+      <a href="#historia" class="ac">
+        <span class="ac-icon">📖</span>
+        <span class="ac-title">Nuestra Historia</span>
+        <span class="ac-sub">Conoce de dónde venimos</span>
+      </a>
+      <a href="#opiniones" class="ac">
+        <span class="ac-icon">⭐</span>
+        <span class="ac-title">Opiniones</span>
+        <span class="ac-sub">Lo que dicen nuestros clientes</span>
+      </a>
+      <a href="#contacto" class="ac">
+        <span class="ac-icon">📍</span>
+        <span class="ac-title">Encuéntranos</span>
+        <span class="ac-sub">Dirección y horarios</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     HISTORIA
+     ════════════════════════════════════════════ -->
+<section id="historia">
+  <div class="si">
+    <div class="hist-grid">
+
+      <!-- IMAGEN HISTORIA
+           Reemplaza este bloque por:
+           <img src="/img/landing/historia.jpg" alt="Nuestra historia" style="width:100%;height:100%;object-fit:cover"> -->
+      <div class="hist-img">
+        <img src="/img/landing/historia.png" alt="Chilakileando la Gordinflada" style="width:100%;height:100%;object-fit:cover">
+      </div>
+
+      <div class="hist-text reveal">
+        <p class="s-tag">Nuestra historia</p>
+        <h2 class="s-title">Chilakileando<br>la Gordinflada</h2>
+
+        <p>
+          Somos Chilakileando la Gordi'nflada, un concepto nacido en Aguascalientes
+          con una misión clara: innovar las formas y sabores de tus antojos sin perder
+          la esencia de la cocina mexicana.
+        </p>
+        <p>
+          Trabajamos con ingredientes frescos directo del productor a tu paladar,
+          fusionando el placer del buen comer con las sonrisas de nuestros clientes.
+          Desde guisos del día hasta nuestras icónicas salsas, cada platillo
+          está hecho con identidad propia.
+        </p>
+
+        <div class="hist-badges">
+          <span class="hb">❤️ Aguascalientes</span>
+        </div>
+        <img src="/img/landing/restaurant-guru.png" alt="Restaurant Guru Recommended 2024"
+          style="width:100px;margin-top:20px;opacity:.85" onerror="this.style.display='none'">
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     SABORES DESTACADOS
+     ════════════════════════════════════════════ -->
+<section id="sabores">
+  <div class="si">
+    <p class="s-tag">Lo que más nos piden</p>
+    <h2 class="s-title">Nuestros Sabores</h2>
+    <p class="s-sub">Cada platillo tiene su propia personalidad. Aquí los favoritos de siempre.</p>
+
+    <div class="sabores-grid" id="sabores-grid">
+      <div style="color:rgba(255,255,255,.4);font-size:13px;padding:40px 0">⏳ Cargando...</div>
+    </div><!-- /sabores-grid -->
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     VIDEOS
+     ════════════════════════════════════════════ -->
+<section id="videos">
+  <div class="si">
+    <p class="s-tag">Míranos en acción</p>
+    <h2 class="s-title">Nuestros Videos</h2>
+    <p class="s-sub">Del comal a tu pantalla — así se hace la magia cada mañana.</p>
+
+    <div class="videos-grid">
+
+      <div class="vw reveal">
+        <video controls preload="none" style="width:100%;height:100%;object-fit:cover">
+          <source src="/video/gemini_generated_video_1000A5DA.mp4" type="video/mp4">
+          <source src="/video/2fa44647e3f44031b0b435b4252df91c.mov" type="video/quicktime">
+        </video>
+      </div>
+
+      <div class="vw reveal reveal-d1">
+        <video controls preload="none" style="width:100%;height:100%;object-fit:cover">
+          <source src="/video/gemini_generated_video_0F557500.mp4" type="video/mp4">
+          <source src="/video/5f53ee466c3b44eaa4286ca600bd3d2b.mov" type="video/quicktime">
+        </video>
+      </div>
+
+      <div class="vw reveal reveal-d2">
+        <video controls preload="none" style="width:100%;height:100%;object-fit:cover">
+          <source src="/video/gemini_generated_video_B28375B4.mp4" type="video/mp4">
+          <source src="/video/c07e54a4cdad43539b2f16995fa125bd.mov" type="video/quicktime">
+        </video>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     MENÚ CTA
+     ════════════════════════════════════════════ -->
+<section id="menu-cta">
+  <div style="position:relative;max-width:700px;margin:0 auto">
+    <p class="s-tag" style="color:rgba(255,255,255,.6)">¿Ya tienes antojo?</p>
+    <h2 class="s-title" style="color:#fff">Ve el menú completo<br>y haz tu pedido</h2>
+    <p class="s-sub" style="text-align:center;margin:0 auto 36px">
+      Pide en mesa, para llevar o a domicilio. Estamos abiertos de martes a domingo de 8:00 a 13:30 hrs.
+    </p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+      <a href="/menu" class="btn-menu reveal">
+        🍽 Ver Menú Completo
+      </a>
+      <!-- WHATSAPP CTA: reemplaza el número -->
+      <a href="https://wa.me/524494935377" target="_blank"
+        class="btn btn-outline reveal reveal-d1" style="font-size:15px;font-weight:900">
+        💬 Pedir por WhatsApp
+      </a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     OPINIONES (carga desde Supabase)
+     ════════════════════════════════════════════ -->
+<section id="opiniones">
+  <div class="si">
+    <p class="s-tag">Lo que dicen nuestros clientes</p>
+    <h2 class="s-title">Opiniones reales</h2>
+    <p class="s-sub">Cada reseña es de alguien que ya vivió la experiencia Chilakileando.</p>
+
+    <div class="nps-row" style="margin-top:28px">
+      <div class="nps-card" id="nps-card" style="display:none">
+        <div>
+          <div class="nps-num" id="nps-num">—</div>
+          <div class="nps-label">NPS Score</div>
+          <div class="nps-note" id="nps-note"></div>
+        </div>
+      </div>
+      <div>
+        <div class="stars">★★★★★</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-top:4px" id="calif-avg"></div>
+      </div>
+    </div>
+
+    <div id="reviews-container">
+      <div class="reviews-loading">⏳ Cargando opiniones...</div>
+    </div>
+
+    <!-- Reconocimientos Restaurant Guru -->
+    <div style="margin-top:56px;padding-top:40px;border-top:1px solid var(--border);text-align:center">
+      <p style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:32px">Reconocimientos</p>
+
+      <!-- Todo en una sola fila centrada y alineada -->
+      <div style="display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:wrap">
+
+        <!-- Diploma vertical (más pequeño) -->
+        <a href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes" target="_blank"
+           style="display:block;width:130px;flex-shrink:0;text-decoration:none;border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .2s"
+           onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+          <img src="/img/certificado-rg-blanco.png" alt="Diploma Restaurant Guru 2026" style="width:100%;display:block">
+        </a>
+
+        <!-- Diploma horizontal -->
+        <a href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes" target="_blank"
+           style="display:block;width:190px;flex-shrink:0;text-decoration:none;border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .2s"
+           onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+          <img src="/img/certificado-rg-rayos.png" alt="Recomendado Restaurant Guru 2026" style="width:100%;display:block">
+        </a>
+
+        <!-- Badge hojas 2025 -->
+        <a id="b-circledLeaves27" target="_blank" href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes" class="b-circledLeaves27--light b-circledLeaves27--2025" style="flex-shrink:0">
+          <span class="b-circledLeaves27__title">Recomendado</span>
+          <span class="b-circledLeaves27__separator"></span>
+          <span class="b-circledLeaves27__name">Chilakileando las Gordinfladas</span>
+        </a>
+
+        <!-- Badge círculo negro 2026 -->
+        <div id="circle_bw" data-length="29" class="circle_bw_black rg-award-lang-es_ES" style="flex-shrink:0" onclick="if(event.target.nodeName.toLowerCase() != 'a') {window.open(this.querySelector('.circle_bw_link').href);return 0;}">
+          <p class="circle_bw_year">2026</p>
+          <div class="circle_bw_name f12">
+            <a class="circle_bw_link" target="_blank" href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes">
+              <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="178px" height="178px" viewBox="0 0 178 178">
+                <defs><path id="circle_bw_name-arc" d="M 12 89 a 77 77 0 0 0 154 0"></path></defs>
+                <text class="circle_bw_name_txt" fill="#000" text-anchor="middle"><textPath startOffset="50%" xlink:href="#circle_bw_name-arc">Chilakileando las Gordinfladas</textPath></text>
+              </svg>
+            </a>
+          </div>
+          <div class="circle_bw_nom">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200px" height="200px" viewBox="0 0 200 200">
+              <defs><path id="circle_bw_nom-arc1" d="M 30 100 a 70 70 0 1 1 140 0"></path></defs>
+              <text class="circle_bw_nom_txt" fill="#000" text-anchor="middle"><textPath startOffset="50%" xlink:href="#circle_bw_nom-arc1">Recomendado</textPath></text>
+            </svg>
+          </div>
+          <a class="circle_bw_home" style="font-size:0" href="https://restaurantguru.com" target="_blank">Restaurant Guru</a>
+        </div>
+
+        <!-- Badge ribbon 2026 -->
+        <div id="circle-r-ribbon" style="flex-shrink:0" onclick="if(event.target.nodeName.toLowerCase() != 'a') {window.open(this.querySelector('.r-ribbon_title').href);return 0;}" class="rg-award-lang-es_ES" style="cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;padding:0;max-width:174px;min-width:174px;height:135px;font:400 10px/normal 'Akrobat Bold','Helvetica Neue','Arial',sans-serif;align-items:center;text-align:center;color:#000!important;text-shadow:none;background:url(https://awards.infcdn.net/img/bg.svg) no-repeat;box-sizing:border-box;">
+          <div class="r-ribbon_ahead" style="transform:rotate(-11deg);position:absolute;z-index:4;top:-7px;left:6px;letter-spacing:0.2px;padding:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="160px" height="160px" viewBox="0 0 160 160" style="width:160px;height:160px;margin-top:0;">
+              <defs><path id="heading-arc" d="M 30 80 a 50 50 0 1 1 100 0"></path></defs>
+              <text class="r-ribbon_ahead-heading" fill="#000" text-anchor="middle" style="font-size:16px!important;font-family:'Akrobat Bold','Helvetica Neue','Arial',sans-serif!important;line-height:1;text-transform:uppercase!important;"><textPath startOffset="50%" xlink:href="#heading-arc">Recomendado</textPath></text>
+            </svg>
+          </div>
+          <p class="r-ribbon_year" style="color:#000;width:140px;font:22px/normal 'Akrobat Black','Helvetica Neue','Arial',sans-serif!important;font-style:italic!important;transform:rotate(-12deg);position:absolute;top:41px!important;left:12px!important;letter-spacing:0.6px;text-align:center!important;padding:0!important;margin:0!important;">2026</p>
+          <a href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes" class="r-ribbon_title" target="_blank" style="text-transform:uppercase;color:#fff!important;width:140px;font-size:8px!important;line-height:1!important;font-family:'Akrobat Bold','Helvetica Neue','Arial',sans-serif!important;font-style:italic!important;transform:rotate(-12deg);position:absolute;z-index:5;top:71px;left:16px;letter-spacing:0.4px!important;text-align:center!important;white-space:normal;padding:0!important;margin:0!important;text-decoration:none!important;border-bottom:none;box-shadow:none;height:20px;display:flex;align-items:center;justify-content:center;">Chilakileando las Gordinfladas</a>
+          <div class="r-ribbon_ahead r-ribbon_ahead-bottom" style="top:auto;bottom:-14px;left:26px;letter-spacing:0.3px;transform:rotate(-13deg);height:100%!important;max-width:100%;padding:0;position:absolute!important;z-index:4;">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="120px" height="120px" viewBox="0 0 120 120" style="width:120px;height:120px;margin-top:0;">
+              <defs><path id="subheading-arc" d="M 12 60 a 48 48 0 0 0 96 0"></path></defs>
+              <text class="r-ribbon_ahead-subh" fill="#000" text-anchor="middle" style="font:12px/1 'Akrobat Regular','Helvetica Neue','Arial',sans-serif!important;text-transform:uppercase;"><textPath startOffset="50%" xlink:href="#subheading-arc"><a href="https://restaurantguru.com" target="_blank" style="font:12px/1 'Akrobat Regular','Helvetica Neue','Arial',sans-serif!important;text-transform:uppercase;letter-spacing:0.3px;text-decoration:none!important;border-bottom:none;box-shadow:none;padding:0;margin:0;">Restaurant Guru</a></textPath></text>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     PERSONAJES / AVATARS
+     ════════════════════════════════════════════ -->
+<section id="personajes">
+  <div class="si">
+    <p class="s-tag">Nuestra familia</p>
+    <h2 class="s-title">Los personajes<br>de la Gordinflada</h2>
+    <p class="s-sub">Cada uno con su personalidad, juntos forman el equipo Chilakileando.</p>
+
+    <div class="pers-grid">
+
+      <div class="pers-card reveal">
+        <div class="pers-img">
+          <img src="/img/landing/avatars/IMG_1487.PNG" alt="Personaje 1" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div class="pers-name">El Gordinflado</div>
+        <div class="pers-rol">Personaje principal</div>
+      </div>
+
+      <div class="pers-card reveal reveal-d1">
+        <div class="pers-img">
+          <img src="/img/landing/avatars/IMG_1488.PNG" alt="Personaje 2" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div class="pers-name">La Gordinflada</div>
+        <div class="pers-rol">Personaje principal</div>
+      </div>
+
+      <div class="pers-card reveal reveal-d2">
+        <div class="pers-img">
+          <img src="/img/landing/avatars/IMG_1489.PNG" alt="Personaje 3" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div class="pers-name">El Gordinflado</div>
+        <div class="pers-rol">Con su platillo favorito</div>
+      </div>
+
+      <div class="pers-card reveal reveal-d1">
+        <div class="pers-img">
+          <img src="/img/landing/avatars/IMG_1490.PNG" alt="Personaje 4" style="width:100%;height:100%;object-fit:cover">
+        </div>
+        <div class="pers-name">La Gordinflada</div>
+        <div class="pers-rol">Bienvenida</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     CONTACTO + MAPA
+     ════════════════════════════════════════════ -->
+<section id="contacto">
+  <div class="cont-inner">
+    <div class="cont-grid">
+
+      <!-- INFO -->
+      <div class="cont-info reveal">
+        <p class="s-tag">Ven a visitarnos</p>
+        <h2 class="s-title" style="margin-bottom:28px">Encuéntranos</h2>
+
+        <!-- DIRECCIÓN -->
+        <div class="info-item">
+          <div class="info-icon">📍</div>
+          <div>
+            <div class="info-label">Dirección</div>
+            <!-- DIRECCIÓN: edita si cambia -->
+            <div class="info-value">Av Montenegro 2007<br>Trojes de Oriente II<br>Aguascalientes, Ags.</div>
+          </div>
+        </div>
+
+        <!-- TELÉFONO: reemplaza el número -->
+        <div class="info-item">
+          <div class="info-icon">📞</div>
+          <div>
+            <div class="info-label">Teléfono</div>
+            <a href="tel:+524494935377" class="info-value" style="color:#fff">449 493 5377</a>
+          </div>
+        </div>
+
+        <!-- HORARIO: edita los días y horas -->
+        <div class="info-item">
+          <div class="info-icon">🕗</div>
+          <div style="width:100%">
+            <div class="info-label">Horario</div>
+            <div class="horario-box" id="horario-box">
+              <div class="hor-row" id="hr-lun"><span>Lunes</span><span class="cerrado">Cerrado</span></div>
+              <div class="hor-row" id="hr-mar"><span>Martes</span><span>8:00 – 13:30</span></div>
+              <div class="hor-row" id="hr-mie"><span>Miércoles</span><span>8:00 – 13:30</span></div>
+              <div class="hor-row" id="hr-jue"><span>Jueves</span><span>8:00 – 13:30</span></div>
+              <div class="hor-row" id="hr-vie"><span>Viernes</span><span>8:00 – 13:30</span></div>
+              <div class="hor-row" id="hr-sab"><span>Sábado</span><span>8:00 – 13:30</span></div>
+              <div class="hor-row" id="hr-dom"><span>Domingo</span><span>8:00 – 13:30</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REDES SOCIALES: reemplaza los href con tus enlaces reales -->
+        <div class="social-row">
+          <a href="https://wa.me/524494935377" target="_blank" class="soc-btn wa">💬 WhatsApp</a>
+          <a href="https://www.instagram.com/gordinfladasmx" target="_blank" class="soc-btn ig">📸 Instagram</a>
+          <a href="https://www.facebook.com/gordinfladasmx" target="_blank" class="soc-btn fb">👍 Facebook</a>
+          <a href="https://www.tiktok.com/@chilakgordinflada.mexi" target="_blank" class="soc-btn tt">🎵 TikTok</a>
+        </div>
+      </div>
+
+      <div class="mapa-wrap reveal reveal-d1">
+        <iframe
+          src="https://maps.google.com/maps?q=Chilakileando+las+Gordinfladas,+Montenegro+2007,+Trojes+de+Oriente+II,+Aguascalientes,+Mexico&output=embed&hl=es"
+          allowfullscreen loading="lazy"
+          title="Ubicación Chilakileando"
+          referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+      </div>
+
+    </div><!-- /cont-grid -->
+  </div>
+
+  <div style="display:none"><!-- badges movidos a sección opiniones -->
+    <div>
+    <div id="circle_bw" data-length="29" class="circle_bw_black rg-award-lang-es_ES" onclick="if(event.target.nodeName.toLowerCase() != 'a') {window.open(this.querySelector('.circle_bw_link').href);return 0;}">
+      <p class="circle_bw_year">2026</p>
+      <div class="circle_bw_name f12">
+        <a class="circle_bw_link" target="_blank" href="https://es.restaurantguru.com/Gordinfladas-Aguascalientes">
+          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="178px" height="178px" viewBox="0 0 178 178">
+            <defs><path id="circle_bw_name-arc" d="M 12 89 a 77 77 0 0 0 154 0"></path></defs>
+            <text class="circle_bw_name_txt" fill="#000" text-anchor="middle">
+              <textPath startOffset="50%" xlink:href="#circle_bw_name-arc">Chilakileando las Gordinfladas</textPath>
+            </text>
+          </svg>
+        </a>
+      </div>
+      <div class="circle_bw_nom">
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200px" height="200px" viewBox="0 0 200 200">
+          <defs><path id="circle_bw_nom-arc1" d="M 30 100 a 70 70 0 1 1 140 0"></path></defs>
+          <text class="circle_bw_nom_txt" fill="#000" text-anchor="middle">
+            <textPath startOffset="50%" xlink:href="#circle_bw_nom-arc1">Recomendado</textPath>
+          </text>
+        </svg>
+      </div>
+      <a class="circle_bw_home" style="font-size:0" href="https://restaurantguru.com" target="_blank">Restaurant Guru</a>
+    </div>
+    <div id="circle-r-ribbon" onclick="if(event.target.nodeName.toLowerCase() != 'a') {window.open(this.querySelector('.r-ribbon_title').href);return 0;}" class="rg-award-lang-es_ES" style="cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;padding:0;max-width:174px;min-width:174px;height:135px;font:400 10px/normal 'Akrobat Bold','Helvetica Neue','Arial',sans-serif;align-items:center;text-align:center;color:#000!important;text-shadow:none;background:url(https://awards.infcdn.net/img/bg.svg) no-repeat;box-sizing:border-box;">
+      <div class="r-ribbon_ahead" style="transform:rotate(-11deg);position:absolute;z-index:4;top:-7px;left:6px;letter-spacing:0.2px;padding:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="160px" height="160px" viewBox="0 0 160 160" style="width:160px;height:160px;margin-top:0;">
+          <defs><path id="heading-arc" d="M 30 80 a 50 50 0 1 1 100 0"></path></defs>
+          <text class="r-ribbon_ahead-heading" fill="#000" text-anchor="middle" style="font-size:16px!important;font-family:'Akrobat Bold','Helvetica Neue','Arial',sans-serif!important;line-height:1;text-transform:uppercase!important;">
+            <textPath startOffset="50%" xlink:href="#heading-arc">Recomendado</textPath>
+          </text>
+        </svg>
+      </div>
+      <p class="r-ribbon_year" style="color:#000;width:140px;font:22px/normal 'Akrobat Black','Helvetica Neue','Arial',sans-serif!important;font-style:italic!important;transform:rotate(-12deg);position:absolute;top:41px!important;left:12px!important;letter-spacing:0.6px;text-align:center!important;padding:0!important;margin:0!important;">2026</p>
+    </div>
+  </div>
+
+  <div class="cont-footer">
+    <div class="footer-txt">
+      © <span id="yr"></span> Chilakileando la Gordinflada · Aguascalientes, México ·
+      <a href="/menu" style="color:rgba(255,255,255,.4);text-decoration:underline">Ver Menú</a>
+      &nbsp;·&nbsp;
+      <a href="/ERP" style="color:rgba(255,255,255,.18);font-size:11px">Acceso interno</a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+     ════════════════════════════════════════════ -->
+<script>
+/* ── SUPABASE CONFIG (no cambiar) ── */
+var SB_URL = 'https://hcxnpcxvcdqzcxdvjjey.supabase.co'
+var SB_KEY = 'sb_publishable_Hpq_5QsteMVSaNCqvSly3Q_CSG7C5-Q'
+
+/* ── CARRUSEL OPINIONES ── */
+function carouselGo(page) {
+  var track = document.getElementById('cr-track'); if (!track) return
+  var per = window._crPer || 3
+  window._crIdx = Math.max(0, Math.min(page, Math.ceil(window._crTotal/per) - 1))
+  var cardW = track.children[0] ? track.children[0].offsetWidth + 14 : 294
+  track.style.transform = 'translateX(-' + (window._crIdx * per * cardW) + 'px)'
+  document.querySelectorAll('.cdot').forEach(function(d,i){ d.classList.toggle('active', i===window._crIdx) })
+}
+function carouselMove(dir) { carouselGo((window._crIdx||0) + dir) }
+
+/* ── AÑO FOOTER ── */
+document.getElementById('yr').textContent = new Date().getFullYear()
+
+/* ── HORARIO: resalta el día actual ── */
+;(function(){
+  var dias = ['dom','lun','mar','mie','jue','vie','sab']
+  var hoy  = dias[new Date().getDay()]
+  var el   = document.getElementById('hr-'+hoy)
+  if (el) el.classList.add('today')
+})()
+
+/* ── OPINIONES: carga desde nps_respuestas ── */
+;(function(){
+  var hdrs = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+
+  // 1. Calcular NPS con todas las respuestas recientes
+  fetch(SB_URL + '/rest/v1/nps_respuestas?select=calificacion&order=created_at.desc&limit=500', { headers: hdrs })
+    .then(function(r){ return r.json() })
+    .then(function(data){
+      if (!data || !data.length) return
+      var total  = data.length
+      var proms  = data.filter(function(d){ return d.calificacion >= 9 }).length
+      var detrs  = data.filter(function(d){ return d.calificacion <= 6 }).length
+      var nps    = Math.round((proms/total - detrs/total) * 100)
+      var avgC   = (data.reduce(function(s,d){ return s+(d.calificacion||0) }, 0) / total).toFixed(1)
+      var card   = document.getElementById('nps-card')
+      card.style.display = 'flex'
+      document.getElementById('nps-num').textContent  = nps
+      document.getElementById('nps-note').textContent = nps >= 50 ? 'Excelente 🌟' : nps >= 0 ? 'Bueno 👍' : 'En mejora'
+      document.getElementById('nps-num').style.color  = nps >= 50 ? '#1D9E75' : nps >= 0 ? '#EF9F27' : '#E24B4A'
+      document.getElementById('calif-avg').textContent = avgC + ' / 10 · ' + total + ' reseñas'
+    })
+    .catch(function(){})
+
+  // 2. Carrusel de reseñas — todos los periodos, solo con comentario
+  fetch(SB_URL + '/rest/v1/nps_respuestas?select=nombre,calificacion,comentario,created_at&calificacion=gte.7&order=created_at.desc&limit=50', { headers: hdrs })
+    .then(function(r){ return r.json() })
+    .then(function(data){
+      var cont = document.getElementById('reviews-container')
+      if (!Array.isArray(data)) {
+        cont.innerHTML = '<div class="reviews-loading" style="color:var(--text3);font-size:11px">Error al cargar.</div>'
+        return
+      }
+      data = data.filter(function(d){ return d.comentario && d.comentario.trim().length > 5 })
+      if (!data.length) {
+        cont.innerHTML = '<div class="reviews-loading" style="color:var(--text3)">Aún no hay reseñas publicadas.</div>'
+        return
+      }
+      var emojis = ['😊','🥘','❤️','🌮','⭐','🎉','😍','🙌','🔥','👏']
+      var cards = ''
+      data.forEach(function(d, i){
+        var n = (d.nombre || 'Cliente').replace(/[<>'"]/g, '')
+        var ini = n.charAt(0).toUpperCase()
+        var cal = Math.min(Math.max(d.calificacion||0, 0), 10)
+        var stars5 = Math.round(cal / 2)
+        var stars = '★'.repeat(stars5) + '☆'.repeat(5 - stars5)
+        var fecha = ''
+        if (d.created_at) {
+          var dt = new Date(d.created_at)
+          fecha = dt.toLocaleDateString('es-MX', { month:'long', year:'numeric' })
+        }
+        cards += '<div class="rc">' +
+          '<div class="rc-header">' +
+            '<div class="rc-av">' + ini + '</div>' +
+            '<div><div class="rc-name">' + n + '</div><div class="rc-date">' + fecha + '</div></div>' +
+          '</div>' +
+          '<div class="rc-stars">' + stars + ' ' + cal + '/10</div>' +
+          '<div class="rc-text">&#8220;' + (d.comentario||'').replace(/[<>]/g,'') + '&#8221;</div>' +
+        '</div>'
+      })
+      cont.innerHTML =
+        '<div class="carousel-wrap">' +
+          '<button class="carousel-btn prev" onclick="carouselMove(-1)" aria-label="Anterior">&#8249;</button>' +
+          '<div class="carousel-track" id="cr-track">' + cards + '</div>' +
+          '<button class="carousel-btn next" onclick="carouselMove(1)" aria-label="Siguiente">&#8250;</button>' +
+        '</div>' +
+        '<div class="carousel-dots" id="cr-dots"></div>'
+
+      // Dots
+      var total = data.length, dots = '', perView = window.innerWidth < 600 ? 1 : window.innerWidth < 900 ? 2 : 3
+      var pages = Math.ceil(total / perView)
+      for (var p = 0; p < pages; p++) dots += '<div class="cdot' + (p===0?' active':'') + '" onclick="carouselGo(' + p + ')"></div>'
+      document.getElementById('cr-dots').innerHTML = dots
+
+      window._crIdx = 0; window._crPer = perView; window._crTotal = total
+    })
+    .catch(function(){
+      document.getElementById('reviews-container').innerHTML =
+        '<div class="reviews-loading">No se pudieron cargar las opiniones.</div>'
+    })
+})()
+
+/* ── SABORES: jala productos reales del catálogo ── */
+;(function(){
+  var hdrs = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+  var FAM_EMOJI = {
+    'Chilakiles':'🥣','Huevos':'🍳','Dorados':'🌮','Crokantes':'🥙',
+    'Gorditas':'🫓','Sopes':'🫔','Enfrijoladas':'🫔','Enchiladas':'🌯',
+    'Bebidas Frías':'🥤','Bebidas Calientes':'☕','Postres':'🍰',
+    'Salsas':'🌶️','Toppings':'🧀','Guisos':'🥘'
+  }
+  function emojiFor(fam) {
+    if (!fam) return '🍽'
+    for (var k in FAM_EMOJI) { if (fam.toLowerCase().indexOf(k.toLowerCase()) >= 0) return FAM_EMOJI[k] }
+    return '🍽'
+  }
+  var MOSTRAR = ['rellenos','suizos','naturales','gratinados','botijones','gorditas','migakiles','sopes','tacos','agua jamaica','agua horchata','agua limon','agua limón']
+  var IMG_MAP = {
+    'chilakiles rellenos':   'chilakiles-rellenos.png',
+    'chilakiles suizos':     'chilakiles-suizos.png',
+    'chilakiles naturales':  'chilakiles-naturales.png',
+    'chilakiles gratinados': 'chilakiles-horneados.png',
+    'chilakiles horneados':  'chilakiles-horneados.png',
+    'bootijones':            'botijones.png',
+    'botijones':             'botijones.png',
+    'gorditas':              'gorditas.png',
+    'migakiles':             'chilakiles-naturales.png',
+    'sopes':                 'sopes.png',
+    'huevos rellenos':       'huevos-rellenos.png',
+    'tacos':                 'tacos.png',
+    'agua jamaica':          'aguas-naturales.png',
+    'agua horchata':         'aguas-naturales.png',
+    'salsas':                'salsas.png'
+  }
+  function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'') }
+  function enLista(nombre){ var n=norm(nombre); return MOSTRAR.some(function(m){ return n.indexOf(norm(m))>=0 }) }
+  function imgFor(nombre){
+    var n = norm(nombre)
+    for (var k in IMG_MAP){ if (n.indexOf(norm(k))>=0) return IMG_MAP[k] }
+    return null
+  }
+  var DELAYS = ['','reveal-d1','reveal-d2']
+  fetch(SB_URL + '/rest/v1/productos?select=nombre,precio_base,familia_id,familias!productos_familia_id_fkey(nombre,activa)&activo=eq.true&order=familia_id,nombre', { headers: hdrs })
+    .then(function(r){ return r.json() })
+    .then(function(data){
+      var cont = document.getElementById('sabores-grid')
+      if (!Array.isArray(data) || !data.length) return
+      var prods = data.filter(function(p){ return p.familias && p.familias.activa !== false && enLista(p.nombre) })
+      if (!prods.length) return
+      // Agrupar todas las aguas en una sola tarjeta
+      var aguaFam = null
+      var aguaPrecio = null
+      var prods2 = []
+      prods.forEach(function(p){
+        var n = norm(p.nombre)
+        if (n.indexOf('agua') >= 0 || n.indexOf('horchata') >= 0 || n.indexOf('jamaica') >= 0 || n.indexOf('limon') >= 0 || n.indexOf('limón') >= 0) {
+          if (!aguaFam) { aguaFam = p.familias; aguaPrecio = p.precio_base }
+        } else {
+          prods2.push(p)
+        }
+      })
+      if (aguaFam) prods2.push({ nombre: 'Aguas Frescas', _displayNombre: 'Jamaica · Horchata · Limón', precio_base: aguaPrecio, familias: aguaFam, _img: 'aguas-naturales.png' })
+      var html = ''
+      prods2.forEach(function(p, i){
+        var fam   = p.familias ? p.familias.nombre : 'Platillo'
+        var emoji = emojiFor(fam)
+        var img   = p._img || imgFor(p.nombre)
+        var nombre = p._displayNombre || p.nombre.replace(/[<>]/g,'')
+        var imgHtml = img
+          ? '<img src="/img/productos/' + img + '" alt="' + nombre.replace(/"/g,'') + '" style="width:100%;height:auto;display:block" onerror="this.parentElement.innerHTML=\'<div class=img-ph><span>' + emoji + '</span></div>\'">'
+          : '<div class="img-ph"><span>' + emoji + '</span></div>'
+        html += '<div class="sc reveal ' + DELAYS[i % 3] + '">' +
+          '<div class="sc-img">' + imgHtml + '</div>' +
+          '<div class="sc-body">' +
+            '<div class="sc-cat">' + fam + '</div>' +
+            '<div class="sc-name">' + nombre + '</div>' +
+            '<div class="sc-price">$' + (p.precio_base || 0) + '</div>' +
+          '</div></div>'
+      })
+      cont.innerHTML = html
+      if (window.__revealObs) cont.querySelectorAll('.reveal').forEach(function(el){ window.__revealObs.observe(el) })
+    })
+    .catch(function(){})
+})()
+
+/* ── SCROLL REVEAL ── */
+;(function(){
+  var els = document.querySelectorAll('.reveal')
+  if (!('IntersectionObserver' in window)) {
+    els.forEach(function(el){ el.classList.add('visible') })
+    return
+  }
+  var obs = window.__revealObs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target) }
+    })
+  }, { threshold: 0.12 })
+  els.forEach(function(el){ obs.observe(el) })
+})()
+
+/* ── NAV ACTIVO al scroll ── */
+;(function(){
+  var sections = document.querySelectorAll('section[id]')
+  var links    = document.querySelectorAll('.nav-links a[href^="#"]')
+  window.addEventListener('scroll', function(){
+    var pos = window.scrollY + 80
+    sections.forEach(function(s){
+      var top = s.offsetTop, bot = top + s.offsetHeight
+      if (pos >= top && pos < bot) {
+        links.forEach(function(a){
+          a.style.background = a.getAttribute('href') === '#'+s.id ? 'var(--red-light)' : ''
+          a.style.color      = a.getAttribute('href') === '#'+s.id ? 'var(--red)' : ''
+        })
+      }
+    })
+  }, { passive:true })
+})()
+</script>
+</body>
+</html>

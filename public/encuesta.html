@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chilakileando — ¿Cómo estuvo tu experiencia?</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png" />
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #E24B4A 0%, #BA7517 100%);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px }
+.card { background: #fff; border-radius: 24px; padding: 32px 24px; max-width: 420px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25) }
+.logo { width: 68px; height: 68px; border-radius: 50%; object-fit: cover;
+  display: block; margin: 0 auto 12px; border: 3px solid #E24B4A }
+h1 { font-size: 18px; font-weight: 700; text-align: center; color: #1a1a1a; margin-bottom: 4px }
+.sub { font-size: 12px; color: #999; text-align: center; margin-bottom: 20px }
+.seccion { margin-bottom: 16px }
+.label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 7px }
+.opt { font-weight: 400; color: #bbb; font-size: 11px }
+input, select, textarea { width: 100%; padding: 11px 13px; border: 1.5px solid #e0e0e0;
+  border-radius: 12px; font-size: 13px; font-family: inherit; color: #333; outline: none;
+  transition: border-color 0.2s; background: #fafafa }
+input:focus, textarea:focus { border-color: #E24B4A; background: #fff }
+textarea { resize: none; min-height: 80px }
+.nps-grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; margin-bottom: 6px }
+.nps-btn { aspect-ratio: 1; border: 2px solid #e8e8e8; border-radius: 10px; font-size: 13px;
+  font-weight: 700; cursor: pointer; background: #f5f5f5; color: #666; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center }
+.nps-btn.sel { border-color: var(--c); background: var(--c); color: #fff; transform: scale(1.1) }
+.nps-labels { display: flex; justify-content: space-between; font-size: 10px; color: #bbb; margin-bottom: 20px }
+.btn-pri { width: 100%; padding: 14px; border: none; border-radius: 14px; font-size: 15px;
+  font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #E24B4A, #BA7517);
+  color: #fff; margin-top: 6px }
+.btn-pri:disabled { opacity: 0.4; cursor: not-allowed }
+.btn-sec { width: 100%; padding: 11px; border: 1.5px solid #e0e0e0; border-radius: 12px;
+  font-size: 13px; font-weight: 600; cursor: pointer; background: transparent; color: #888; margin-top: 8px }
+.regalo-box { background: linear-gradient(135deg, #1D9E75, #04342C); color: #fff;
+  border-radius: 18px; padding: 24px; text-align: center; margin: 16px 0 }
+.regalo-emoji { font-size: 52px; display: block; margin-bottom: 10px }
+.regalo-titulo { font-size: 22px; font-weight: 800; margin-bottom: 6px }
+.regalo-desc { font-size: 14px; opacity: 0.9; line-height: 1.5; margin-bottom: 14px }
+.regalo-codigo { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px 16px;
+  font-size: 18px; font-weight: 800; letter-spacing: 3px; font-family: monospace }
+.screenshot-hint { background: #FFF9E6; border: 1.5px solid #EF9F27; border-radius: 12px;
+  padding: 12px 14px; font-size: 12px; color: #8A5A00; line-height: 1.6; margin: 14px 0 }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 20px; background: #fff; border: 1.5px solid #ddd; border-radius: 12px;
+  text-decoration: none; font-size: 13px; font-weight: 600; color: #333;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin: 0 auto; width: fit-content }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px }
+.chip { padding: 6px 12px; border: 1.5px solid #e0e0e0; border-radius: 99px; font-size: 12px;
+  cursor: pointer; color: #666; background: #f5f5f5; font-weight: 500 }
+.chip.sel { border-color: #E24B4A; background: #E24B4A18; color: #E24B4A; font-weight: 600 }
+.regalo-hint { background: #EAF3DE; border-radius: 12px; padding: 12px 14px;
+  font-size: 12px; color: #3B6D11; margin: 14px 0; line-height: 1.6 }
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+  <h1>Chilakileando<br>la Gordi'nflada</h1>
+  <p class="sub">Tu opinión nos hace mejores 🙌</p>
+
+  <!-- PASO 1 -->
+  <div id="paso1">
+    <div id="mesa-badge" style="text-align:center;margin-bottom:14px"></div>
+    <div class="seccion">
+      <div class="label">¿Cuál es tu nombre? *</div>
+      <input type="text" id="nombre" placeholder="Tu nombre" autocomplete="given-name">
+      <div id="nombre-error" style="color:#E24B4A;font-size:11px;margin-top:4px;display:none">Por favor escribe tu nombre</div>
+    </div>
+    <div class="seccion">
+      <div class="label">¿Cuál es tu teléfono? <span class="opt">(opcional)</span></div>
+      <input type="tel" id="telefono" placeholder="55 1234 5678" autocomplete="tel">
+    </div>
+    <div class="seccion">
+      <div class="label">¿Qué ordenaste hoy? <span class="opt">(opcional)</span></div>
+      <div class="chip-grid" id="chips"></div>
+    </div>
+    <div class="regalo-hint">
+      🎁 <strong>¡Hay un regalo esperándote!</strong><br>
+      Al terminar la encuesta recibirás una sorpresa especial para tu próxima visita.
+    </div>
+    <button class="btn-pri" onclick="irPaso2()">Siguiente →</button>
+  </div>
+
+  <!-- PASO 2 -->
+  <div id="paso2" style="display:none">
+    <div class="label" style="text-align:center;margin-bottom:14px;font-size:14px">
+      ¿Qué tan probable es que nos recomiendes<br>a un amigo o familiar?
+    </div>
+    <div class="nps-grid" id="nps-grid"></div>
+    <div class="nps-labels"><span>😞 Muy poco probable</span><span>😍 Muy probable</span></div>
+    <div class="seccion">
+      <div class="label">¿Por qué nos diste esa calificación? <span class="opt">(opcional)</span></div>
+      <textarea id="comentario" placeholder="Cuéntanos — sabor, servicio, precio, ambiente..." maxlength="500"></textarea>
+    </div>
+    <button class="btn-pri" onclick="enviar()" id="btn-enviar" disabled>Enviar mi opinión 🚀</button>
+    <button class="btn-sec" onclick="irPaso1()">← Regresar</button>
+  </div>
+
+  <!-- PASO 3 -->
+  <div id="paso3" style="display:none;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🙏</div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px">¡Muchas gracias!</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.6">
+      Tu opinión es muy valiosa para nosotros.<br>Como agradecimiento, aquí está tu regalo:
+    </p>
+    <div class="regalo-box">
+      <span class="regalo-emoji" id="regalo-emoji">🎁</span>
+      <div class="regalo-titulo" id="regalo-titulo"></div>
+      <div class="regalo-desc" id="regalo-desc"></div>
+      <div class="regalo-codigo" id="regalo-codigo"></div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:6px;line-height:1.5">
+        * Válido para consumo personal únicamente.<br>No acumulable con otras promociones.
+      </div>
+    </div>
+    <div class="screenshot-hint">
+      📸 <strong>¡Toma una captura de pantalla ahora!</strong><br>
+      Muéstrala en tu próxima visita para canjear tu regalo. Válido por 30 días.
+    </div>
+    <div id="google-section" style="display:none;margin-top:16px;padding:16px;background:#f8f9fa;border-radius:14px">
+      <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:4px">🌟 ¡Comparte tu experiencia!</div>
+      <div style="font-size:12px;color:#555;margin-bottom:14px;line-height:1.6">
+        Para canjear tu descuento necesitas cumplir <strong>ambos requisitos</strong>:
+      </div>
+
+      <a href="https://share.google/HaTm8nFvNsPJuYstO" target="_blank" class="google-btn" style="margin-bottom:10px">
+        <img src="https://www.google.com/favicon.ico" width="16" height="16" alt="G">
+        1. Dejar reseña en Google ⭐⭐⭐⭐⭐
+      </a>
+
+      <a href="https://www.instagram.com/gordinfladasmx" target="_blank" class="google-btn" style="background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;border:none;margin-bottom:4px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        2. Mencionarnos en Instagram @gordinfladasmx
+      </a>
+      <div style="font-size:10px;color:#999;margin-top:8px;line-height:1.5;text-align:center">
+        Presenta ambas evidencias al momento de tu visita.<br>
+        El equipo verificará los requisitos antes de aplicar el descuento.
+      </div>
+    </div>
+    <p style="font-size:10px;color:#bbb;margin-top:16px;line-height:1.6;padding:0 8px">
+      * Válido para consumo personal únicamente · No transferible · Válido 30 días · Sujeto a verificación de reseña en Google e Instagram.
+    </p>
+    <p style="font-size:12px;color:#bbb;margin-top:8px">¡Esperamos verte muy pronto! 💛</p>
+  </div>
+</div>
+
+<script>
+var SUPABASE_URL = 'https://hcxnpcxvcdqzcxdvjjey.supabase.co'
+var SUPABASE_KEY = 'sb_publishable_Hpq_5QsteMVSaNCqvSly3Q_CSG7C5-Q'
+
+var PRODUCTOS = ['Naturales','Gratinados','Rellenos','Botijones','Migakiles','Suizos',
+  'Crudakiles','Kostrakiles','Omelette','Revueltos','Estrellados','Huevos Rellenos',
+  'Kekas','Sopes','Gorditas','Tacos','Quesadillas','Volcanes','Sincronizadas',
+  'Enfrijoladas','Cafe de Olla','Latte','Cafe Americano','Refresco','Agua','Jugo']
+
+var REGALOS_LIBRES = ['Naturales','Gratinados','Rellenos','Migakiles','Kekas','Gorditas','Tacos','Sopes']
+var DESCUENTOS = [15, 20, 25, 30]
+
+// Contador de regalos en localStorage — 1 producto cada 10 descuentos
+function getContadorRegalos() {
+  return parseInt(localStorage.getItem('gordi_regalo_count') || '0')
+}
+function incrementarContador() {
+  var n = getContadorRegalos() + 1
+  localStorage.setItem('gordi_regalo_count', n)
+  return n
+}
+
+var params = new URLSearchParams(window.location.search)
+var mesa = params.get('mesa') || ''
+var selCalif = null
+var selComida = []
+
+if (mesa) {
+  document.getElementById('mesa-badge').innerHTML =
+    '<span style="display:inline-block;background:#E24B4A18;color:#E24B4A;font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px">Mesa ' + mesa + '</span>'
+}
+
+var chipsEl = document.getElementById('chips')
+PRODUCTOS.forEach(function(p) {
+  var chip = document.createElement('span')
+  chip.className = 'chip'
+  chip.textContent = p
+  chip.onclick = function() {
+    var idx = selComida.indexOf(p)
+    if (idx >= 0) { selComida.splice(idx, 1); chip.classList.remove('sel') }
+    else { selComida.push(p); chip.classList.add('sel') }
+  }
+  chipsEl.appendChild(chip)
+})
+
+function getColor(n) { return n <= 6 ? '#E24B4A' : n <= 8 ? '#EF9F27' : '#1D9E75' }
+
+var grid = document.getElementById('nps-grid')
+for (var i = 0; i <= 10; i++) {
+  (function(num) {
+    var btn = document.createElement('button')
+    btn.className = 'nps-btn'
+    btn.textContent = num
+    btn.style.setProperty('--c', getColor(num))
+    btn.onclick = function() {
+      selCalif = num
+      document.querySelectorAll('.nps-btn').forEach(function(b) { b.classList.remove('sel') })
+      btn.classList.add('sel')
+      document.getElementById('btn-enviar').disabled = false
+    }
+    grid.appendChild(btn)
+  })(i)
+}
+
+function irPaso1() {
+  document.getElementById('paso1').style.display = 'block'
+  document.getElementById('paso2').style.display = 'none'
+}
+
+function irPaso2() {
+  var nombre = document.getElementById('nombre').value.trim()
+  if (!nombre) {
+    document.getElementById('nombre').style.borderColor = '#E24B4A'
+    document.getElementById('nombre-error').style.display = 'block'
+    document.getElementById('nombre').focus()
+    return
+  }
+  document.getElementById('nombre').style.borderColor = ''
+  document.getElementById('nombre-error').style.display = 'none'
+  document.getElementById('paso1').style.display = 'none'
+  document.getElementById('paso2').style.display = 'block'
+}
+
+function generarRegalo() {
+  // Solo descuentos por ahora (sin productos gratis)
+  var pct = DESCUENTOS[Math.floor(Math.random() * DESCUENTOS.length)]
+  return { emoji: pct >= 25 ? '🎉' : '🎊', titulo: pct + '% de descuento',
+    desc: 'En tu próxima visita presenta este código y obtén un ' + pct + '% de descuento en tu consumo total.',
+    codigo: 'GORDI' + pct + 'OFF' }
+}
+
+function mostrarPaso3() {
+  var regalo = generarRegalo()
+  document.getElementById('regalo-emoji').textContent = regalo.emoji
+  document.getElementById('regalo-titulo').textContent = regalo.titulo
+  document.getElementById('regalo-desc').textContent = regalo.desc
+  document.getElementById('regalo-codigo').textContent = regalo.codigo
+  document.getElementById('paso2').style.display = 'none'
+  document.getElementById('paso3').style.display = 'block'
+  document.getElementById('google-section').style.display = 'block'
+}
+
+function enviar() {
+  if (selCalif === null) return
+  var btn = document.getElementById('btn-enviar')
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  var nombre = document.getElementById('nombre').value.trim()
+  var telefono = document.getElementById('telefono').value.trim()
+  var comentario = document.getElementById('comentario').value.trim()
+
+  // Guardar respuesta NPS
+  fetch(SUPABASE_URL + '/rest/v1/nps_respuestas', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json', 'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify({
+      calificacion: selCalif, comentario: comentario || null,
+      mesa: mesa || null, nombre: nombre || null, telefono: telefono || null,
+      productos_ordenados: selComida.length ? selComida.join(', ') : null,
+      fecha: new Date().toLocaleDateString('en-CA')
+    })
+  }).then(function() { mostrarPaso3() })
+    .catch(function() { mostrarPaso3() })
+
+  // Registrar/actualizar en CRM si hay nombre o teléfono
+  if (nombre || telefono) {
+    var tel = telefono || ''
+    var buscarUrl = SUPABASE_URL + '/rest/v1/clientes?select=id,total_pedidos,notas'
+    if (tel) buscarUrl += '&telefono=eq.' + encodeURIComponent(tel)
+    else buscarUrl += '&nombre=eq.' + encodeURIComponent(nombre) + '&limit=1'
+
+    fetch(buscarUrl, { headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY} })
+    .then(function(r){ return r.ok ? r.json() : [] })
+    .then(function(lista) {
+      var existe = lista && lista.length > 0 ? lista[0] : null
+      var notaNPS = 'NPS '+selCalif+'/10'+(comentario?' — '+comentario:'')
+      if (existe) {
+        fetch(SUPABASE_URL+'/rest/v1/clientes?id=eq.'+existe.id, {
+          method:'PATCH',
+          headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+          body:JSON.stringify({
+            ultima_visita:new Date().toLocaleDateString('en-CA'),
+            notas:(existe.notas?existe.notas+' | ':'')+notaNPS,
+            updated_at:new Date().toISOString()
+          })
+        })
+      } else if (nombre) {
+        fetch(SUPABASE_URL+'/rest/v1/clientes', {
+          method:'POST',
+          headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+          body:JSON.stringify({
+            nombre:nombre, telefono:tel||null,
+            primera_visita:new Date().toLocaleDateString('en-CA'),
+            ultima_visita:new Date().toLocaleDateString('en-CA'),
+            total_pedidos:0, total_gastado:0,
+            notas:notaNPS, fuente:'encuesta_nps'
+          })
+        })
+      }
+    }).catch(function(e){ console.error('CRM NPS error:', e) })
+  }
+}
+</script>
+</body>
+</html>

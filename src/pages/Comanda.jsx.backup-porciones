@@ -1,0 +1,1412 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { sb } from '../lib/supabase.js'
+import { generarComanda, generarTicket, imprimir } from '../lib/impresora.js'
+
+const PLATOS_BASE = [
+  { codigo:'CHI-01', nombre:'Naturales',          familia:'Los Chilakiles',     precio:110, color:'#E24B4A' },
+  { codigo:'CHI-02', nombre:'Gratinados',          familia:'Los Chilakiles',     precio:120, color:'#E24B4A' },
+  { codigo:'CHI-03', nombre:'Rellenos',            familia:'Los Chilakiles',     precio:140, color:'#E24B4A' },
+  { codigo:'CHI-04', nombre:'Botijones',           familia:'Los Chilakiles',     precio:150, color:'#E24B4A' },
+  { codigo:'CHI-05', nombre:'Migakiles',           familia:'Los Chilakiles',     precio:130, color:'#E24B4A' },
+  { codigo:'CHI-06', nombre:'Suizos',              familia:'Los Chilakiles',     precio:140, color:'#E24B4A' },
+  { codigo:'CHI-07', nombre:'Crudakiles',          familia:'Los Chilakiles',     precio:140, color:'#E24B4A' },
+  { codigo:'CHI-08', nombre:'Crudakiles Rellenos', familia:'Los Chilakiles',     precio:165, color:'#E24B4A' },
+  { codigo:'CHI-09', nombre:'Kostrakiles',         familia:'Los Chilakiles',     precio:140, color:'#E24B4A' },
+  { codigo:'HUE-01', nombre:'Omelette',            familia:'Huevos y Crokantes', precio:120, color:'#D85A30' },
+  { codigo:'HUE-02', nombre:'Revueltos',           familia:'Huevos y Crokantes', precio:120, color:'#D85A30' },
+  { codigo:'HUE-03', nombre:'Estrellados',         familia:'Huevos y Crokantes', precio:120, color:'#D85A30' },
+  { codigo:'HUE-04', nombre:'Huevos Rellenos',     familia:'Huevos y Crokantes', precio:120, color:'#D85A30' },
+  { codigo:'DOR-01', nombre:'Kekas',               familia:'Los Dorados',        precio: 40, color:'#EF9F27' },
+  { codigo:'DOR-02', nombre:'Sopes',               familia:'Los Dorados',        precio: 40, color:'#EF9F27' },
+  { codigo:'COM-01', nombre:'Gorditas',            familia:'Del Comal',          precio: 35, color:'#BA7517' },
+  { codigo:'COM-02', nombre:'Tacos',               familia:'Del Comal',          precio: 35, color:'#BA7517' },
+  { codigo:'COM-03', nombre:'Quesadillas',         familia:'Del Comal',          precio: 35, color:'#BA7517' },
+  { codigo:'COM-04', nombre:'Volcanes',            familia:'Del Comal',          precio: 40, color:'#BA7517' },
+  { codigo:'COM-05', nombre:'Sincronizadas',       familia:'Del Comal',          precio: 85, color:'#BA7517' },
+  { codigo:'ENF-01', nombre:'Enfrijoladas',        familia:'Enfrijoladas',       precio:120, color:'#7F77DD' },
+  { codigo:'LIT-01', nombre:'Arroz 1/2L',              familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-02', nombre:'Frijolitos de la Casa 1/2L', familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-03', nombre:'Mole de la Casa 1/2L',    familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-04', nombre:'Picadillo 1/2L',          familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-05', nombre:'Deshebrada a la Mexicana 1/2L', familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-06', nombre:'Nopales 1/2L',            familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-07', nombre:'Huevo 1/2L',              familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-08', nombre:'Bistec 1/2L',             familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-09', nombre:'Trocito de la Casa 1/2L', familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-10', nombre:'Papas 1/2L',              familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-11', nombre:'Rajas Poblanas 1/2L',     familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-12', nombre:'Chicharron Duro 1/2L',    familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'LIT-13', nombre:'Prensado de la Casa 1/2L',familia:'1/2 Litros', precio:150, color:'#1D9E75' },
+  { codigo:'BEF-01', nombre:'Refresco',            familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEF-02', nombre:'Agua Natural',        familia:'Bebidas Frias',      precio: 20, color:'#378ADD' },
+  { codigo:'BEF-03', nombre:'Agua Jamaica',        familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEF-04', nombre:'Agua Horchata',       familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEF-05', nombre:'Agua Limon con Chia', familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEF-06', nombre:'Agua Mango',          familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEF-07', nombre:'Agua Pina',           familia:'Bebidas Frias',      precio: 30, color:'#378ADD' },
+  { codigo:'BEC-01', nombre:'Cafe de Olla',        familia:'Bebidas Calientes',  precio: 30, color:'#1D9E75' },
+  { codigo:'BEC-02', nombre:'Cafe de Olla Refill', familia:'Bebidas Calientes',  precio: 20, color:'#1D9E75' },
+  { codigo:'BEC-03', nombre:'Cafe Americano',      familia:'Bebidas Calientes',  precio: 50, color:'#1D9E75' },
+  { codigo:'BEC-04', nombre:'Latte',               familia:'Bebidas Calientes',  precio: 70, color:'#1D9E75' },
+  { codigo:'POS-01', nombre:'Galleta',             familia:'Postres',            precio: 20, color:'#D4537E' },
+  { codigo:'POS-02', nombre:'Muffin',              familia:'Postres',            precio: 35, color:'#D4537E' },
+{ codigo:'PLA-01', nombre:'Plato a la Carta',   familia:'Platos a la Carta',  precio:100, color:'#9C27B0' },
+]
+
+const GUISOS = ['Arroz','Frijolitos de la Casa','Mole de la Casa','Picadillo','Deshebrada a la Mexicana','Nopales','Huevo','Huevo Estrellado','Claras de Huevo','Bistec','Trocito de la Casa','Papas','Rajas Poblanas','Chicharron Duro','Prensado de la Casa']
+const SALSAS = [
+  { nombre:'Salsa Verde', precio:0 },{ nombre:'Salsa Roja', precio:0 },{ nombre:'Salsa Chipotle', precio:0 },
+  { nombre:'La Cunada', precio:15 },{ nombre:'Diabla', precio:15 },{ nombre:'La Suegra', precio:15 },{ nombre:'La Suegra + Diabla', precio:20 },
+]
+const TOPPINGS = [{ nombre:'Queso Sierra', precio:0 },{ nombre:'Queso Asadero', precio:10 },{ nombre:'Crema', precio:0 },{ nombre:'Frijolitos de la Casa', precio:0 }]
+const SABORES_LATTE = ['Natural','Vainilla','Moka','Crema Irlandesa']
+const LECHE_LATTE   = ['Entera','Deslactosada']
+const FAMILIAS_TABS = ['Todos','Los Chilakiles','Huevos y Crokantes','Los Dorados','Del Comal','Enfrijoladas','Platos a la Carta','1/2 Litros','Bebidas Frías','Bebidas Calientes','Postres']
+const PRODUCTOS_PLATAFORMA = [
+  'Naturales','Gratinados','Rellenos','Botijones','Migakiles','Suizos','Crudakiles','Crudakiles Rellenos','Kostrakiles',
+  'Gorditas','Kekas','Sopes','Tacos','Quesadillas','Volcanes',
+  'Cafe de Olla','Refresco','Agua Jamaica','Agua Horchata','Agua Limon con Chia','Agua Mango','Agua Pina','Agua Natural',
+  'Muffin','Galleta',
+]
+const CANALES = [
+  { id:'Efectivo', label:'Efectivo', cargo:0, clip:false },
+  { id:'Tarjeta', label:'Tarjeta', cargo:0.045, clip:true },
+  { id:'Uber', label:'Uber Eats', cargo:0.46, clip:false },
+  { id:'Uber Chilakiles', label:'Uber Chilakiles', cargo:0.46, clip:false },
+  { id:'DiDi', label:'DiDi Food', cargo:0.46, clip:false },
+  { id:'DiDi Chilakiles', label:'DiDi Chilakiles', cargo:0.46, clip:false },
+  { id:'Rappi', label:'Rappi', cargo:0.46, clip:false },
+  { id:'Ola', label:'Ola', cargo:0, clip:false },
+  { id:'Gratis', label:'Gratis', cargo:0, clip:false },
+]
+const TIPOS_COMANDA = [
+  { id:'mesa', label:'Mesa', icon:'M', color:'#378ADD' },
+  { id:'llevar', label:'Para llevar', icon:'L', color:'#EF9F27' },
+  { id:'plataforma', label:'Plataforma', icon:'P', color:'#7F77DD' },
+]
+const SIN_GUISOS = ['BEF-01','BEF-02','BEF-03','BEF-04','BEF-05','BEF-06','BEF-07','BEC-01','BEC-02','BEC-03','BEC-04','POS-01','POS-02']
+const CON_GUISO_EXTRA = ['Los Chilakiles','Huevos y Crokantes','Enfrijoladas']
+const CON_2_GUISOS_GRATIS = ['Del Comal','Los Dorados']
+const CON_3_GUISOS_GRATIS = ['CHI-03','CHI-08','CHI-04','HUE-04']
+const PLATOS_A_LA_CARTA = ['Platos a la Carta']
+const BEBIDA_MAP = {
+  'Refresco':'Refresco 355ml','Agua Natural':'Agua Natural','Agua Jamaica':'Agua Jamaica',
+  'Agua Horchata':'Agua Horchata','Agua Limón con Chía':'Agua Limón con Chía',
+  'Agua Limon con Chia':'Agua Limón con Chía',
+  'Agua Mango':'Agua Mango','Agua Piña':'Agua Piña','Agua Pina':'Agua Piña',
+  'Jugo Fresa':'Jugo Fresa','Jugo Mango':'Jugo Mango','Jugo Manzana':'Jugo Manzana',
+}
+
+const ESTADO_LABEL = { pendiente_pago:'💳 Pago pendiente', abierta:'Abierta', en_cocina:'En cocina', lista:'Lista ✓', standby:'Standby', cobrada:'Cobrada', cuenta_pedida:'🧾 Cuenta pedida' }
+const ESTADO_COLOR = { pendiente_pago:'#7F77DD', abierta:'#378ADD', en_cocina:'#EF9F27', lista:'#1D9E75', standby:'#7F77DD', cobrada:'#888', cuenta_pedida:'#E24B4A' }
+
+const today = () => { const d=new Date(); return d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'))+'-'+(String(d.getDate()).padStart(2,'0')) }
+const fmtM  = v => '$' + Math.round(v).toLocaleString('es-MX')
+
+// Sonido de alarma
+function playAlarm() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const beep = (freq, start, dur) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.frequency.value = freq; o.type = 'sine'
+      g.gain.setValueAtTime(0.3, ctx.currentTime+start)
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+start+dur)
+      o.start(ctx.currentTime+start); o.stop(ctx.currentTime+start+dur+0.05)
+    }
+    beep(880, 0, 0.3); beep(1100, 0.35, 0.3); beep(880, 0.7, 0.3); beep(1100, 1.05, 0.5)
+  } catch(e) {}
+}
+
+// ── CONFIG MODAL ──────────────────────────────────────────────
+function ConfigModal({ plato, onConfirm, onCancel }) {
+  const [qty,        setQty]        = useState(1)
+  const [guiso1,     setGuiso1]     = useState([])
+  const [guisoX,     setGuisoX]     = useState([])
+  const [salsas,     setSalsas]     = useState([])
+  const [tops,       setTops]       = useState([])
+  const [sabor,      setSabor]      = useState('')
+  const [leche,      setLeche]      = useState('')
+  const [notas,      setNotas]      = useState('')
+  const [mediaOrden, setMediaOrden] = useState(false)
+  const [extras,     setExtras]     = useState([]) // [{nombre, monto}]
+  const [extraNom,   setExtraNom]   = useState('')
+  const [extraMonto, setExtraMonto] = useState('')
+  const [cafeOlla,   setCafeOlla]   = useState(false)
+
+  const necesitaGuisos = !SIN_GUISOS.includes(plato.codigo) && !plato.codigo.startsWith('LIT-')
+  const esComalDorados = CON_2_GUISOS_GRATIS.includes(plato.familia)
+  const esPlatoCarta = PLATOS_A_LA_CARTA.includes(plato.familia)
+  const esTresGuisosGratis = CON_3_GUISOS_GRATIS.includes(plato.codigo)
+  const esChilakiles   = CON_GUISO_EXTRA.includes(plato.familia)
+  const esLatte = plato.codigo === 'BEC-04'
+  const incluyeCafe = ['Los Chilakiles','Huevos y Crokantes'].includes(plato.familia)
+  const tog = (arr, setArr, v) => setArr(a => a.includes(v) ? a.filter(x=>x!==v) : [...a,v])
+
+  const extraGuisos   = esChilakiles && !esTresGuisosGratis ? guisoX.length * (plato.precioExtra||20)
+                      : esPlatoCarta ? guisoX.length * 20 : 0
+  const extraSalsas   = salsas.reduce((s,n)=>{ const sl=SALSAS.find(x=>x.nombre===n); return s+(sl?.precio||0) },0)
+  const extraToppings = tops.reduce((s,n)=>{ const tp=TOPPINGS.find(x=>x.nombre===n); return s+(tp?.precio||0) },0)
+  const extrasManuales= extras.reduce((s,e)=>s+(parseFloat(e.monto)||0), 0)
+  const precioBase    = plato.precio + extraGuisos + extraSalsas + extraToppings
+  const precioMedia   = mediaOrden ? Math.round(precioBase * 0.60) : precioBase
+  const precioUnit    = precioMedia + extrasManuales
+  const subtotal      = precioUnit * qty
+
+  const desc = () => {
+    const p = []
+    if (mediaOrden) p.push('½ orden')
+    if (guiso1.length) p.push(guiso1.join(', '))
+    if (guisoX.length) p.push(guisoX.map(g=>g+' (+$'+(plato.precioExtra||20)+')').join(', '))
+    if (salsas.length) p.push(salsas.join(', '))
+    if (tops.length)   p.push(tops.join(', '))
+    if (sabor) p.push(sabor)
+    if (leche) p.push(leche)
+    if (extras.length) p.push(extras.map(e=>e.nombre+' +$'+e.monto).join(', '))
+    if (notas) p.push(notas)
+    return p.join(' | ')
+  }
+
+  const btn = (active, color='var(--accent)') => ({
+    padding:'8px 14px', borderRadius:99, fontSize:13, cursor:'pointer',
+    border: active ? 'none' : '1.5px solid var(--border-md)',
+    background: active ? color : 'var(--bg)',
+    color: active ? '#fff' : 'var(--text)',
+    fontWeight: active ? 600 : 400,
+    minHeight: 38,
+  })
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
+      <div style={{ background:'var(--surface)',borderRadius:'var(--r-lg)',padding:22,width:520,maxHeight:'88vh',overflowY:'auto',border:'0.5px solid var(--border-md)' }}>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:15,fontWeight:600 }}>{plato.nombre}</div>
+            <div style={{ fontSize:11,color:'var(--text2)' }}>{plato.familia} · ${plato.precio}</div>
+          </div>
+          <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+            <button onClick={()=>setQty(q=>Math.max(1,q-1))} style={{ width:26,height:26,borderRadius:'50%',border:'0.5px solid var(--border-md)',background:'var(--bg)',cursor:'pointer',fontSize:15 }}>−</button>
+            <span style={{ fontSize:15,fontWeight:600,minWidth:20,textAlign:'center' }}>{qty}</span>
+            <button onClick={()=>setQty(q=>q+1)} style={{ width:26,height:26,borderRadius:'50%',border:'0.5px solid var(--border-md)',background:'var(--bg)',cursor:'pointer',fontSize:15 }}>+</button>
+          </div>
+        </div>
+
+        {necesitaGuisos && <>
+          {esChilakiles && <>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Guiso incluido (elige 1)</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+              {GUISOS.map(g=><button key={g} onClick={()=>setGuiso1([g])} style={btn(guiso1.includes(g))}>{g}</button>)}
+            </div>
+            {esTresGuisosGratis ? <>
+              <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Guisos adicionales sin costo (elige hasta 2)</div>
+              <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+                {GUISOS.map(g=>{ const sel=guisoX.includes(g); const dis=!sel&&guisoX.length>=2
+                  return <button key={g} onClick={()=>!dis&&tog(guisoX,setGuisoX,g)} style={{...btn(sel),opacity:dis?0.4:1,cursor:dis?'not-allowed':'pointer'}}>{g}</button>})}
+              </div>
+            </> : <>
+              <div style={{ fontSize:11,fontWeight:600,color:'#EF9F27',marginBottom:5 }}>Guisos adicionales (+${plato.precioExtra||20} c/u)</div>
+              <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+                {GUISOS.map(g=><button key={g} onClick={()=>tog(guisoX,setGuisoX,g)} style={btn(guisoX.includes(g),'#EF9F27')}>{g}{guisoX.includes(g)?` +$${plato.precioExtra||20}`:''}</button>)}
+              </div>
+            </>}
+          </>}
+          {esComalDorados && <>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Guisos (hasta 2, sin costo extra)</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+              {GUISOS.map(g=>{
+                const sel=guiso1.includes(g); const disabled=!sel&&guiso1.length>=2
+                return <button key={g} onClick={()=>!disabled&&tog(guiso1,setGuiso1,g)} style={{...btn(sel),opacity:disabled?0.4:1,cursor:disabled?'not-allowed':'pointer'}}>{g}</button>
+              })}
+            </div>
+          </>} {esPlatoCarta && <>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Guisos incluidos (elige hasta 2)</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+              {GUISOS.map(g=>{
+                const sel=guiso1.includes(g); const disabled=!sel&&guiso1.length>=2
+                return <button key={g} onClick={()=>!disabled&&tog(guiso1,setGuiso1,g)} style={{...btn(sel),opacity:disabled?0.4:1,cursor:disabled?'not-allowed':'pointer'}}>{g}</button>
+              })}
+            </div>
+            <div style={{ fontSize:11,fontWeight:600,color:'#EF9F27',marginBottom:5 }}>Guisos adicionales (+$20 c/u, hasta 3 más)</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+              {GUISOS.map(g=>{
+                const sel=guisoX.includes(g); const dis=!sel&&guisoX.length>=3
+                return <button key={g} onClick={()=>!dis&&tog(guisoX,setGuisoX,g)} style={{...btn(sel,'#EF9F27'),opacity:dis?0.4:1,cursor:dis?'not-allowed':'pointer'}}>{g}{sel?` +$20`:''}</button>
+              })}
+            </div>
+          </>}
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Salsas</div>
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8,marginBottom:12 }}>
+            {SALSAS.map(s=><button key={s.nombre} onClick={()=>tog(salsas,setSalsas,s.nombre)} style={btn(salsas.includes(s.nombre),'#E24B4A')}>{s.nombre}{s.precio>0?` +$${s.precio}`:''}</button>)}
+          </div>
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Toppings</div>
+          <div style={{ display:'flex',gap:8,flexWrap:'wrap',marginBottom:12 }}>
+            {TOPPINGS.map(t=><button key={t.nombre} onClick={()=>tog(tops,setTops,t.nombre)} style={btn(tops.includes(t.nombre),'#1D9E75')}>{t.nombre}{t.precio>0?` +$${t.precio}`:''}</button>)}
+          </div>
+        </>}
+
+        {esLatte && <>
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Sabor</div>
+          <div style={{ display:'flex',gap:8,flexWrap:'wrap',marginBottom:12 }}>
+            {SABORES_LATTE.map(s=><button key={s} onClick={()=>setSabor(sabor===s?'':s)} style={btn(sabor===s,'#1D9E75')}>{s}</button>)}
+          </div>
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Tipo de leche</div>
+          <div style={{ display:'flex',gap:4,marginBottom:10 }}>
+            {LECHE_LATTE.map(l=><button key={l} onClick={()=>setLeche(leche===l?'':l)} style={btn(leche===l,'#1D9E75')}>{l}</button>)}
+          </div>
+        </>}
+
+        <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:5 }}>Notas</div>
+        <input style={{ width:'100%',padding:'6px 9px',border:'0.5px solid var(--border-md)',borderRadius:'var(--r-sm)',background:'var(--bg)',color:'var(--text)',fontSize:12,fontFamily:'inherit',marginBottom:14 }}
+          placeholder="Sin picante, extra crema..." value={notas} onChange={e=>setNotas(e.target.value)} />
+
+        {/* MEDIA ORDEN */}
+        <div style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'#FFF9E6',borderRadius:'var(--r-md)',marginBottom:12,border:'0.5px solid #EF9F27' }}>
+          <input type="checkbox" id="media-orden" checked={mediaOrden} onChange={e=>setMediaOrden(e.target.checked)} style={{ width:18,height:18,cursor:'pointer' }}/>
+          <label htmlFor="media-orden" style={{ fontSize:12,fontWeight:500,cursor:'pointer',color:'#8A5A00' }}>
+            ½ Orden — descuento 40% (${Math.round(plato.precio*0.6)} base)
+          </label>
+        </div>
+
+        {/* CAFÉ DE OLLA GRATIS */}
+        {incluyeCafe && (
+          <div style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'#EAF3DE',borderRadius:'var(--r-md)',marginBottom:12,border:'0.5px solid #86C442' }}>
+            <input type="checkbox" id="cafe-olla" checked={cafeOlla} onChange={e=>setCafeOlla(e.target.checked)} style={{ width:18,height:18,cursor:'pointer' }}/>
+            <label htmlFor="cafe-olla" style={{ fontSize:12,fontWeight:500,cursor:'pointer',color:'#3B6D11' }}>
+              ☕ Incluye Café de Olla gratis
+            </label>
+          </div>
+        )}
+
+        {/* EXTRAS MANUALES */}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:6 }}>Extras manuales</div>
+          {extras.map((e,i)=>(
+            <div key={i} style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4 }}>
+              <span style={{ flex:1,fontSize:12,padding:'4px 8px',background:'var(--bg)',borderRadius:'var(--r-sm)' }}>{e.nombre}</span>
+              <span style={{ fontSize:12,fontWeight:600,color:'#1D9E75' }}>+{fmtM(e.monto)}</span>
+              <button onClick={()=>setExtras(ex=>ex.filter((_,j)=>j!==i))}
+                style={{ fontSize:11,padding:'2px 6px',borderRadius:'var(--r-sm)',border:'0.5px solid #E24B4A',color:'#E24B4A',background:'transparent',cursor:'pointer' }}>✕</button>
+            </div>
+          ))}
+          <div style={{ display:'flex',gap:6,marginTop:6 }}>
+            <input value={extraNom} onChange={e=>setExtraNom(e.target.value)} placeholder="Ej: doble queso"
+              style={{ flex:2,padding:'6px 10px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',fontSize:12,background:'var(--surface)',color:'var(--text1)' }}/>
+            <input type="number" value={extraMonto} onChange={e=>setExtraMonto(e.target.value)} placeholder="$"
+              style={{ flex:1,padding:'6px 10px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',fontSize:12,background:'var(--surface)',color:'var(--text1)' }}/>
+            <button onClick={()=>{
+              if (!extraNom||!extraMonto) return
+              setExtras(ex=>[...ex,{nombre:extraNom,monto:parseFloat(extraMonto)||0}])
+              setExtraNom(''); setExtraMonto('')
+            }} style={{ padding:'6px 12px',borderRadius:'var(--r-sm)',border:'none',background:'#1D9E75',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600 }}>+ Add</button>
+          </div>
+        </div>
+
+        <div style={{ background:'var(--bg)',borderRadius:'var(--r-md)',padding:'10px 12px',marginBottom:14 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text2)',marginBottom:3 }}><span>Precio base</span><span>{fmtM(plato.precio)}</span></div>
+          {mediaOrden && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#EF9F27',marginBottom:3 }}><span>½ orden (−40%)</span><span>−{fmtM(plato.precio*0.4)}</span></div>}
+          {extraGuisos>0   && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#EF9F27',marginBottom:3 }}><span>Guisos adicionales ({guisoX.length}x)</span><span>+{fmtM(extraGuisos)}</span></div>}
+          {extraSalsas>0   && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#E24B4A',marginBottom:3 }}><span>Salsas extra</span><span>+{fmtM(extraSalsas)}</span></div>}
+          {extraToppings>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#1D9E75',marginBottom:3 }}><span>Toppings extra</span><span>+{fmtM(extraToppings)}</span></div>}
+          {extras.map((e,i)=><div key={i} style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#1D9E75',marginBottom:3 }}><span>{e.nombre}</span><span>+{fmtM(e.monto)}</span></div>)}
+          <div style={{ display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:600,borderTop:'0.5px solid var(--border-md)',paddingTop:7,marginTop:5 }}>
+            <span>Subtotal ({qty}x)</span><span>{fmtM(subtotal)}</span>
+          </div>
+        </div>
+
+        <div style={{ display:'flex',gap:8 }}>
+          <button onClick={onCancel} style={{ flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+          <button onClick={()=>onConfirm({ plato, qty, desc:desc(), subtotal, precioUnit, cafeOlla })}
+            style={{ flex:2,padding:9,borderRadius:'var(--r-md)',border:'none',background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600 }}>
+            Agregar — {fmtM(subtotal)}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── COBRO MODAL ───────────────────────────────────────────────
+function CobroModal({ total, canal, onConfirm, onCancel }) {
+  const [selCanal,   setSelCanal]   = useState(canal||'Efectivo')
+  const [aplicaClip, setAplicaClip] = useState(false)
+  const [mixto,      setMixto]      = useState(false)
+  const [montoEfvo,  setMontoEfvo]  = useState('')
+  const [descuento,  setDescuento]  = useState('')
+  const [tipoDesc,   setTipoDesc]   = useState('pct') // 'pct' o 'monto'
+  const [comConfig,  setComConfig]  = useState({ tarjeta:4.5, prestamo:30, uber:46, didi:46, rappi:46 })
+
+  const montoDescuento = tipoDesc==='pct'
+    ? Math.round(total * (parseFloat(descuento)||0) / 100)
+    : Math.min(parseFloat(descuento)||0, total)
+  const totalConDesc = total - montoDescuento
+
+  useEffect(() => {
+    sb.from('config_comisiones').select('id,porcentaje').then(({ data }) => {
+      if (!data) return
+      const m = {}; data.forEach(c=>{ m[c.id]=c.porcentaje }); setComConfig(m)
+    })
+  }, [])
+
+  const cObj    = CANALES.find(c=>c.id===selCanal)||CANALES[0]
+  const getPlatRate = (canal) => {
+    if (canal.includes('Uber')) return (comConfig.uber||46)/100
+    if (canal.includes('DiDi')) return (comConfig.didi||46)/100
+    if (canal.includes('Rappi')) return (comConfig.rappi||46)/100
+    return 0
+  }
+  const comPlat = cObj.cargo>0 ? Math.round(totalConDesc*getPlatRate(selCanal)) : 0
+  const comClip = (cObj.clip && aplicaClip) ? Math.round(totalConDesc*(comConfig.prestamo||30)/100) : 0
+
+  // Pago mixto: efectivo + tarjeta
+  const efvo    = mixto ? (parseFloat(montoEfvo)||0) : 0
+  const tarj    = mixto ? Math.max(0, totalConDesc - efvo) : 0
+  const comTC   = mixto && tarj>0 ? Math.round(tarj*(comConfig.tarjeta||4.5)/100) : 0
+  const clipMix = mixto && aplicaClip ? Math.round(tarj*(comConfig.prestamo||30)/100) : 0
+
+  const neto    = mixto
+    ? totalConDesc - comTC - clipMix
+    : totalConDesc - comPlat - comClip
+
+  const cambio  = mixto && efvo > totalConDesc ? efvo - totalConDesc : 0
+
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
+      <div style={{ background:'var(--surface)',borderRadius:'var(--r-lg)',padding:24,width:360,border:'0.5px solid var(--border-md)',maxHeight:'90vh',overflowY:'auto' }}>
+        <div style={{ fontSize:15,fontWeight:600,marginBottom:14 }}>Confirmar cobro</div>
+
+        {/* Descuento */}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:6 }}>Descuento (opcional)</div>
+          <div style={{ display:'flex',gap:6,alignItems:'center' }}>
+            <div style={{ display:'flex',borderRadius:'var(--r-sm)',overflow:'hidden',border:'0.5px solid var(--border-md)' }}>
+              <button onClick={()=>setTipoDesc('pct')} style={{ padding:'5px 12px',fontSize:11,border:'none',cursor:'pointer',background:tipoDesc==='pct'?'var(--accent)':'var(--bg)',color:tipoDesc==='pct'?'#fff':'var(--text2)' }}>%</button>
+              <button onClick={()=>setTipoDesc('monto')} style={{ padding:'5px 12px',fontSize:11,border:'none',cursor:'pointer',background:tipoDesc==='monto'?'var(--accent)':'var(--bg)',color:tipoDesc==='monto'?'#fff':'var(--text2)' }}>$</button>
+            </div>
+            <input type="number" value={descuento} onChange={e=>setDescuento(e.target.value)}
+              placeholder={tipoDesc==='pct'?'0%':'$0'} min="0" max={tipoDesc==='pct'?100:total}
+              style={{ flex:1,padding:'6px 10px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',fontSize:13,background:'var(--surface)',color:'var(--text1)' }}/>
+            {montoDescuento>0 && <span style={{ fontSize:12,color:'#1D9E75',fontWeight:600 }}>−{fmtM(montoDescuento)}</span>}
+          </div>
+          {montoDescuento>0 && (
+            <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,marginTop:6,padding:'4px 8px',background:'#EAF3DE',borderRadius:'var(--r-sm)' }}>
+              <span>Total con descuento</span><strong style={{ color:'#1D9E75' }}>{fmtM(totalConDesc)}</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Toggle pago mixto */}
+        <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:12,padding:'8px 12px',background:'var(--bg)',borderRadius:'var(--r-md)' }}>
+          <input type="checkbox" id="mixto-check" checked={mixto} onChange={e=>{ setMixto(e.target.checked); setMontoEfvo('') }} style={{ width:16,height:16,cursor:'pointer' }}/>
+          <label htmlFor="mixto-check" style={{ fontSize:12,cursor:'pointer',fontWeight:500 }}>Pago mixto (efectivo + tarjeta)</label>
+        </div>
+
+        {mixto ? (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:6 }}>Monto en efectivo</div>
+            <input type="number" value={montoEfvo} onChange={e=>setMontoEfvo(e.target.value)}
+              placeholder={`Máx. ${fmtM(total)}`} min="0" max={total} step="1"
+              style={{ width:'100%',padding:'8px 12px',borderRadius:'var(--r-md)',border:'1.5px solid #378ADD',fontSize:14,fontWeight:600,background:'var(--surface)',color:'var(--text1)' }}/>
+            {efvo>0 && tarj>0 && (
+              <div style={{ marginTop:6,fontSize:11,color:'var(--text2)' }}>
+                Efectivo: {fmtM(efvo)} · Tarjeta: {fmtM(tarj)}
+              </div>
+            )}
+            {/* Clip en parte tarjeta */}
+            {tarj>0 && (
+              <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:10,padding:'8px 10px',background:'#FFF9E6',borderRadius:'var(--r-md)',border:'0.5px solid #EF9F27' }}>
+                <input type="checkbox" id="clip-mix" checked={aplicaClip} onChange={e=>setAplicaClip(e.target.checked)} style={{ width:16,height:16,cursor:'pointer' }}/>
+                <label htmlFor="clip-mix" style={{ fontSize:11,color:'#8A5A00',cursor:'pointer' }}>¿Aplica préstamo Clip? (30% sobre {fmtM(tarj)})</label>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize:11,fontWeight:600,color:'var(--text2)',marginBottom:6 }}>Canal de venta</div>
+            <div style={{ display:'flex',flexWrap:'wrap',gap:5,marginBottom:14 }}>
+              {CANALES.map(c=>(
+                <button key={c.id} onClick={()=>{ setSelCanal(c.id); setAplicaClip(false) }}
+                  style={{ padding:'4px 10px',borderRadius:99,fontSize:11,cursor:'pointer',border:'0.5px solid var(--border-md)',
+                    background:selCanal===c.id?'var(--accent)':'transparent',color:selCanal===c.id?'#fff':'var(--text2)' }}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {cObj.clip && (
+              <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'10px 12px',background:'#FFF9E6',borderRadius:'var(--r-md)',border:'0.5px solid #EF9F27' }}>
+                <input type="checkbox" id="clip-check" checked={aplicaClip} onChange={e=>setAplicaClip(e.target.checked)} style={{ width:16,height:16,cursor:'pointer' }}/>
+                <label htmlFor="clip-check" style={{ fontSize:12,color:'#8A5A00',cursor:'pointer',fontWeight:500 }}>
+                  ¿Aplica pago préstamo Clip? (30% sobre total)
+                </label>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Resumen */}
+        <div style={{ background:'var(--bg)',borderRadius:'var(--r-md)',padding:12,marginBottom:14 }}>
+          <div style={{ display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6 }}><span>Total</span><span style={{fontWeight:600}}>{fmtM(total)}</span></div>
+          {!mixto && comPlat>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#E24B4A',marginBottom:4 }}><span>Comisión plataforma</span><span>−{fmtM(comPlat)}</span></div>}
+          {!mixto && comClip>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#E24B4A',marginBottom:4 }}><span>Pago préstamo Clip (30%)</span><span>−{fmtM(comClip)}</span></div>}
+          {mixto && comTC>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#E24B4A',marginBottom:4 }}><span>Comisión tarjeta (4.5% s/{fmtM(tarj)})</span><span>−{fmtM(comTC)}</span></div>}
+          {mixto && clipMix>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#E24B4A',marginBottom:4 }}><span>Pago préstamo Clip (30% s/{fmtM(tarj)})</span><span>−{fmtM(clipMix)}</span></div>}
+          {cambio>0 && <div style={{ display:'flex',justifyContent:'space-between',fontSize:12,color:'#1D9E75',marginBottom:4 }}><span>Cambio a devolver</span><span>{fmtM(cambio)}</span></div>}
+          <div style={{ display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:700,borderTop:'0.5px solid var(--border-md)',paddingTop:8,marginTop:4 }}><span>Neto</span><span style={{color:'#1D9E75'}}>{fmtM(neto)}</span></div>
+        </div>
+
+        <div style={{ display:'flex',gap:8 }}>
+          <button onClick={onCancel} style={{ flex:1,padding:10,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+          <button onClick={()=>onConfirm({
+              comPlat: mixto ? comTC : comPlat,
+              comClip: mixto ? clipMix : comClip,
+              neto,
+              clip: mixto ? (aplicaClip&&tarj>0) : (cObj.clip&&aplicaClip),
+              canal: mixto ? 'Mixto' : selCanal,
+              mixto, efvo: mixto?efvo:0, tarj: mixto?tarj:0,
+              descuento: montoDescuento, totalOriginal: total, totalConDesc
+            })}
+            style={{ flex:2,padding:10,borderRadius:'var(--r-md)',border:'none',background:'#1D9E75',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600 }}>
+            Confirmar y cobrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── MODAL MESA ───────────────────────────────────────────────
+function MesaModal({ onConfirm, onCancel, comandasAbiertas }) {
+  const [mesa,    setMesa]    = useState('')
+  const [cliente, setCliente] = useState('')
+  const [timer1,  setTimer1]  = useState(10)
+  const [timerN,  setTimerN]  = useState(5)
+  const mesas = [...new Set(comandasAbiertas.filter(c=>c.tipo==='mesa').map(c=>c.mesa))]
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300}}>
+      <div style={{background:'var(--surface)',borderRadius:'var(--r-lg)',padding:22,width:340,border:'0.5px solid var(--border-md)'}}>
+        <div style={{fontSize:15,fontWeight:600,marginBottom:14}}>🍽 Nueva mesa</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Número de mesa</div>
+        <input className="form-input" value={mesa} onChange={e=>setMesa(e.target.value)}
+          placeholder="Ej: 1, 2A, Terraza..." style={{width:'100%',marginBottom:8}}/>
+        {mesas.length>0 && <div style={{fontSize:10,color:'var(--text3)',marginBottom:10}}>Ocupadas: {mesas.join(', ')}</div>}
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Cliente (opcional)</div>
+        <input className="form-input" value={cliente} onChange={e=>setCliente(e.target.value)}
+          placeholder="Nombre..." style={{width:'100%',marginBottom:12}}/>
+        <div style={{display:'flex',gap:8,marginBottom:16}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Timer 1a ronda (min)</div>
+            <input type="number" className="form-input" value={timer1} onChange={e=>setTimer1(parseInt(e.target.value)||10)} min="1" max="60" style={{width:'100%'}}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Timer siguiente (min)</div>
+            <input type="number" className="form-input" value={timerN} onChange={e=>setTimerN(parseInt(e.target.value)||5)} min="1" max="60" style={{width:'100%'}}/>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={onCancel} style={{flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13}}>Cancelar</button>
+          <button onClick={()=>mesa&&onConfirm({tipo:'mesa',mesa,canal:'Efectivo',cliente,timer1,timerN})}
+            disabled={!mesa}
+            style={{flex:2,padding:9,borderRadius:'var(--r-md)',border:'none',background:mesa?'#378ADD':'var(--border)',color:'#fff',cursor:mesa?'pointer':'default',fontSize:13,fontWeight:600}}>
+            Abrir mesa
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── MODAL PARA LLEVAR ─────────────────────────────────────────
+function LlevarModal({ onConfirm, onCancel }) {
+  const [cliente, setCliente] = useState('')
+  const [timer1,  setTimer1]  = useState(10)
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300}}>
+      <div style={{background:'var(--surface)',borderRadius:'var(--r-lg)',padding:22,width:340,border:'0.5px solid var(--border-md)'}}>
+        <div style={{fontSize:15,fontWeight:600,marginBottom:14}}>🥡 Para llevar</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Nombre del cliente</div>
+        <input className="form-input" value={cliente} onChange={e=>setCliente(e.target.value)}
+          placeholder="Nombre..." style={{width:'100%',marginBottom:12}}/>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Timer (min)</div>
+        <input type="number" className="form-input" value={timer1} onChange={e=>setTimer1(parseInt(e.target.value)||10)} min="1" max="60" style={{width:'100%',marginBottom:16}}/>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={onCancel} style={{flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13}}>Cancelar</button>
+          <button onClick={()=>onConfirm({tipo:'llevar',mesa:'',canal:'Efectivo',cliente,timer1,timerN:5})}
+            style={{flex:2,padding:9,borderRadius:'var(--r-md)',border:'none',background:'#EF9F27',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600}}>
+            Abrir pedido
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── MODAL PLATAFORMA RÁPIDA ──────────────────────────────────
+function PlataformaModal({ onConfirm, onCancel }) {
+  const [canal,    setCanal]    = useState('Uber')
+  const [numOrden, setNumOrden] = useState('')
+  const [cliente,  setCliente]  = useState('')
+  const PLATS = ['Uber','Uber Chilakiles','DiDi','DiDi Chilakiles','Rappi']
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300}}>
+      <div style={{background:'var(--surface)',borderRadius:'var(--r-lg)',padding:22,width:340,border:'0.5px solid var(--border-md)'}}>
+        <div style={{fontSize:15,fontWeight:600,marginBottom:14}}>📦 Pedido de plataforma</div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:6}}>Canal</div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+          {PLATS.map(p=>(
+            <button key={p} onClick={()=>setCanal(p)}
+              style={{padding:'6px 12px',borderRadius:99,fontSize:11,cursor:'pointer',
+                border:`1.5px solid ${canal===p?'#7F77DD':'var(--border-md)'}`,
+                background:canal===p?'#7F77DD18':'transparent',
+                color:canal===p?'#7F77DD':'var(--text2)',fontWeight:canal===p?600:400}}>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Numero de orden</div>
+        <input className="form-input" value={numOrden} onChange={e=>setNumOrden(e.target.value)}
+          placeholder="Ej: 1234" style={{width:'100%',marginBottom:12}}/>
+        <div style={{fontSize:11,color:'var(--text2)',marginBottom:4}}>Nombre del cliente</div>
+        <input className="form-input" value={cliente} onChange={e=>setCliente(e.target.value)}
+          placeholder="Nombre..." style={{width:'100%',marginBottom:16}}/>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={onCancel}
+            style={{flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13}}>
+            Cancelar
+          </button>
+          <button onClick={()=>onConfirm({ canal, numOrden, cliente })}
+            style={{flex:2,padding:9,borderRadius:'var(--r-md)',border:'none',background:'#7F77DD',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600}}>
+            Abrir comanda
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── NUEVA COMANDA MODAL ───────────────────────────────────────
+function NuevaComandaModal({ onConfirm, onCancel, comandasAbiertas }) {
+  const [tipo,   setTipo]   = useState('mesa')
+  const [mesa,   setMesa]   = useState('')
+  const [canal,  setCanal]  = useState('Efectivo')
+  const [cliente,setCliente]= useState('')
+  const [timer1, setTimer1] = useState(10)
+  const [timerN, setTimerN] = useState(5)
+  const mesas = [...new Set(comandasAbiertas.filter(c=>c.tipo==='mesa').map(c=>c.mesa))]
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300 }}>
+      <div style={{ background:'var(--surface)',borderRadius:'var(--r-lg)',padding:22,width:380,border:'0.5px solid var(--border-md)' }}>
+        <div style={{ fontSize:15,fontWeight:600,marginBottom:14 }}>Nueva comanda</div>
+        <div style={{ display:'flex',gap:6,marginBottom:14 }}>
+          {TIPOS_COMANDA.map(t=>(
+            <button key={t.id} onClick={()=>setTipo(t.id)}
+              style={{ flex:1,padding:'8px 0',borderRadius:'var(--r-md)',fontSize:12,fontWeight:500,cursor:'pointer',
+                border:`2px solid ${tipo===t.id?t.color:'var(--border-md)'}`,
+                background:tipo===t.id?t.color+'18':'transparent',color:tipo===t.id?t.color:'var(--text2)' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {tipo==='mesa' && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11,color:'var(--text2)',marginBottom:4 }}>Número de mesa</div>
+            <input className="form-input" value={mesa} onChange={e=>setMesa(e.target.value)} placeholder="Ej: 1, 2A, Terraza..." style={{ width:'100%' }}/>
+            {mesas.length>0 && <div style={{ fontSize:10,color:'var(--text3)',marginTop:4 }}>Ocupadas: {mesas.join(', ')}</div>}
+          </div>
+        )}
+        {tipo==='plataforma' && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11,color:'var(--text2)',marginBottom:4 }}>Canal</div>
+            <select className="form-input" value={canal} onChange={e=>setCanal(e.target.value)} style={{ width:'100%' }}>
+              {['Uber','Uber Chilakiles','DiDi','DiDi Chilakiles','Rappi','Ola'].map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:11,color:'var(--text2)',marginBottom:4 }}>Cliente (opcional)</div>
+          <input className="form-input" value={cliente} onChange={e=>setCliente(e.target.value)} placeholder="Nombre del cliente..." style={{ width:'100%' }}/>
+        </div>
+        <div style={{ display:'flex',gap:8,marginBottom:14 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11,color:'var(--text2)',marginBottom:4 }}>Timer 1ª ronda (min)</div>
+            <input type="number" className="form-input" value={timer1} onChange={e=>setTimer1(parseInt(e.target.value)||10)} min="1" max="60" style={{ width:'100%' }}/>
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:11,color:'var(--text2)',marginBottom:4 }}>Timer rondas sig. (min)</div>
+            <input type="number" className="form-input" value={timerN} onChange={e=>setTimerN(parseInt(e.target.value)||5)} min="1" max="60" style={{ width:'100%' }}/>
+          </div>
+        </div>
+        <div style={{ display:'flex',gap:8 }}>
+          <button onClick={onCancel} style={{ flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+          <button onClick={()=>onConfirm({ tipo, mesa, canal: tipo==='plataforma'?canal:'Efectivo', cliente, timer1, timerN })}
+            style={{ flex:2,padding:9,borderRadius:'var(--r-md)',border:'none',background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600 }}>
+            Abrir comanda
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ALERTA TIMER ──────────────────────────────────────────────
+function AlertaTimer({ comanda, onCerrar }) {
+  return (
+    <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500 }}>
+      <div style={{ background:'var(--surface)',borderRadius:'var(--r-lg)',padding:28,width:360,textAlign:'center',border:'3px solid #EF9F27' }}>
+        <div style={{ fontSize:40,marginBottom:8 }}>⏰</div>
+        <div style={{ fontSize:18,fontWeight:700,color:'#EF9F27',marginBottom:8 }}>¡Pedido listo!</div>
+        <div style={{ fontSize:14,color:'var(--text)',marginBottom:6 }}><strong>{comanda.label}</strong>{comanda.cliente?' — '+comanda.cliente:''}</div>
+        <div style={{ fontSize:13,color:'var(--text2)',marginBottom:20 }}>El pedido ya debe ser entregado al cliente</div>
+        <button onClick={onCerrar}
+          style={{ width:'100%',padding:12,borderRadius:'var(--r-md)',border:'none',background:'#EF9F27',color:'#fff',cursor:'pointer',fontSize:14,fontWeight:700 }}>
+          Entendido
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── TIMER DISPLAY ─────────────────────────────────────────────
+function TimerDisplay({ enviado_at, timer_minutos }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - new Date(enviado_at)) / 1000))
+    }, 1000)
+    return () => clearInterval(iv)
+  }, [enviado_at])
+  const totalSec = timer_minutos * 60
+  const pct = Math.min(elapsed / totalSec, 1)
+  const mins = Math.floor(elapsed / 60)
+  const secs = elapsed % 60
+  const color = pct >= 1 ? '#E24B4A' : pct >= 0.75 ? '#EF9F27' : '#1D9E75'
+  return (
+    <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+      <div style={{ flex:1,height:6,background:'var(--border)',borderRadius:3,overflow:'hidden' }}>
+        <div style={{ width:`${pct*100}%`,height:'100%',background:color,transition:'width 1s linear',borderRadius:3 }}/>
+      </div>
+      <span style={{ fontSize:12,fontWeight:600,color,minWidth:40 }}>{mins}:{String(secs).padStart(2,'0')}</span>
+    </div>
+  )
+}
+
+// ── COMANDA PRINCIPAL ─────────────────────────────────────────
+export default function Comanda({ role }) {
+  const [comandas,    setComandas]    = useState([])
+  const [activa,      setActiva]      = useState(null)
+  const [familia,     setFamilia]     = useState('Todos')
+  const [modal,       setModal]       = useState(null)
+  const [cobroModal,  setCobroModal]  = useState(false)
+  const [nuevaModal,  setNuevaModal]  = useState(false)
+  const [platModal,   setPlatModal]   = useState(false)
+  const [mesaModal,   setMesaModal]   = useState(false)
+  const [llevarModal, setLlevarModal] = useState(false)
+  const [modoPlatforma, setModoPlatforma] = useState(false)
+  const [stockAlerta, setStockAlerta] = useState(null)
+  const [alertaTimer, setAlertaTimer] = useState(null)
+  const [saving,      setSaving]      = useState(false)
+  const [msg,         setMsg]         = useState(null)
+  const [fecha,       setFecha]       = useState(today())
+  const [platosDB,    setPlatosDB]    = useState([])
+  const alertasDisparadas = useRef(new Set())
+
+  // Cargar productos desde BD como fuente principal
+  useEffect(() => {
+    sb.from('productos')
+      .select('codigo,nombre,precio_base,precio_extra,familias(nombre)')
+      .eq('activo', true)
+      .then(({ data }) => {
+        if (!data?.length) return
+        // Familias que NO aparecen en el menú de comanda
+        const FAMILIAS_SKIP = ['Guisos','Salsas','Toppings']
+        const CAT_COLOR_MAP = {
+          'Los Chilakiles':'#E24B4A','Huevos y Crokantes':'#D85A30',
+          'Los Dorados':'#EF9F27','Del Comal':'#BA7517','Enfrijoladas':'#7F77DD',
+          '1/2 Litros':'#1D9E75','Bebidas Frías':'#378ADD','Bebidas Calientes':'#1D6B50',
+          'Postres':'#D4537E',
+        }
+        const fromDB = data
+          .filter(d => !FAMILIAS_SKIP.includes(d.familias?.nombre))
+          .map(d => {
+            // Buscar en PLATOS_BASE para heredar color y propiedades
+            const base = PLATOS_BASE.find(p=>p.codigo===d.codigo||p.nombre===d.nombre)
+            const familia = d.familias?.nombre || base?.familia || 'Otros'
+            return {
+              codigo:      d.codigo,
+              nombre:      d.nombre,
+              familia:     familia,
+              precio:      d.precio_base > 0 ? d.precio_base : (base?.precio || 0),
+              precioExtra: d.precio_extra > 0 ? d.precio_extra : 20,
+              color:       base?.color || CAT_COLOR_MAP[familia] || '#888780',
+            }
+          })
+        setPlatosDB(fromDB)
+      })
+  }, [])
+
+  // Cargar comandas activas desde BD
+  const loadComandas = useCallback(async () => {
+    const { data } = await sb.from('comandas_activas')
+      .select('*')
+      .not('estado','eq','eliminada')
+      .order('created_at')
+    
+    // Eliminar comandas cobradas hace más de 60 segundos (quedaron huérfanas por recarga)
+    const ahora = Date.now()
+    const huerfanas = (data||[]).filter(c => 
+      c.estado === 'cobrada' && 
+      (ahora - new Date(c.updated_at).getTime()) > 60000
+    )
+    if (huerfanas.length > 0) {
+      await Promise.all(huerfanas.map(c => 
+        sb.from('comandas_activas').delete().eq('id', c.id)
+      ))
+    }
+    const activas = (data||[]).filter(c => 
+      c.estado !== 'cobrada' || (ahora - new Date(c.updated_at).getTime()) <= 60000
+    )
+    setComandas(activas)
+  }, [])
+
+  useEffect(() => { loadComandas() }, [loadComandas])
+
+  // Supabase Realtime — escuchar cambios en comandas_activas
+  const cobrandoRef = React.useRef(new Set()) // IDs en proceso de cobro — evita race condition
+  useEffect(() => {
+    let timeout = null
+    const channel = sb.channel('comandas-realtime')
+      .on('postgres_changes', { event:'*', schema:'public', table:'comandas_activas' }, () => {
+        // Debounce 800ms para evitar race condition con estado local
+        clearTimeout(timeout)
+        timeout = setTimeout(() => loadComandas(), 800)
+      })
+      .subscribe()
+    return () => { sb.removeChannel(channel); clearTimeout(timeout) }
+  }, [loadComandas])
+
+  // Timer checker — verificar si alguna comanda llegó al límite
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setComandas(prev => {
+        prev.forEach(c => {
+          if (c.estado==='en_cocina' && c.enviado_cocina_at) {
+            const elapsed = (Date.now() - new Date(c.enviado_cocina_at)) / 60000
+            const key = c.id + '_' + c.ronda
+            if (elapsed >= c.timer_minutos && !alertasDisparadas.current.has(key)) {
+              alertasDisparadas.current.add(key)
+              playAlarm()
+              setAlertaTimer(c)
+            }
+          }
+        })
+        return prev
+      })
+    }, 5000)
+    return () => clearInterval(iv)
+  }, [])
+
+  const esDemo   = role === 'demo'
+  const esViewer = role === 'viewer' || esDemo
+  const PLATOS   = platosDB.length > 0 ? platosDB : PLATOS_BASE.map(p=>({...p,precioExtra:20}))
+  const comanda  = comandas.find(c=>c.id===activa)
+  const items   = comanda?.items || []
+  const [personaActiva, setPersonaActiva] = useState(1)
+  const total   = items.reduce((s,i)=>s+i.subtotal,0)
+  const canal   = comanda?.canal || 'Efectivo'
+  const platosBase = modoPlatforma && comanda?.tipo==='plataforma'
+    ? [...PLATOS.filter(p => PRODUCTOS_PLATAFORMA.includes(p.nombre)), ...PLATOS.filter(p => !PRODUCTOS_PLATAFORMA.includes(p.nombre))]
+    : PLATOS
+  const platos = familia==='Todos' ? platosBase : platosBase.filter(p=>p.familia===familia)
+
+  // Abrir comanda de plataforma
+  const abrirPlataforma = async ({ canal, numOrden, cliente }) => {
+    const id = Date.now().toString()
+    const label = canal + (numOrden ? ' #' + numOrden : '')
+    const nueva = { id, tipo:'plataforma', mesa:'', canal, cliente, label, items:[], estado:'abierta', ronda:0, timer_minutos:15, timer_siguiente:5, created_at:new Date().toISOString(), updated_at:new Date().toISOString() }
+    const { error } = await sb.from('comandas_activas').insert(nueva)
+    if (error) { setMsg({ ok:false, text:'Error: '+error.message }); return }
+    setComandas(prev => [...prev, nueva])
+    setActiva(id)
+    setPlatModal(false)
+    setModoPlatforma(true)
+  }
+
+  // Abrir nueva comanda — guardar en BD
+  const abrirComanda = async ({ tipo, mesa, canal, cliente, timer1, timerN }) => {
+    const id = Date.now().toString()
+    const label = tipo==='mesa' ? 'Mesa '+mesa : tipo==='llevar' ? 'Para llevar' : canal
+    const nueva = { id, tipo, mesa, canal, cliente, label, items:[], estado:'abierta', ronda:0, timer_minutos:timer1, timer_siguiente:timerN, created_at:new Date().toISOString(), updated_at:new Date().toISOString() }
+    const { error } = await sb.from('comandas_activas').insert(nueva)
+    if (error) { setMsg({ ok:false, text:'Error: '+error.message }); return }
+    // Agregar localmente sin esperar Realtime
+    setComandas(prev => [...prev, nueva])
+    setActiva(id)
+    setNuevaModal(false)
+    setMesaModal(false)
+    setLlevarModal(false)
+  }
+
+  // Agregar ítem
+  const confirmarItem = async (item) => {
+    const newItem = { ...item, id:Date.now() }
+    const itemConPersona = comanda.tipo === 'mesa' ? { ...newItem, persona: personaActiva } : newItem
+    let nuevosItems = [...items, itemConPersona]
+    // Si incluye café de olla gratis, agregarlo como item $0
+    if (item.cafeOlla) {
+      const cafeItem = {
+        id: Date.now()+1,
+        plato: { nombre:'Cafe de Olla', familia:'Bebidas Calientes', codigo:'BEC-01' },
+        qty: item.qty,
+        subtotal: 0,
+        precioUnit: 0,
+        desc: 'Gratis con pedido',
+      }
+      nuevosItems = [...nuevosItems, cafeItem]
+    }
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, items:nuevosItems } : c))
+    await sb.from('comandas_activas').update({ items:nuevosItems, updated_at:new Date().toISOString() }).eq('id', activa)
+    setModal(null)
+  }
+
+  // Quitar ítem - actualiza UI inmediatamente
+  const removeItem = async (itemId) => {
+    // eslint-disable-next-line eqeqeq
+    const nuevosItems = items.filter(i => i.id != itemId)
+    // Actualizar estado local primero
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, items:nuevosItems } : c))
+    // Luego persistir en BD (el Realtime debounce evita que sobreescriba)
+    const { error } = await sb.from('comandas_activas')
+      .update({ items: nuevosItems, updated_at: new Date().toISOString() })
+      .eq('id', activa)
+    if (error) {
+      // Revertir si falla
+      setComandas(prev => prev.map(c => c.id===activa ? { ...c, items } : c))
+      setMsg({ ok:false, text:'Error al quitar item: '+error.message })
+    }
+  }
+
+  // Enviar a cocina
+  const enviarCocina = async () => {
+    if (!items.length) return setMsg({ ok:false, text:'Agrega productos antes de enviar a cocina' })
+    const nuevaRonda = (comanda.ronda||0) + 1
+    const timerMin = nuevaRonda===1 ? (comanda.timer_minutos||10) : (comanda.timer_siguiente||5)
+    const update = { estado:'en_cocina', ronda:nuevaRonda, timer_minutos:timerMin, enviado_cocina_at:new Date().toISOString(), updated_at:new Date().toISOString() }
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, ...update } : c))
+    await sb.from('comandas_activas').update(update).eq('id', activa)
+    setMsg({ ok:true, text:`Pedido enviado a cocina — Timer: ${timerMin} min` })
+    setTimeout(()=>setMsg(null),3000)
+  }
+
+  // Imprimir comanda cocina
+  const imprimirComanda = () => {
+    const doc = generarComanda({ comanda, items })
+    imprimir(doc)
+  }
+
+  // Imprimir ticket cliente
+  const imprimirTicket = (cobroParams) => {
+    const doc = generarTicket({
+      comanda, items,
+      total: cobroParams.totalOriginal || total,
+      canal: cobroParams.canal || canal,
+      neto: cobroParams.neto,
+      descuento: cobroParams.descuento || 0,
+    })
+    imprimir(doc)
+  }
+
+  // Imprimir cuenta sin cobrar
+  const imprimirCuenta = async () => {
+    const doc = generarTicket({ comanda, items, total, canal, neto: total, descuento: 0 })
+    imprimir(doc)
+    // Cambiar estado a cuenta_pedida
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, estado:'cuenta_pedida' } : c))
+    await sb.from('comandas_activas').update({ estado:'cuenta_pedida', updated_at:new Date().toISOString() }).eq('id', activa)
+    setMsg({ ok:true, text:'🧾 Cuenta impresa — esperando pago del cliente' })
+    setTimeout(()=>setMsg(null), 3000)
+  }
+
+  // Marcar listo
+  const marcarListo = async () => {
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, estado:'lista' } : c))
+    await sb.from('comandas_activas').update({ estado:'lista', updated_at:new Date().toISOString() }).eq('id', activa)
+  }
+
+  // Standby (cliente pide más)
+  const ponerStandby = async () => {
+    setComandas(prev => prev.map(c => c.id===activa ? { ...c, estado:'standby' } : c))
+    await sb.from('comandas_activas').update({ estado:'standby', updated_at:new Date().toISOString() }).eq('id', activa)
+  }
+
+  // Cancelar comanda completa
+  const cancelarComanda = async () => {
+    if (!window.confirm('¿Cancelar esta comanda? Se eliminará sin registrar venta.')) return
+    setSaving(true)
+    try {
+      await sb.from('comandas_activas').delete().eq('id', activa)
+      setComandas(prev => prev.filter(c => c.id !== activa))
+      setActiva(null)
+      setMsg({ ok:true, text:'Comanda cancelada' })
+      setTimeout(()=>setMsg(null), 3000)
+    } catch(e) { setMsg({ ok:false, text:'Error al cancelar: '+e.message }) }
+    setSaving(false)
+  }
+
+  // Generar folio único del día via función PostgreSQL (atómico, sin duplicados)
+  const generarFolio = async (canalCobro) => {
+    const prefijo = canalCobro.includes('Uber') || canalCobro.includes('DiDi') || 
+                    canalCobro.includes('Rappi') || canalCobro === 'Ola' ? 'P'
+                  : canalCobro === 'Tarjeta' ? 'T'
+                  : canalCobro === 'Gratis' ? 'G'
+                  : canalCobro === 'Mixto' ? 'M' : 'E'
+    const { data, error } = await sb.rpc('generar_folio', { p_fecha: fecha, p_prefijo: prefijo })
+    console.log('generar_folio result:', data, error)
+    if (error || !data) {
+      console.error('Error generando folio:', error)
+      // Fallback: contar folios únicos manualmente
+      const hoy = new Date()
+      const fechaStr = hoy.getFullYear() + String(hoy.getMonth()+1).padStart(2,'0') + String(hoy.getDate()).padStart(2,'0')
+      const patron = fechaStr + '-' + prefijo + '-'
+      const { data: d2 } = await sb.from('ventas').select('folio').eq('fecha', fecha).like('folio', patron + '%').not('folio', 'is', null)
+      const unicos = new Set((d2||[]).map(r=>r.folio).filter(Boolean))
+      return patron + String(unicos.size + 1).padStart(3,'0')
+    }
+    return data
+  }
+
+  // Cobrar comanda
+  const ejecutarCobro = async ({ comPlat, comClip, neto, clip, canal: canalCobro, mixto, efvo, tarj, descuento, totalConDesc }) => {
+    // Evitar doble cobro
+    if (cobrandoRef.current.has(activa)) return
+    cobrandoRef.current.add(activa)
+    setSaving(true)
+    const comandaId = activa
+    const canalFinal = canalCobro || canal
+    const descuentoMonto = descuento || 0
+    try {
+      const metodo = ['Uber','Uber Chilakiles','DiDi','DiDi Chilakiles','Rappi','Ola'].includes(canalFinal)?'Plataforma':canalFinal
+      const folio = await generarFolio(canalFinal)
+      const tiempoCocina = comanda.enviado_cocina_at
+        ? Math.round((Date.now() - new Date(comanda.enviado_cocina_at)) / 1000)
+        : null
+
+      let rows = []
+      if (mixto && efvo>0 && tarj>0) {
+        // Pago mixto — prorratear importe entre efectivo y tarjeta por producto
+        const ratioEfvo = efvo / (efvo+tarj)
+        const ratioTarj = tarj / (efvo+tarj)
+        items.forEach(item => {
+          const impEfvo = Math.round(item.subtotal * ratioEfvo)
+          const impTarj = item.subtotal - impEfvo
+          if (impEfvo>0) rows.push({ fecha, folio, cliente:comanda.cliente||null, metodo_pago:'Efectivo', canal:'Efectivo',
+            producto:item.plato.nombre+(item.desc?' ('+item.desc+')':''),
+            categoria:item.plato.familia, unidades:Math.round(item.qty*ratioEfvo)||0, importe:impEfvo,
+            tiempo_cocina_seg:tiempoCocina, canal_tipo:comanda.tipo||'mesa' })
+          if (impTarj>0) rows.push({ fecha, folio, cliente:comanda.cliente||null, metodo_pago:'Tarjeta', canal:'Tarjeta',
+            producto:item.plato.nombre+(item.desc?' ('+item.desc+')':''),
+            categoria:item.plato.familia, unidades:Math.round(item.qty*ratioTarj)||0, importe:impTarj,
+            tiempo_cocina_seg:tiempoCocina, canal_tipo:comanda.tipo||'mesa' })
+        })
+      } else {
+        rows = items.map(item=>({
+          fecha, folio, cliente:comanda.cliente||null, metodo_pago:metodo, canal:canalFinal,
+          producto:item.plato.nombre+(item.desc?' ('+item.desc+')':''),
+          categoria:item.plato.familia, unidades:item.qty, importe:item.subtotal,
+          tiempo_cocina_seg:tiempoCocina, canal_tipo:comanda.tipo||'mesa',
+        }))
+      }
+      const { error } = await sb.from('ventas').insert(rows)
+      if (error) throw error
+
+      // Sincronizar ventas_cat por categoría
+      const catMap = {}
+      rows.forEach(r => {
+        if (!catMap[r.categoria]) catMap[r.categoria] = { importe:0, unidades:0 }
+        catMap[r.categoria].importe  += r.importe||0
+        catMap[r.categoria].unidades += r.unidades||0
+      })
+      for (const [categoria, vals] of Object.entries(catMap)) {
+        // Buscar si ya existe registro para esa fecha+categoria
+        const { data: existing } = await sb.from('ventas_cat')
+          .select('id,importe,unidades').eq('fecha',fecha).eq('categoria',categoria).maybeSingle()
+        if (existing) {
+          await sb.from('ventas_cat').update({
+            importe:  (existing.importe||0)  + vals.importe,
+            unidades: (existing.unidades||0) + vals.unidades,
+          }).eq('id', existing.id)
+        } else {
+          await sb.from('ventas_cat').insert({ fecha, categoria, importe:vals.importe, unidades:vals.unidades })
+        }
+      }
+      if (comPlat>0) await sb.from('gastos').insert({ fecha, concepto:'Comision '+canalFinal, categoria_gasto:'Gasto de ventas', monto:comPlat })
+      if (clip&&comClip>0) {
+        await sb.from('gastos').insert({ fecha, concepto:'Pago prestamo Clip', categoria_gasto:'Gasto de ventas', monto:comClip })
+        // Reducir saldo del préstamo Clip en BD
+        const { data: prestamo } = await sb.from('prestamos').select('saldo_actual').eq('id','clip').maybeSingle()
+        if (prestamo) {
+          const nuevoSaldo = Math.max(0, (prestamo.saldo_actual||0) - comClip)
+          await sb.from('prestamos').update({ saldo_actual: nuevoSaldo, updated_at: new Date().toISOString() }).eq('id','clip')
+        }
+      }
+      if (descuentoMonto>0) await sb.from('gastos').insert({ fecha, concepto:'Descuento comanda '+comanda.label, categoria_gasto:'Gasto de ventas', monto:descuentoMonto })
+      // Descontar bebidas — registrar en inventario_maestro
+      for (const bev of items.filter(i=>i.plato.familia==='Bebidas Frías'||i.plato.familia==='Bebidas Frias')) {
+        const nombreInv = BEBIDA_MAP[bev.plato.nombre]||bev.plato.nombre
+        // Registrar salida en inventario_maestro
+        await sb.from('inventario_maestro').insert({
+          fecha, producto:nombreInv, categoria:'bebida', unidad:'piezas',
+          tipo_movimiento:'venta', cantidad:bev.qty,
+          notas:`Comanda ${comanda.label}${comanda.cliente?' — '+comanda.cliente:''}`
+        })
+        // También actualizar inventario_diario (legacy)
+        const { data:inv } = await sb.from('inventario_diario').select('*').eq('fecha',fecha).eq('producto',nombreInv).eq('tipo','bebida').maybeSingle()
+        if (inv) {
+          const nv = (inv.cantidad_vendida||0)+bev.qty
+          await sb.from('inventario_diario').update({ cantidad_vendida:nv, cantidad_final:Math.max(0,(inv.cantidad_inicial||0)-nv) }).eq('id',inv.id)
+        }
+      }
+      // Marcar como cobrada en estado local (para mostrar botón WA) y luego eliminar
+      setComandas(prev => prev.map(c => c.id===comandaId ? {...c, estado:'cobrada'} : c))
+      await sb.from('comandas_activas').update({ estado:'cobrada', updated_at:new Date().toISOString() }).eq('id', comandaId)
+      setMsg({ ok:true, text:'✅ Comanda cobrada — '+items.length+' producto(s) — Neto '+fmtM(neto)+' · Envía el WhatsApp de encuesta al cliente' })
+      // Imprimir ticket solo si no se imprimió la cuenta antes
+      if (comanda.estado !== 'cuenta_pedida') {
+        try {
+          const doc = generarTicket({ comanda, items, total, canal: canalFinal, neto, descuento: descuentoMonto })
+          imprimir(doc)
+        } catch(e) { console.error('Error ticket:', e) }
+      }
+      // Eliminar de BD después de 60 segundos
+      setTimeout(async () => {
+        await sb.from('comandas_activas').delete().eq('id', comandaId)
+        setComandas(prev => prev.filter(c => c.id !== comandaId))
+        setActiva(prev => prev === comandaId ? null : prev)
+        cobrandoRef.current.delete(comandaId)
+      }, 60000)
+    } catch(e) {
+      setMsg({ ok:false, text:e.message })
+      cobrandoRef.current.delete(comandaId)
+    }
+    setSaving(false)
+    setTimeout(()=>setMsg(null),5000)
+  }
+
+  const cobrar = async (params) => {
+    setCobroModal(false)
+    const bebs = items.filter(i=>i.plato.familia==='Bebidas Frias')
+    const alertas = []
+    for (const bev of bebs) {
+      const nombreInv = BEBIDA_MAP[bev.plato.nombre]||bev.plato.nombre
+      const { data:inv } = await sb.from('inventario_diario').select('cantidad_final').eq('fecha',fecha).eq('producto',nombreInv).eq('tipo','bebida').maybeSingle()
+      if (!inv) alertas.push(`${bev.plato.nombre}: sin registro en inventario`)
+      else if ((inv.cantidad_final||0) < bev.qty) alertas.push(`${bev.plato.nombre}: disponible ${inv.cantidad_final||0} pzs, requiere ${bev.qty}`)
+    }
+    if (alertas.length > 0) {
+      setStockAlerta({ msgs:alertas, onConfirm:()=>{ setStockAlerta(null); ejecutarCobro(params) } })
+    } else { ejecutarCobro(params) }
+  }
+
+  const TIPO_COLOR = { mesa:'#378ADD', llevar:'#EF9F27', plataforma:'#7F77DD' }
+
+  return (
+    <div>
+      {modal && <ConfigModal plato={modal} onConfirm={confirmarItem} onCancel={()=>setModal(null)} />}
+      {cobroModal && !esViewer && <CobroModal total={total} canal={canal} onConfirm={cobrar} onCancel={()=>setCobroModal(false)} />}
+      {mesaModal   && <MesaModal   onConfirm={abrirComanda} onCancel={()=>setMesaModal(false)}   comandasAbiertas={comandas}/>}
+      {llevarModal && <LlevarModal onConfirm={abrirComanda} onCancel={()=>setLlevarModal(false)}/>}
+      {platModal && <PlataformaModal onConfirm={abrirPlataforma} onCancel={()=>setPlatModal(false)} />}
+      {nuevaModal && <NuevaComandaModal onConfirm={abrirComanda} onCancel={()=>setNuevaModal(false)} comandasAbiertas={comandas} />}
+
+      {/* ALERTA TIMER */}
+      {alertaTimer && <AlertaTimer comanda={alertaTimer} onCerrar={()=>setAlertaTimer(null)} />}
+
+      {/* STOCK ALERTA */}
+      {stockAlerta && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:400}}>
+          <div style={{background:'var(--surface)',borderRadius:'var(--r-lg)',padding:24,width:360,border:'0.5px solid var(--border-md)'}}>
+            <div style={{fontSize:16,fontWeight:700,color:'#E24B4A',marginBottom:8}}>⚠️ Stock insuficiente</div>
+            {stockAlerta.msgs.map((m,i)=>(
+              <div key={i} style={{padding:'6px 10px',background:'#FCEBEB',borderRadius:'var(--r-sm)',marginBottom:6,fontSize:12,color:'#A32D2D'}}>{m}</div>
+            ))}
+            <div style={{display:'flex',gap:8,marginTop:14}}>
+              <button onClick={()=>setStockAlerta(null)} style={{flex:1,padding:9,borderRadius:'var(--r-md)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',fontSize:13}}>Cancelar</button>
+              <button onClick={stockAlerta.onConfirm} style={{flex:1,padding:9,borderRadius:'var(--r-md)',border:'none',background:'#E24B4A',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600}}>Cobrar igual</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {esViewer && (
+        <div style={{padding:'8px 14px',borderRadius:'var(--r-md)',marginBottom:12,background:'#EAF3DE',color:'#3B6D11',fontSize:12}}>
+          Modo consulta — puedes crear comandas y ver totales pero no cobrar.
+        </div>
+      )}
+
+      {msg && <div style={{padding:'9px 14px',borderRadius:'var(--r-md)',marginBottom:10,background:msg.ok?'#EAF3DE':'#FCEBEB',color:msg.ok?'#3B6D11':'#A32D2D',fontSize:12,fontWeight:500}}>{msg.text}</div>}
+
+      {/* BARRA COMANDAS */}
+      <div style={{marginBottom:12}}>
+        <div style={{display:'flex',gap:6,marginBottom:8,alignItems:'center'}}>
+        <button onClick={()=>!esViewer&&setMesaModal(true)}
+          style={{padding:'6px 14px',borderRadius:'var(--r-md)',border:'1.5px solid #378ADD',background:'#378ADD18',cursor:'pointer',fontSize:12,color:'#378ADD',fontWeight:600}}>
+          🍽 Mesa
+        </button>
+        <button onClick={()=>!esViewer&&setLlevarModal(true)}
+          style={{padding:'6px 14px',borderRadius:'var(--r-md)',border:'1.5px solid #EF9F27',background:'#EF9F2718',cursor:'pointer',fontSize:12,color:'#EF9F27',fontWeight:600}}>
+          🥡 Para llevar
+        </button>
+        <button onClick={()=>!esViewer&&setPlatModal(true)}
+          style={{padding:'6px 14px',borderRadius:'var(--r-md)',border:'1.5px solid #7F77DD',background:'#7F77DD18',cursor:'pointer',fontSize:12,color:'#7F77DD',fontWeight:600}}>
+          📦 Plataforma
+        </button>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+        {comandas.map(c=>(
+          <button key={c.id} onClick={()=>setActiva(c.id)}
+            style={{padding:'6px 14px',borderRadius:'var(--r-md)',fontSize:12,fontWeight:600,cursor:'pointer',position:'relative',
+              border:`2px solid ${activa===c.id?TIPO_COLOR[c.tipo]||ESTADO_COLOR[c.estado]:'var(--border-md)'}`,
+              background:activa===c.id?(TIPO_COLOR[c.tipo]||ESTADO_COLOR[c.estado])+'18':'var(--bg)',
+              color:activa===c.id?TIPO_COLOR[c.tipo]||ESTADO_COLOR[c.estado]:'var(--text2)'}}>
+            {c.label}{c.cliente?' — '+c.cliente:''}
+            <span style={{marginLeft:6,fontSize:9,padding:'1px 5px',borderRadius:99,background:ESTADO_COLOR[c.estado]+'33',color:ESTADO_COLOR[c.estado]}}>
+              {ESTADO_LABEL[c.estado]}
+            </span>
+          </button>
+        ))}
+        </div>
+      </div>
+
+      {!comanda ? (
+        <div className="card" style={{textAlign:'center',padding:'40px 0',color:'var(--text3)'}}>
+          <div style={{fontSize:32,marginBottom:8}}>🍽</div>
+          <div>Selecciona o crea una comanda</div>
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:12,alignItems:'start'}}>
+
+          {/* MENÚ */}
+          <div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>
+              {FAMILIAS_TABS.map(f=>(
+                <button key={f} onClick={()=>setFamilia(f)}
+                  style={{padding:'4px 10px',borderRadius:99,fontSize:11,cursor:'pointer',border:'0.5px solid var(--border-md)',
+                    background:familia===f?'var(--accent)':'transparent',color:familia===f?'#fff':'var(--text2)'}}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(130px,1fr))',gap:6}}>
+              {platos.map(p=>(
+                <button key={p.codigo} onClick={()=>!esViewer&&comanda.estado!=='en_cocina'&&comanda.estado!=='pendiente_pago'&&setModal(p)}
+                  style={{padding:'10px 8px',borderRadius:'var(--r-md)',border:`1.5px solid ${p.color}33`,
+                    background:p.color+'11',cursor:esViewer||comanda.estado==='en_cocina'||comanda.estado==='pendiente_pago'||comanda.estado==='cuenta_pedida'?'not-allowed':'pointer',
+                    textAlign:'left',opacity:comanda.estado==='en_cocina'||comanda.estado==='pendiente_pago'?0.4:1}}>
+                  <div style={{fontSize:12,fontWeight:600,color:p.color,marginBottom:2}}>{p.nombre}</div>
+                  <div style={{fontSize:11,color:'var(--text3)'}}>{fmtM(p.precio)}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* RESUMEN COMANDA */}
+          <div className="card" style={{position:'sticky',top:12}}>
+            {/* ESTADO Y TIMER */}
+            <div style={{marginBottom:10}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                <span style={{fontSize:13,fontWeight:600}}>{comanda.label}{comanda.cliente?' — '+comanda.cliente:''}</span>
+                <span style={{fontSize:11,padding:'2px 8px',borderRadius:99,background:ESTADO_COLOR[comanda.estado]+'22',color:ESTADO_COLOR[comanda.estado],fontWeight:600}}>
+                  {ESTADO_LABEL[comanda.estado]}
+                </span>
+              </div>
+              {comanda.estado==='en_cocina' && comanda.enviado_cocina_at && (
+                <TimerDisplay enviado_at={comanda.enviado_cocina_at} timer_minutos={comanda.timer_minutos||10}/>
+              )}
+              {comanda.ronda>0 && <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>Ronda {comanda.ronda} · Timer: {comanda.timer_minutos} min</div>}
+            </div>
+
+            {/* BOTONES DE ESTADO */}
+            {!esViewer && (
+              <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+                {comanda.estado==='pendiente_pago' && (
+                  <button onClick={async()=>{
+                    setComandas(prev=>prev.map(c=>c.id===activa?{...c,estado:'abierta'}:c))
+                    await sb.from('comandas_activas').update({estado:'abierta',updated_at:new Date().toISOString()}).eq('id',activa)
+                    setMsg({ok:true,text:'Pago confirmado — comanda activa'})
+                    setTimeout(()=>setMsg(null),3000)
+                  }} style={{flex:1,padding:'8px 0',borderRadius:'var(--r-md)',border:'none',background:'#7F77DD',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    💳 Confirmar pago recibido
+                  </button>
+                )}
+                {(comanda.estado==='abierta'||comanda.estado==='standby') && (
+                  <button onClick={enviarCocina} disabled={!items.length}
+                    style={{flex:1,padding:'8px 0',borderRadius:'var(--r-md)',border:'none',background:items.length?'#EF9F27':'var(--border)',color:items.length?'#fff':'var(--text3)',cursor:items.length?'pointer':'default',fontSize:12,fontWeight:600}}>
+                    🍳 Enviar a cocina
+                  </button>
+                )}
+                {(comanda.estado==='abierta'||comanda.estado==='standby'||comanda.estado==='en_cocina') && items.length>0 && (
+                  <button onClick={imprimirComanda}
+                    style={{padding:'8px 12px',borderRadius:'var(--r-md)',border:'1.5px solid #378ADD',background:'transparent',color:'#378ADD',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    🖨 Comanda
+                  </button>
+                )}
+                {comanda.estado==='en_cocina' && (
+                  <button onClick={marcarListo}
+                    style={{flex:1,padding:'8px 0',borderRadius:'var(--r-md)',border:'none',background:'#1D9E75',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    ✓ Marcar listo
+                  </button>
+                )}
+                {comanda.estado==='lista' && (
+                  <button onClick={ponerStandby}
+                    style={{flex:1,padding:'8px 0',borderRadius:'var(--r-md)',border:'1px solid #7F77DD',background:'transparent',color:'#7F77DD',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    + Agregar más
+                  </button>
+                )}
+                {(comanda.estado==='lista'||comanda.estado==='standby'||comanda.estado==='cuenta_pedida') && items.length>0 && (
+                  <button onClick={imprimirCuenta}
+                    style={{flex:1,padding:'8px 0',borderRadius:'var(--r-md)',border:'none',background:'#E24B4A',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    🧾 Cuenta
+                  </button>
+                )}
+                {/* Cancelar comanda — siempre visible excepto si ya está cobrada */}
+                {comanda.estado!=='cobrada' && (
+                  <button onClick={cancelarComanda} disabled={saving}
+                    style={{padding:'8px 12px',borderRadius:'var(--r-md)',border:'1.5px solid #E24B4A',background:'transparent',color:'#E24B4A',cursor:'pointer',fontSize:12,fontWeight:600}}>
+                    ✕ Cancelar
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* BOTONES WHATSAPP POR ESTADO */}
+            {!esViewer && comanda.cliente && (() => {
+              const tel = comanda.cliente.replace(/[^0-9]/g,'')
+              const WA_NUM = tel.startsWith('52') ? tel : '52'+tel
+              const resumen = items.map(i=>i.qty+'x '+i.plato.nombre).join(', ')
+              const msgs = {
+                abierta: {
+                  icon:'✅', label:'Notificar — Pedido aceptado',
+                  color:'#25D366',
+                  txt:`✅ *Hola ${comanda.cliente.split(' ')[0]}!* Tu pedido en Chilakileando fue recibido y está en preparación.%0A%0A🍽 ${encodeURIComponent(resumen)}%0A%0A⏱ Tiempo estimado: ${comanda.timer_minutos} min. ¡Gracias por tu pedido!`
+                },
+                en_cocina: {
+                  icon:'🍳', label:'Notificar — En preparación',
+                  color:'#EF9F27',
+                  txt:`🍳 *Hola ${comanda.cliente.split(' ')[0]}!* Tu pedido ya está en la cocina.%0A%0A🍽 ${encodeURIComponent(resumen)}%0A%0A⏱ Estará listo en aprox. ${comanda.timer_minutos} min.`
+                },
+                lista: {
+                  icon:'🎉', label:'Notificar — Pedido listo',
+                  color:'#1D9E75',
+                  txt:`🎉 *¡Tu pedido está listo, ${comanda.cliente.split(' ')[0]}!* Ya puedes recogerlo.%0A%0A🍽 ${encodeURIComponent(resumen)}%0A%0AGracias por visitarnos 💛`
+                },
+                cobrada: {
+                  icon:'💛', label:'Enviar encuesta',
+                  color:'#E24B4A',
+                  txt:`💛 *¡Gracias ${comanda.cliente.split(' ')[0]}!* Fue un placer atenderte hoy.%0A%0A¿Cómo estuvo tu experiencia? Tu opinión nos ayuda a mejorar 🙏%0A%0A📝 Llena nuestra encuesta y gana un premio:%0Ahttps://chilakileando-erp.netlify.app/encuesta`
+                }
+              }
+              const m = msgs[comanda.estado]
+              if (!m || !tel) return null
+              return (
+                <a href={`https://api.whatsapp.com/send?phone=${WA_NUM}&text=${m.txt}`} target="_blank" rel="noreferrer"
+                  style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,width:'100%',padding:'7px 0',borderRadius:'var(--r-md)',border:`1.5px solid ${m.color}`,background:m.color+'18',color:m.color,cursor:'pointer',fontSize:11,fontWeight:600,textDecoration:'none',marginBottom:8}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={m.color}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  {m.icon} {m.label}
+                </a>
+              )
+            })()}
+
+            {/* SELECTOR DE PERSONA — solo en mesa */}
+            {comanda.tipo === 'mesa' && (
+              <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,paddingBottom:8,borderBottom:'0.5px solid var(--border)'}}>
+                {(() => {
+                  const personasUsadas = [...new Set(items.map(i=>i.persona||1))]
+                  const maxPersona = Math.max(personaActiva, ...personasUsadas, 1)
+                  const personas = Array.from({length: maxPersona}, (_,i) => i+1)
+                  return <>
+                    {personas.map(p => (
+                      <button key={p} onClick={()=>setPersonaActiva(p)}
+                        style={{padding:'4px 10px',borderRadius:'var(--r-sm)',fontSize:11,fontWeight:600,cursor:'pointer',
+                          border:`1.5px solid ${personaActiva===p?'var(--accent)':'var(--border-md)'}`,
+                          background:personaActiva===p?'var(--accent)':'transparent',
+                          color:personaActiva===p?'#fff':'var(--text2)'}}>
+                        👤 P{p}
+                      </button>
+                    ))}
+                    <button onClick={()=>setPersonaActiva(maxPersona+1)}
+                      style={{padding:'4px 10px',borderRadius:'var(--r-sm)',fontSize:11,cursor:'pointer',
+                        border:'1px dashed var(--border-md)',background:'transparent',color:'var(--text3)'}}>
+                      + Agregar persona
+                    </button>
+                  </>
+                })()}
+              </div>
+            )}
+
+            {/* ITEMS — agrupados por persona si es mesa */}
+            <div style={{flex:1,overflowY:'auto',maxHeight:280,marginBottom:10}}>
+              {items.length===0
+                ? <div style={{color:'var(--text3)',fontSize:11,textAlign:'center',padding:'16px 0'}}>Toca un producto para agregar</div>
+                : (() => {
+                    const renderItem = (item) => (
+                      <div key={item.id} style={{padding:'6px 0',borderBottom:'0.5px solid var(--border)'}}>
+                        <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:12,fontWeight:500}}>{item.plato.nombre}</div>
+                            {item.desc && <div style={{fontSize:10,color:'var(--text3)'}}>{item.desc}</div>}
+                          </div>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontSize:12,fontWeight:600}}>{fmtM(item.subtotal)}</div>
+                            <div style={{fontSize:10,color:'var(--text3)'}}>{item.qty}x {fmtM(item.precioUnit)}</div>
+                          </div>
+                          {!esViewer && (
+                            <button
+                              onPointerDown={(e)=>{e.stopPropagation(); removeItem(item.id)}}
+                              style={{fontSize:13,fontWeight:700,color:'#fff',background:'#E24B4A',border:'none',
+                                cursor:'pointer',padding:'3px 8px',borderRadius:'var(--r-sm)',minWidth:26,flexShrink:0}}>
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                    if (comanda.tipo !== 'mesa') return items.map(renderItem)
+                    const grupos = {}
+                    items.forEach(i => { const p = i.persona||1; if(!grupos[p]) grupos[p]=[]; grupos[p].push(i) })
+                    return Object.keys(grupos).sort((a,b)=>a-b).map(p => {
+                      const subtotalP = grupos[p].reduce((s,i)=>s+i.subtotal,0)
+                      return (
+                        <div key={p} style={{marginBottom:8}}>
+                          <div style={{display:'flex',justifyContent:'space-between',padding:'4px 6px',background:'var(--bg)',borderRadius:'var(--r-sm)',marginBottom:4}}>
+                            <span style={{fontSize:11,fontWeight:700,color:'var(--accent)'}}>👤 P{p}</span>
+                            <span style={{fontSize:11,fontWeight:600}}>{fmtM(subtotalP)}</span>
+                          </div>
+                          {grupos[p].map(renderItem)}
+                        </div>
+                      )
+                    })
+                  })()
+              }
+            </div>
+
+            {/* TOTAL Y COBRAR */}
+            <div style={{borderTop:'0.5px solid var(--border)',paddingTop:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginBottom:10}}>
+                <span>Total</span><span style={{color:'#1D9E75'}}>{fmtM(total)}</span>
+              </div>
+              {esViewer
+                ? <div style={{width:'100%',padding:10,borderRadius:'var(--r-sm)',background:'var(--border)',color:'var(--text3)',fontSize:12,textAlign:'center'}}>Solo consulta</div>
+                : <button disabled={saving||items.length===0||comanda.estado==='en_cocina'}
+                    style={{width:'100%',padding:10,borderRadius:'var(--r-sm)',border:'none',
+                      background:items.length>0&&comanda.estado!=='en_cocina'?'#1D9E75':'var(--border-md)',
+                      color:items.length>0&&comanda.estado!=='en_cocina'?'#fff':'var(--text3)',
+                      cursor:items.length>0&&comanda.estado!=='en_cocina'?'pointer':'default',fontSize:13,fontWeight:600}}
+                    onClick={()=>items.length>0&&comanda.estado!=='en_cocina'&&setCobroModal(true)}>
+                    {saving?'Registrando...':comanda.estado==='en_cocina'?'En cocina...':comanda.estado==='cuenta_pedida'?'Registrar pago':'Cobrar'}
+                  </button>
+              }
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

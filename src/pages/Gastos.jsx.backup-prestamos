@@ -1,0 +1,438 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { sb } from '../lib/supabase.js'
+import PeriodSwitcher from '../components/PeriodSwitcher.jsx'
+import { getRangoFechas } from '../lib/analytics.js'
+
+const fmtM = v => '$' + Math.round(v || 0).toLocaleString('es-MX')
+const today = () => new Date().toISOString().slice(0,10)
+
+const CUENTAS = [
+  { grupo:'6100 Costos variables', subs:[
+    { codigo:'6101', nombre:'Gas',                       isr:'Si 100%', iva:'Si 16%', comp:'CFDI' },
+    { codigo:'6102', nombre:'Envios y estacionamientos', isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6103', nombre:'Coca-Agua-Smoothies-Cafe',  isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6104', nombre:'Carne, Huevo, Queso',       isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6105', nombre:'Bodeguita (Super)',          isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6106', nombre:'Masa',                      isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6107', nombre:'Tortillas-Totopos-Reposteria',isr:'Si 100%',iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6108', nombre:'Plasticos',                 isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6109', nombre:'Semillas-Chiles-Legumbres', isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+  ]},
+  { grupo:'6200 Gastos de Op y Mtto', subs:[
+    { codigo:'6201', nombre:'Ferreteria',                isr:'Si 100%', iva:'Si 16%', comp:'Ticket' },
+    { codigo:'6202', nombre:'Papeleria y Equipos',       isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+    { codigo:'6203', nombre:'Reparaciones y Mtto',       isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+  ]},
+  { grupo:'6300 Gastos de ventas', subs:[
+    { codigo:'6301', nombre:'Taxes / Comisiones plat.',  isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+    { codigo:'6302', nombre:'Digital y BTL',             isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+  ]},
+  { grupo:'6400 Servicios', subs:[
+    { codigo:'6401', nombre:'Internet-Telefono',         isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+    { codigo:'6402', nombre:'Agua y Luz',                isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+    { codigo:'6403', nombre:'Renta',                     isr:'Si 100%', iva:'Si 16%', comp:'CFDI'   },
+  ]},
+  { grupo:'6500 Salarios y Bonos', subs:[
+    { codigo:'6501', nombre:'Tere',                      isr:'Si 100%', iva:'No acred.', comp:'Recibo' },
+    { codigo:'6502', nombre:'Consuelo',                  isr:'Si 100%', iva:'No acred.', comp:'Recibo' },
+    { codigo:'6503', nombre:'Ale-Fer',                   isr:'Si 100%', iva:'No acred.', comp:'Recibo' },
+    { codigo:'6504', nombre:'Gastos Equipo',             isr:'Si 100%', iva:'No acred.', comp:'Recibo' },
+    { codigo:'6505', nombre:'Monica y Memo (ganancias)', isr:'Si 100%', iva:'No acred.', comp:'Recibo' },
+  ]},
+]
+
+const CAT_BADGE = {
+  'Costo':'b-red','COSTOS':'b-red','Gasto de ventas':'b-amber','GASTO DE VENTAS':'b-amber','Servicios':'b-blue','SERVICIOS':'b-blue',
+  'Salarios':'b-purple','Gastos de Op y Mtto':'b-gray'
+}
+
+const EMPTY = () => ({
+  fecha: today(), grupo:'', cuenta:'', proveedor_nombre:'', concepto:'',
+  cantidad:'', precio_unitario:'', metodo_pago:'Efectivo', notas:'', folio:''
+})
+
+export default function Gastos({ role }) {
+  const [rango,       setRango]       = useState('mes')
+  const [granularidad,setGranularidad]= useState('diario')
+  const [rangoDesde,  setRangoDesde]  = useState('')
+  const [rangoHasta,  setRangoHasta]  = useState('')
+  const [rows,      setRows]      = useState([])
+  const [provs,     setProvs]     = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [saving,    setSaving]    = useState(false)
+  const [form,      setForm]      = useState(EMPTY())
+  const [subCtas,   setSubCtas]   = useState([])
+  const [deletingId,setDeletingId]= useState(null)
+  const [msgDel,    setMsgDel]    = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [editRow,   setEditRow]   = useState({})
+  const [ctaData,   setCtaData]   = useState(null)
+  const [msg,       setMsg]       = useState(null)
+  const [filCat,    setFilCat]    = useState('')
+  const [filProv,   setFilProv]   = useState('')
+  const [tab,       setTab]       = useState('nuevo')
+
+  const load = useCallback(async () => {
+    if (rango==='rango'&&(!rangoDesde||!rangoHasta)) return
+    setLoading(true)
+    const { from, to } = getRangoFechas(rango, rangoDesde, rangoHasta)
+    const [{ data: gastos }, { data: proveedores }] = await Promise.all([
+      sb.from('gastos').select('*').gte('fecha', from).lte('fecha', to).order('fecha', { ascending:false }),
+      sb.from('proveedores').select('*').eq('activo', true).order('nombre'),
+    ])
+    setRows(gastos || [])
+    setProvs(proveedores || [])
+    setLoading(false)
+  }, [rango, rangoDesde, rangoHasta])
+
+  useEffect(() => { load() }, [load])
+
+  // Cuando cambia el grupo, cargar subcuentas
+  const handleGrupo = (grupo) => {
+    const g = CUENTAS.find(c => c.grupo === grupo)
+    setSubCtas(g?.subs || [])
+    setCtaData(null)
+    setForm(f => ({ ...f, grupo, cuenta:'', concepto:'' }))
+  }
+
+  const handleCuenta = (codigo) => {
+    const all = CUENTAS.flatMap(g => g.subs)
+    const c = all.find(x => x.codigo === codigo)
+    setCtaData(c || null)
+    setForm(f => ({ ...f, cuenta: codigo, concepto: c?.nombre || '' }))
+  }
+
+  const monto = () => {
+    const cant = parseFloat(form.cantidad) || 0
+    const pu   = parseFloat(form.precio_unitario) || 0
+    if (cant > 0 && pu > 0) return cant * pu
+    if (pu > 0) return pu
+    return 0
+  }
+
+  const handleSubmit = async () => {
+    if (!form.fecha || !form.cuenta || monto() <= 0) {
+      setMsg({ ok:false, text:'Fecha, cuenta contable y monto son obligatorios.' }); return
+    }
+    setSaving(true)
+    try {
+      // Buscar o crear proveedor
+      let proveedor_id = null
+      if (form.proveedor_nombre.trim()) {
+        const { data: existing } = await sb.from('proveedores').select('id').ilike('nombre', form.proveedor_nombre.trim()).single()
+        if (existing) {
+          proveedor_id = existing.id
+        } else {
+          const { data: nuevo } = await sb.from('proveedores').insert({ nombre: form.proveedor_nombre.trim(), activo:true }).select('id').single()
+          proveedor_id = nuevo?.id
+        }
+      }
+
+      const all = CUENTAS.flatMap(g => g.subs)
+      const cta = all.find(x => x.codigo === form.cuenta)
+      const cat = form.grupo.includes('6100')?'COSTOS':form.grupo.includes('6200')?'GASTOS DE OPERACIÓN':form.grupo.includes('6300')?'GASTO DE VENTAS':form.grupo.includes('6400')?'SERVICIOS':'SALARIOS & BONOS'
+
+      const { error } = await sb.from('gastos').insert({
+        fecha:           form.fecha,
+        folio_ref:       form.folio || null,
+        proveedor_id,
+        proveedor:       form.proveedor_nombre || null,
+        concepto:        form.concepto,
+        categoria_gasto: cat,
+        cta_gasto:       form.cuenta + ' - ' + (cta?.nombre || ''),
+        metodo_pago:     form.metodo_pago,
+        monto:           monto(),
+        notas:           form.notas || null,
+      })
+      if (error) throw error
+      setMsg({ ok:true, text:'Gasto registrado correctamente.' })
+      setForm(EMPTY()); setSubCtas([]); setCtaData(null)
+      load()
+    } catch(e) { setMsg({ ok:false, text: e.message }) }
+    setSaving(false)
+    setTimeout(() => setMsg(null), 4000)
+  }
+
+  // Filtros
+  const filtered = rows
+    .filter(r => !filCat  || r.categoria_gasto === filCat)
+    .filter(r => !filProv || (r.proveedor||'').toLowerCase().includes(filProv.toLowerCase()))
+
+  const totalFiltrado = filtered.reduce((s,r) => s+(r.monto||0), 0)
+
+  // Resumen por categoria
+  const porCat = {}
+  rows.forEach(r => {
+    const c = r.categoria_gasto || 'Sin cat.'
+    porCat[c] = (porCat[c] || 0) + (r.monto || 0)
+  })
+  const totalPeriod = rows.reduce((s,r) => s+(r.monto||0), 0)
+
+  const f = form
+
+  return (
+    <div>
+      {role==='viewer' && (
+        <div style={{padding:'8px 14px',borderRadius:'var(--r-md)',marginBottom:12,background:'#EAF3DE',color:'#3B6D11',fontSize:12}}>
+          Modo solo lectura — solo puedes ver los datos, no modificarlos.
+        </div>
+      )}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
+        <PeriodSwitcher rango={rango} granularidad={granularidad}
+          onRango={setRango} onGranularidad={setGranularidad}
+          rangoDesde={rangoDesde} rangoHasta={rangoHasta}
+          onRangoChange={(d,h)=>{setRangoDesde(d);setRangoHasta(h)}}/>
+        <div style={{ display:'flex', gap:6 }}>
+          {role!=='viewer' && <button className={`psw-btn${tab==='nuevo'?' on':''}`} onClick={()=>setTab('nuevo')}>+ Nuevo gasto</button>}
+          <button className={`psw-btn${tab==='historial'?' on':''}`} onClick={()=>setTab('historial')}>Historial</button>
+        </div>
+      </div>
+
+      {tab === 'nuevo' && (
+        <div className="two">
+          {/* FORMULARIO */}
+          <div className="card">
+            <div className="ct" style={{ marginBottom:14 }}>Registrar gasto</div>
+            {msg && <div style={{ padding:'8px 12px', borderRadius:'var(--r-sm)', marginBottom:10,
+              background:msg.ok?'#EAF3DE':'#FCEBEB', color:msg.ok?'#3B6D11':'#A32D2D', fontSize:12 }}>{msg.text}</div>}
+
+            <div className="fgrid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {/* Fecha */}
+              <div className="form-group">
+                <div className="form-label">Fecha</div>
+                <input className="form-input" type="date" value={f.fecha} onChange={e=>setForm(x=>({...x,fecha:e.target.value}))}/>
+              </div>
+              {/* Folio */}
+              <div className="form-group">
+                <div className="form-label">Folio / Referencia</div>
+                <input className="form-input" type="text" placeholder="No. factura, ticket..." value={f.folio} onChange={e=>setForm(x=>({...x,folio:e.target.value}))}/>
+              </div>
+
+              {/* Grupo contable */}
+              <div className="form-group full" style={{ gridColumn:'1/-1' }}>
+                <div className="form-label">Grupo contable <span style={{ fontStyle:'italic', color:'var(--text3)', fontWeight:400 }}>(elige primero)</span></div>
+                <select className="form-input" value={f.grupo} onChange={e=>handleGrupo(e.target.value)}>
+                  <option value="">— Seleccionar grupo —</option>
+                  {CUENTAS.map(g=><option key={g.grupo} value={g.grupo}>{g.grupo}</option>)}
+                </select>
+              </div>
+
+              {/* Subcuenta */}
+              {subCtas.length > 0 && (
+                <div className="form-group full" style={{ gridColumn:'1/-1' }}>
+                  <div className="form-label">Cuenta contable</div>
+                  <select className="form-input" value={f.cuenta} onChange={e=>handleCuenta(e.target.value)}>
+                    <option value="">— Seleccionar cuenta —</option>
+                    {subCtas.map(s=><option key={s.codigo} value={s.codigo}>{s.codigo} — {s.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Info fiscal auto */}
+              {ctaData && (
+                <div style={{ gridColumn:'1/-1', background:'var(--bg)', borderRadius:'var(--r-sm)', padding:'8px 12px', display:'flex', gap:16, fontSize:11 }}>
+                  <span style={{ color:'var(--text2)' }}>ISR: <b style={{ color:'var(--text)' }}>{ctaData.isr}</b></span>
+                  <span style={{ color:'var(--text2)' }}>IVA: <b style={{ color:'var(--text)' }}>{ctaData.iva}</b></span>
+                  <span style={{ color:'var(--text2)' }}>Comprobante: <b style={{ color:'var(--text)' }}>{ctaData.comp}</b></span>
+                </div>
+              )}
+
+              {/* Concepto */}
+              <div className="form-group full" style={{ gridColumn:'1/-1' }}>
+                <div className="form-label">Concepto</div>
+                <input className="form-input" type="text" placeholder="Descripcion del gasto" value={f.concepto} onChange={e=>setForm(x=>({...x,concepto:e.target.value}))}/>
+              </div>
+
+              {/* Proveedor */}
+              <div className="form-group full" style={{ gridColumn:'1/-1' }}>
+                <div className="form-label">Proveedor</div>
+                <input className="form-input" type="text" placeholder="Nombre del proveedor (se crea automaticamente si es nuevo)"
+                  value={f.proveedor_nombre} onChange={e=>setForm(x=>({...x,proveedor_nombre:e.target.value}))}
+                  list="prov-list"/>
+                <datalist id="prov-list">
+                  {provs.map(p=><option key={p.id} value={p.nombre}/>)}
+                </datalist>
+              </div>
+
+              {/* Cantidad y precio */}
+              <div className="form-group">
+                <div className="form-label">Cantidad <span style={{ color:'var(--text3)', fontWeight:400 }}>(opcional)</span></div>
+                <input className="form-input" type="number" placeholder="0" value={f.cantidad} onChange={e=>setForm(x=>({...x,cantidad:e.target.value}))}/>
+              </div>
+              <div className="form-group">
+                <div className="form-label">Precio unitario / Monto total</div>
+                <input className="form-input" type="number" placeholder="0.00" value={f.precio_unitario} onChange={e=>setForm(x=>({...x,precio_unitario:e.target.value}))}/>
+              </div>
+
+              {/* Monto calculado */}
+              {monto() > 0 && (
+                <div style={{ gridColumn:'1/-1', background:'var(--bg)', borderRadius:'var(--r-sm)', padding:'8px 12px', display:'flex', justifyContent:'space-between', fontSize:13 }}>
+                  <span style={{ color:'var(--text2)' }}>
+                    {parseFloat(f.cantidad)>0 ? `${f.cantidad} x ${fmtM(parseFloat(f.precio_unitario))} =` : 'Monto total:'}
+                  </span>
+                  <span style={{ fontWeight:600, fontSize:15 }}>{fmtM(monto())}</span>
+                </div>
+              )}
+
+              {/* Forma de pago */}
+              <div className="form-group">
+                <div className="form-label">Forma de pago</div>
+                <select className="form-input" value={f.metodo_pago} onChange={e=>setForm(x=>({...x,metodo_pago:e.target.value}))}>
+                  <option>Efectivo</option>
+                  <option>Tarjeta debito</option>
+                  <option>Tarjeta credito</option>
+                  <option>Transferencia</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <div className="form-label">Notas adicionales</div>
+                <input className="form-input" type="text" placeholder="Notas opcionales" value={f.notas} onChange={e=>setForm(x=>({...x,notas:e.target.value}))}/>
+              </div>
+            </div>
+
+            <button className="btn btn-primary" style={{ width:'100%', marginTop:14, padding:10 }}
+              onClick={handleSubmit} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar gasto'}
+            </button>
+          </div>
+
+          {/* RESUMEN */}
+          <div>
+            <div className="card">
+              <div className="ch"><div className="ct">Resumen del periodo</div></div>
+              <div className="mc" style={{ marginBottom:10 }}>
+                <div className="ml">Total gastos</div>
+                <div className="mv">{fmtM(totalPeriod)}</div>
+              </div>
+              <table className="tbl">
+                <thead><tr><th>Categoria</th><th className="num">Total</th><th className="num">%</th></tr></thead>
+                <tbody>
+                  {Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                    <tr key={k}>
+                      <td><span className={`badge ${CAT_BADGE[k]||'b-gray'}`}>{k}</span></td>
+                      <td className="num">{fmtM(v)}</td>
+                      <td className="num c-muted">{totalPeriod>0?Math.round(v/totalPeriod*100):0}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Ultimos gastos */}
+            <div className="card">
+              <div className="ch"><div className="ct">Ultimos registros</div></div>
+              <table className="tbl">
+                <thead><tr><th>Fecha</th><th>Concepto</th><th className="num">Monto</th></tr></thead>
+                <tbody>
+                  {rows.slice(0,8).map((r,i)=>(
+                    <tr key={i}>
+                      <td style={{ fontSize:11, color:'var(--text2)', whiteSpace:'nowrap' }}>{r.fecha}</td>
+                      <td style={{ fontSize:12 }}>{r.concepto}</td>
+                      <td className="num" style={{ fontWeight:500 }}>{fmtM(r.monto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'historial' && (
+        <div className="card">
+          {msgDel && <div style={{padding:'8px 14px',borderRadius:'var(--r-md)',marginBottom:8,
+            background:msgDel.ok?'#EAF3DE':'#FCEBEB',color:msgDel.ok?'#3B6D11':'#A32D2D',fontSize:12}}>{msgDel.text}</div>}
+          <div className="ch">
+            <div className="ct">Historial de gastos — {filtered.length} registros · {fmtM(totalFiltrado)}</div>            <div style={{ display:'flex', gap:8 }}>
+              <input className="form-input" style={{ width:160 }} placeholder="Buscar proveedor..."
+                value={filProv} onChange={e=>setFilProv(e.target.value)}/>
+              <select className="form-input" style={{ width:160 }} value={filCat} onChange={e=>setFilCat(e.target.value)}>
+                <option value="">Todas las categorias</option>
+                <option>Costo</option>
+                <option>Gasto de ventas</option>
+                <option>Servicios</option>
+                <option>Salarios</option>
+                <option>Gastos de Op y Mtto</option>
+              </select>
+            </div>
+          </div>
+          {loading ? <div className="loading-screen" style={{ height:200 }}><div className="spinner"/></div>
+          : <div style={{ overflowX:'auto', maxHeight:560, overflowY:'auto' }}>
+              <table className="tbl" style={{ minWidth:700 }}>
+                <thead style={{ position:'sticky', top:0, background:'var(--surface)' }}>
+                  <tr>
+                    <th>Fecha</th><th>Proveedor</th><th>Concepto</th><th>Cuenta</th>
+                    <th>Categoria</th><th>Pago</th><th className="num">Monto</th>
+                    {role==='admin' && <th></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r,i)=>(
+                    <tr key={r.id||i}>
+                      {editingId===r.id ? <>
+                        <td><input className="form-input" style={{padding:'2px 6px',fontSize:11,width:110}} type="date" value={editRow.fecha||''} onChange={e=>setEditRow(x=>({...x,fecha:e.target.value}))}/></td>
+                        <td><input className="form-input" style={{padding:'2px 6px',fontSize:11}} value={editRow.proveedor||''} onChange={e=>setEditRow(x=>({...x,proveedor:e.target.value}))}/></td>
+                        <td><input className="form-input" style={{padding:'2px 6px',fontSize:11}} value={editRow.concepto||''} onChange={e=>setEditRow(x=>({...x,concepto:e.target.value}))}/></td>
+                        <td><input className="form-input" style={{padding:'2px 6px',fontSize:11,width:80}} value={editRow.cta_gasto||''} onChange={e=>setEditRow(x=>({...x,cta_gasto:e.target.value}))}/></td>
+                        <td>
+                          <select className="form-input" style={{padding:'2px 6px',fontSize:11}} value={editRow.categoria_gasto||''} onChange={e=>setEditRow(x=>({...x,categoria_gasto:e.target.value}))}>
+                            <option>Costo</option><option>Gasto de ventas</option><option>Servicios</option><option>Salarios</option><option>Gastos de Op y Mtto</option><option>Ajuste caja</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select className="form-input" style={{padding:'2px 6px',fontSize:11}} value={editRow.metodo_pago||''} onChange={e=>setEditRow(x=>({...x,metodo_pago:e.target.value}))}>
+                            <option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option>
+                          </select>
+                        </td>
+                        <td><input className="form-input" style={{padding:'2px 6px',fontSize:11,width:90,textAlign:'right'}} type="number" value={editRow.monto||''} onChange={e=>setEditRow(x=>({...x,monto:e.target.value}))}/></td>
+                        <td>
+                          <div style={{display:'flex',gap:4}}>
+                            <button onClick={async()=>{
+                              const payload = {fecha:editRow.fecha,proveedor:editRow.proveedor||null,concepto:editRow.concepto,cta_gasto:editRow.cta_gasto||null,categoria_gasto:editRow.categoria_gasto,metodo_pago:editRow.metodo_pago||null,monto:parseFloat(editRow.monto)||0}
+                              const {error} = await sb.from('gastos').update(payload).eq('id',r.id)
+                              if(error) setMsgDel({ok:false,text:'Error: '+error.message})
+                              else { setRows(prev=>prev.map(x=>x.id===r.id?{...x,...payload}:x)); setMsgDel({ok:true,text:'Gasto actualizado'}); setTimeout(()=>setMsgDel(null),3000) }
+                              setEditingId(null)
+                            }} style={{fontSize:10,padding:'1px 7px',borderRadius:'var(--r-sm)',border:'none',background:'#1D9E75',color:'#fff',cursor:'pointer'}}>✓</button>
+                            <button onClick={()=>setEditingId(null)} style={{fontSize:10,padding:'1px 7px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',background:'transparent',cursor:'pointer',color:'var(--text2)'}}>✕</button>
+                          </div>
+                        </td>
+                      </> : <>
+                        <td style={{ whiteSpace:'nowrap', fontSize:11 }}>{r.fecha}</td>
+                        <td style={{ fontSize:11, color:'var(--text2)' }}>{r.proveedor||'—'}</td>
+                        <td style={{ fontWeight:500 }}>{r.concepto}</td>
+                        <td style={{ fontSize:11, fontFamily:'monospace', color:'var(--text2)' }}>{r.cta_gasto||'—'}</td>
+                        <td><span className={`badge ${CAT_BADGE[r.categoria_gasto]||'b-gray'}`}>{r.categoria_gasto||'—'}</span></td>
+                        <td style={{ fontSize:11 }}>{r.metodo_pago||'—'}</td>
+                        <td className="num" style={{ fontWeight:500 }}>{fmtM(r.monto)}</td>
+                        {role==='admin' && <td>
+                          <div style={{display:'flex',gap:4}}>
+                            <button onClick={()=>{setEditingId(r.id);setEditRow({...r})}}
+                              style={{fontSize:10,padding:'1px 7px',borderRadius:'var(--r-sm)',border:'0.5px solid var(--border-md)',color:'var(--text2)',background:'transparent',cursor:'pointer'}}>✎</button>
+                            <button onClick={async()=>{
+                              if (!r.id) return
+                              if (!confirm('¿Eliminar este gasto?')) return
+                              setDeletingId(r.id)
+                              const {error} = await sb.from('gastos').delete().eq('id',r.id)
+                              if(error) setMsgDel({ok:false,text:'Error: '+error.message})
+                              else { setMsgDel({ok:true,text:'Gasto eliminado'}); setRows(prev=>prev.filter(x=>x.id!==r.id)) }
+                              setDeletingId(null)
+                              setTimeout(()=>setMsgDel(null),3000)
+                            }} disabled={deletingId===r.id||!r.id}
+                              style={{fontSize:10,padding:'1px 7px',borderRadius:'var(--r-sm)',border:'0.5px solid #E24B4A',color:'#E24B4A',background:'transparent',cursor:'pointer',opacity:r.id?1:0.3}}>
+                              {deletingId===r.id?'…':'✕'}
+                            </button>
+                          </div>
+                        </td>}
+                      </>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      )}
+    </div>
+  )
+}

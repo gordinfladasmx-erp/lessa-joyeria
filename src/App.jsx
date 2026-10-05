@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
+import Admin from './pages/Admin'
 import './App.css'
 
 export default function App() {
@@ -85,6 +86,7 @@ export default function App() {
               />
             }
           />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
 
         <footer className="footer">

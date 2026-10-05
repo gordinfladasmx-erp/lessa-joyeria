@@ -70,6 +70,9 @@ export default function App() {
             <Link to="/carrito" className="cart-link">
               🛒 Carrito ({cartCount})
             </Link>
+            <Link to="/admin" style={{fontSize: '0.9rem', color: '#999'}}>
+              ⚙️ Admin
+            </Link>
           </div>
         </nav>
 

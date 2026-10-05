@@ -19,19 +19,12 @@ export default function Catalogo({ onAddToCart }) {
 
   const cargarDatos = async () => {
     try {
-      const [{ data: cats }] = await Promise.all([
+      const [{ data: cats }, { data: prods }] = await Promise.all([
         sb.from('categorias').select('*'),
+        sb.from('productos').select('*').eq('activo', true).range(0, 10000),
       ])
-
-      // Supabase limita a 1000 por query, paginar
-      const [{ data: prods1 }, { data: prods2 }] = await Promise.all([
-        sb.from('productos').select('*').eq('activo', true).limit(1000),
-        sb.from('productos').select('*').eq('activo', true).limit(1000).range(1000, 1999),
-      ])
-      const prods = [...(prods1 || []), ...(prods2 || [])]
-
       setCategorias(cats || [])
-      setProductos(prods)
+      setProductos(prods || [])
     } catch (e) {
       console.error('Error cargando datos:', e)
     } finally {

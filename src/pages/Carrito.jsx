@@ -72,12 +72,32 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
   }
 
   if (exito) {
+    const itemsText = items.map(i => `${i.nombre} x${i.cantidad}`).join('\n')
+    const whatsappMsg = `Hola! Me gustaría confirmar mi pedido:\n${itemsText}\nTotal: $${total.toFixed(2)}`
+    const emailMsg = `Pedido de ${nombre}:\n\n${itemsText}\n\nTotal: $${total.toFixed(2)}`
+
     return (
       <div className="carrito success">
         <div className="success-message">
           <div className="icon">✓</div>
           <h2>¡Pedido recibido!</h2>
-          <p>Te contactaremos pronto por WhatsApp o email</p>
+          <p>Te contactaremos pronto</p>
+          <div style={{marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'center'}}>
+            <a
+              href={`https://wa.me/524493876360?text=${encodeURIComponent(whatsappMsg)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{padding: '0.75rem 1.5rem', background: '#25D366', color: 'white', borderRadius: '4px', textDecoration: 'none'}}
+            >
+              Enviar por WhatsApp
+            </a>
+            <a
+              href={`mailto:alessandra.reyes04@gmail.com?subject=Pedido Lessa&body=${encodeURIComponent(emailMsg)}`}
+              style={{padding: '0.75rem 1.5rem', background: '#007BFF', color: 'white', borderRadius: '4px', textDecoration: 'none'}}
+            >
+              Enviar por Email
+            </a>
+          </div>
         </div>
       </div>
     )

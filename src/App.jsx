@@ -60,7 +60,10 @@ export default function App() {
     <BrowserRouter>
       <div className="app">
         <nav className="navbar">
-          <Link to="/" className="logo">✦ Lessa Joyería</Link>
+          <Link to="/" className="logo">
+            <img src="/logo.png" alt="Lessa" style={{height: '40px', marginRight: '10px'}} />
+            Lessa Joyería
+          </Link>
           <div className="nav-links">
             <Link to="/">Inicio</Link>
             <Link to="/catalogo">Catálogo</Link>

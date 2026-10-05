@@ -41,8 +41,10 @@ CREATE TABLE IF NOT EXISTS pedidos (
   email_cliente TEXT NOT NULL,
   whatsapp TEXT,
   items JSONB NOT NULL,
+  subtotal NUMERIC(10,2) DEFAULT 0,
+  descuento NUMERIC(10,2) DEFAULT 0,
   total NUMERIC(10,2) NOT NULL,
-  estado TEXT DEFAULT 'pendiente', -- pendiente, confirmado, enviado, entregado
+  estado TEXT DEFAULT 'pendiente',
   notas TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

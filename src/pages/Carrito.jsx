@@ -27,14 +27,18 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
 
     setEnviando(true)
     try {
+      const itemsConDescuento = items.map(item => ({
+        ...item,
+        descuento_aplicado: descuentoTipo,
+        valor_descuento: descuentoValor
+      }))
+
       const pedido = {
         numero_pedido: `LESSA-${Date.now()}`,
         nombre_cliente: nombre,
         email_cliente: email,
         whatsapp: whatsapp,
-        items: items,
-        subtotal: subtotal,
-        descuento: descuentoCalculado,
+        items: itemsConDescuento,
         total: total,
         estado: 'pendiente',
         notas: notas,
@@ -74,9 +78,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove }) {
   }
 
   if (exito) {
-    const itemsText = items.map(i => `${i.nombre} x${i.cantidad}`).join('\n')
-    const whatsappMsg = `Hola! Me gustaría confirmar mi pedido:\n${itemsText}\nTotal: $${total.toFixed(2)}`
-    const emailMsg = `Pedido de ${nombre}:\n\n${itemsText}\n\nTotal: $${total.toFixed(2)}`
+    const itemsText = items.map(i => `${i.nombre} x${i.cantidad} - $${i.precio.toFixed(2)}`).join('\n')
+    const descuentoText = descuentoCalculado > 0
+      ? `\nDescuento (${descuentoTipo === 'monto' ? '$' : '%'}${descuentoValor}): -$${descuentoCalculado.toFixed(2)}`
+      : ''
+    const whatsappMsg = `Hola! Me gustaría confirmar mi pedido:\n\n${itemsText}${descuentoText}\n\nTotal: $${total.toFixed(2)}`
+    const emailMsg = `Pedido de ${nombre}:\n\n${itemsText}${descuentoText}\n\nTotal: $${total.toFixed(2)}`
 
     return (
       <div className="carrito success">

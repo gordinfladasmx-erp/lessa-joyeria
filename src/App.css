@@ -91,16 +91,16 @@ body {
 
 /* FOOTER */
 .footer {
-  background: var(--text);
-  color: white;
+  background: #1a1a1a;
+  color: #ffffff;
   text-align: center;
-  padding: 2rem;
+  padding: 2rem 1.25rem 1.25rem;
   font-size: 0.9rem;
   margin-top: 4rem;
 }
 
 .footer a {
-  color: var(--primary-light);
+  color: #E8C4D6;
   text-decoration: none;
 }
 
@@ -200,3 +200,9 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 
 .footer-ig { margin-top: 0.75rem; }
 .footer-ig a { display: inline-flex; align-items: center; gap: 0.5rem; color: white !important; font-weight: 600; }
+
+.footer p { color: #ffffff; }
+.footer-ig a { color: #ffffff !important; }
+.footer-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 1.25rem; padding-top: 0.9rem; border-top: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.8rem; color: #d9d9d9; }
+.footer-legal span { color: #d9d9d9; }
+@media (max-width: 768px) { .footer-legal { flex-direction: column; text-align: center; } }

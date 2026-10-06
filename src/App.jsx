@@ -165,6 +165,10 @@ export default function App() {
               @lessa_joyeria
             </a>
           </p>
+          <div className="footer-legal">
+            <span>® 2026 Lessa Joyería. Todos los derechos reservados.</span>
+            <span>Powered by Aria by BP&amp;S - Anthropic IA</span>
+          </div>
         </footer>
       </div>
     </BrowserRouter>

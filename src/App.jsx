@@ -6,7 +6,7 @@ import DestacadosPage from './pages/DestacadosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
-import { WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
+import { getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
 
 const leerCarrito = () => {
@@ -103,8 +103,13 @@ export default function App() {
             <Link to="/">Inicio</Link>
             <Link to="/catalogo">Catálogo</Link>
             <Link to="/destacados" className="nav-dest">★ Destacados</Link>
-            <Link to="/carrito" className="cart-link">
-              Carrito ({cartCount})
+            <Link to="/carrito" className="cart-link" aria-label={`Carrito, ${cartCount} producto(s)`} title="Carrito">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2.5 3.5h2.6l2.3 11.3a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 7.5H6" />
+                <circle cx="10" cy="20" r="1.4" />
+                <circle cx="17" cy="20" r="1.4" />
+              </svg>
+              <span className="cart-count">{cartCount}</span>
             </Link>
             {adminPass ? (
               <>
@@ -118,9 +123,9 @@ export default function App() {
         </nav>
 
         <Routes>
-          <Route path="/" element={<Landing onAddToCart={addToCart} adminPass={adminPass} />} />
-          <Route path="/destacados" element={<DestacadosPage onAddToCart={addToCart} adminPass={adminPass} />} />
-          <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} adminPass={adminPass} />} />
+          <Route path="/" element={<Landing cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
+          <Route path="/destacados" element={<DestacadosPage cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
+          <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
           <Route
             path="/carrito"
             element={
@@ -153,12 +158,9 @@ export default function App() {
         )}
 
         <footer className="footer">
-          <p>
-            Lessa Joyería | Contacto:{' '}
-            <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a> | WhatsApp:{' '}
-            <a href={`https://wa.me/${WA_TIENDA}`}>{WA_TIENDA_VISIBLE}</a>
-          </p>
-          <p className="footer-ig">
+          <p className="footer-marca">
+            <span>Lessa Joyería</span>
+            <span className="sep-v" aria-hidden="true"></span>
             <a href="https://www.instagram.com/lessa_joyeria" target="_blank" rel="noreferrer" aria-label="Instagram de Lessa">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3" y="3" width="18" height="18" rx="5" />

@@ -77,11 +77,15 @@ body {
 }
 
 .cart-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--primary-light);
   color: var(--primary);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-weight: 600;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
 }
 
 /* MAIN */
@@ -181,7 +185,6 @@ body {
   .navbar .logo img { height: 48px; width: 48px; }
   .nav-links { gap: 0.5rem 0.9rem; flex-wrap: wrap; justify-content: center; }
   .nav-links a, button.admin-link { font-size: 0.85rem; }
-  .cart-link { padding: 0.4rem 0.8rem; }
   .footer { padding: 1.25rem 1rem; margin-top: 2rem; }
   .barra-edicion { font-size: 0.8rem; }
 }
@@ -209,3 +212,8 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 
 .nav-links a.nav-dest { color: #c77700; font-weight: 700; }
 .nav-links a.nav-dest:hover { color: #FF2E63; }
+
+.cart-count { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: #FF2E63; color: #fff; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+.footer-marca { display: inline-flex; align-items: center; justify-content: center; gap: 0.9rem; flex-wrap: wrap; font-size: 1rem; font-weight: 600; }
+.footer-marca .sep-v { width: 1px; height: 1.4em; background: rgba(255, 255, 255, 0.55); }
+.footer-marca a { display: inline-flex; align-items: center; gap: 0.45rem; color: #ffffff !important; }

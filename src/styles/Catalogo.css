@@ -189,3 +189,9 @@
 .estrella { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: 2px solid #FFB400; background: rgba(255,255,255,0.92); color: #FFB400; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; }
 .estrella.on { background: #FFB400; color: #fff; }
 .estrella:disabled { opacity: 0.6; }
+
+.producto-card.seleccionado { border: 2px solid #970B3E; box-shadow: 0 0 0 3px rgba(151, 11, 62, 0.12); }
+.producto-card .btn-carrito.sel { background: #fff; color: #970B3E; border: 1.5px solid #970B3E; }
+.producto-card .btn-carrito.sel:disabled { background: #f3e6ea; color: #970B3E; }
+.producto-card .btn-encargo:disabled { opacity: 1; background: #f3e6ea !important; }
+.producto-card .quitar-sel { display: block; margin: -0.4rem auto 0.8rem; background: none; border: none; color: #777; font-size: 0.78rem; text-decoration: underline; cursor: pointer; }

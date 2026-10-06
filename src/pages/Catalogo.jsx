@@ -7,7 +7,7 @@ import '../styles/Catalogo.css'
 
 const PAGINA = 48
 
-export default function Catalogo({ cart, onAddToCart, adminPass }) {
+export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -135,12 +135,16 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
         ) : (
           filtrados.slice(0, visibles).map((prod) => {
             const agotado = !(prod.stock > 0)
-            const restante = prod.stock - enCarrito(prod.id)
+            const n = enCarrito(prod.id)
+            const nPre = cart.find((i) => i.key === `${prod.id}-pre`)?.cantidad || 0
+            const restante = prod.stock - n
+            const sel = n > 0 || nPre > 0
             return (
-              <div key={prod.id} className={`producto-card ${agotado ? 'agotado' : ''}`}>
+              <div key={prod.id} className={`producto-card ${agotado ? 'agotado' : ''} ${sel ? 'seleccionado' : ''}`}>
                 <div className="foto-wrap">
                   <Foto sku={prod.sku} nombre={prod.nombre} />
                   {agotado && <span className="badge-agotado">Agotado</span>}
+                  {sel && <span className="badge-sel">{nPre > 0 ? `✓ Encargado${nPre > 1 ? ` (${nPre})` : ''}` : `✓ En tu carrito${n > 1 ? ` (${n})` : ''}`}</span>}
                   {adminPass
                     ? <Estrella producto={prod} pass={adminPass} onCambio={(id, v) => setProductos((ps) => ps.map((x) => (x.id === id ? { ...x, destacado: v } : x)))} />
                     : prod.destacado && <span className="badge-dest" title="Destacado">★</span>}
@@ -160,15 +164,23 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
                   </div>
                 )}
                 {agotado ? (
-                  <button className="btn-carrito btn-encargo" onClick={() => setPreorden(prod)}>
-                    Encargar (llega en ~{DIAS_PREORDEN} días)
-                  </button>
+                  nPre > 0 ? (
+                    <>
+                      <button className="btn-carrito btn-encargo" disabled>✓ Ya lo encargaste</button>
+                      <button className="quitar-sel" onClick={() => onRemove(`${prod.id}-pre`)}>Quitar</button>
+                    </>
+                  ) : (
+                    <button className="btn-carrito btn-encargo" onClick={() => setPreorden(prod)}>
+                      Encargar (llega en ~{DIAS_PREORDEN} días)
+                    </button>
+                  )
                 ) : (
                   <>
                     <p className="stock-info">{prod.stock <= 3 ? `Últimas ${prod.stock} pieza(s)` : 'Disponible'} · se puede apartar {DIAS_APARTADO} días</p>
-                    <button className="btn-carrito" disabled={restante <= 0} onClick={() => agregar(prod)}>
-                      {restante <= 0 ? 'Ya está todo en tu carrito' : 'Agregar al carrito'}
+                    <button className={`btn-carrito ${n > 0 ? 'sel' : ''}`} disabled={restante <= 0} onClick={() => agregar(prod)}>
+                      {restante <= 0 ? '✓ Ya está todo en tu carrito' : n > 0 ? 'Agregar otra pieza' : 'Agregar al carrito'}
                     </button>
+                    {n > 0 && <button className="quitar-sel" onClick={() => onRemove(String(prod.id))}>Quitar del carrito</button>}
                   </>
                 )}
               </div>

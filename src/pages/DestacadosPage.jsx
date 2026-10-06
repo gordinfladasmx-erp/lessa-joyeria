@@ -5,7 +5,7 @@ import '../styles/Landing.css'
 
 const PAGINA = 60
 
-export default function DestacadosPage({ onAddToCart, adminPass }) {
+export default function DestacadosPage({ cart, onAddToCart, onRemove, adminPass }) {
   const [prods, setProds] = useState([])
   const [cats, setCats] = useState([])
   const [cat, setCat] = useState(null)
@@ -51,7 +51,7 @@ export default function DestacadosPage({ onAddToCart, adminPass }) {
             ))}
           </div>
           {filtrados.length === 0 ? <p>No hay destacados con ese filtro.</p> : (
-            <TarjetasDestacadas prods={filtrados.slice(0, visibles)} onAddToCart={onAddToCart} adminPass={adminPass}
+            <TarjetasDestacadas prods={filtrados.slice(0, visibles)} cart={cart} onAddToCart={onAddToCart} onRemove={onRemove} adminPass={adminPass}
               onQuitar={(id) => setProds((ps) => ps.filter((x) => x.id !== id))} />
           )}
           {filtrados.length > visibles && (

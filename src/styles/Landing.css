@@ -3,8 +3,8 @@
 }
 
 .hero {
-  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
-  padding: 6rem 2rem;
+  background: #F8D8D9;
+  padding: 4rem 2rem 4.5rem;
   text-align: center;
   color: var(--primary);
 }
@@ -118,3 +118,8 @@
   .dest-precio { font-size: 0.8rem; padding: 0 0.35rem; }
   .btn-dest { font-size: 0.7rem; margin: 0.3rem 0.35rem 0.4rem; }
 }
+
+.marca { margin: 0 0 1.25rem; display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: inherit; }
+.marca-lessa { width: min(420px, 78vw); height: auto; display: block; }
+.marca-joyeria { margin-top: 0.35rem; font-family: 'Bodoni Moda', 'Didot', 'Playfair Display', Georgia, serif; font-weight: 500; font-size: clamp(1.1rem, 3.2vw, 1.7rem); letter-spacing: 0.55em; padding-left: 0.55em; color: #970B3E; text-transform: lowercase; }
+.hero-content p { font-family: 'Bodoni Moda', Georgia, serif; font-size: 1.15rem; color: #5a2a3a; opacity: 1; }

@@ -65,7 +65,10 @@ export default function Landing({ onAddToCart, adminPass }) {
     <div className="landing">
       <div className="hero">
         <div className="hero-content">
-          <h1>Lessa Joyería</h1>
+          <h1 className="marca" aria-label="Lessa Joyería">
+            <img src="/lessa-wordmark.png" alt="" className="marca-lessa" />
+            <span className="marca-joyeria">joyería</span>
+          </h1>
           <p>Joyería de calidad para momentos especiales</p>
           <Link to="/catalogo" className="btn-primary">
             Ver catálogo

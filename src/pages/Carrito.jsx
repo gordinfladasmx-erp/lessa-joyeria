@@ -2,18 +2,16 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import {
-  money, fotoUrl, waNumber, getAdminPass, reciboTexto, fechaCorta,
-  WA_TIENDA, EMAIL_TIENDA, DIAS_PREORDEN,
+  money, fotoUrl, waNumber, reciboTexto, fechaCorta, mensajeError,
+  WA_TIENDA, EMAIL_TIENDA, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
 } from '../lib/store'
 import '../styles/Carrito.css'
 
 function Recibo({ r, cliente, onNuevo }) {
   const texto = reciboTexto(r, cliente)
   const waCliente = waNumber(cliente.whatsapp)
-  const normales = r.items.filter((i) => !i.preorden)
-  const pre = r.items.filter((i) => i.preorden)
   const fila = (i) => (
-    <tr key={i.id + String(i.preorden)}>
+    <tr key={i.id}>
       <td>{i.nombre}</td>
       <td className="num">{i.cantidad}</td>
       <td className="num">{money(i.precio)}</td>
@@ -27,41 +25,45 @@ function Recibo({ r, cliente, onNuevo }) {
         <div className="recibo-cabecera">
           <img src="/logo.png" alt="Lessa" />
           <div>
-            <h2>Recibo {r.numero_pedido}</h2>
-            <p>{fechaCorta(new Date().toISOString().slice(0, 10))}</p>
+            <h2>Recibo de {r.pedidos.some((p) => p.mostrador) ? 'venta' : 'reserva'}</h2>
+            <p>{fechaCorta(new Date().toISOString())}</p>
           </div>
         </div>
         <p><strong>Cliente:</strong> {cliente.nombre} | {cliente.email}{cliente.whatsapp ? ` | ${cliente.whatsapp}` : ''}</p>
 
-        {normales.length > 0 && (
-          <>
-            <h3>Disponibles (entrega inmediata)</h3>
-            <table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>{normales.map(fila)}</tbody></table>
-          </>
-        )}
-        {pre.length > 0 && (
-          <>
-            <h3>Por encargo (llega en ~{DIAS_PREORDEN} días, aprox. {fechaCorta(r.entrega_estimada)})</h3>
-            <table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>{pre.map(fila)}</tbody></table>
-          </>
-        )}
-
-        <div className="recibo-totales">
-          <div><span>Subtotal</span><span>{money(r.subtotal)}</span></div>
-          {r.descuento > 0 && <div><span>Descuento</span><span>-{money(r.descuento)}</span></div>}
-          <div className="grande"><span>Total</span><span>{money(r.total)}</span></div>
-          {r.tiene_preorden && (
-            <>
-              <div><span>Anticipo para apartar el encargo</span><span>{money(r.anticipo)}</span></div>
-              <div><span>Saldo a la entrega</span><span>{money(r.total - r.anticipo)}</span></div>
-            </>
-          )}
-        </div>
-        {r.tiene_preorden && (
-          <p className="recibo-nota">
-            Tu encargo queda apartado al recibir el anticipo. Nos pondremos en contacto contigo por WhatsApp
-            para indicarte cómo pagarlo.
-          </p>
+        {r.pedidos.map((p) => (
+          <div key={p.id} className="recibo-bloque">
+            <h3>
+              {p.tipo === 'encargo'
+                ? `Encargo ${p.numero_pedido}: llega en ~${DIAS_PREORDEN} días (aprox. ${fechaCorta(p.entrega_estimada)})`
+                : `${p.mostrador ? 'Venta' : 'Apartado'} ${p.numero_pedido}`}
+            </h3>
+            <table>
+              <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead>
+              <tbody>{p.items.map(fila)}</tbody>
+            </table>
+            <div className="recibo-totales">
+              {p.descuento > 0 && <div><span>Descuento</span><span>-{money(p.descuento)}</span></div>}
+              <div className="grande"><span>Total</span><span>{money(p.total)}</span></div>
+              {p.mostrador ? <div><span>Pagado</span><span>{money(p.total)}</span></div> : (
+                <>
+                  <div><span>Reserva a pagar ahora</span><span>{money(p.anticipo)}</span></div>
+                  <div><span>Saldo a la entrega</span><span>{money(p.total - p.anticipo)}</span></div>
+                </>
+              )}
+            </div>
+            {!p.mostrador && (
+              <p className="recibo-nota">
+                {p.tipo === 'apartado'
+                  ? `Tus piezas quedan apartadas ${DIAS_APARTADO} días a partir de que confirmemos el pago de la reserva. Si no se recogen y pagan en ese plazo, el apartado se cancela.`
+                  : 'Pediremos tu producto al proveedor en cuanto confirmemos el pago de la reserva.'}
+              </p>
+            )}
+          </div>
+        ))}
+        <div className="recibo-totales"><div className="grande"><span>Total general</span><span>{money(r.total)}</span></div></div>
+        {!r.pedidos.every((p) => p.mostrador) && (
+          <p className="recibo-nota">Te contactaremos por WhatsApp para indicarte cómo pagar la reserva.</p>
         )}
       </div>
 
@@ -73,7 +75,7 @@ function Recibo({ r, cliente, onNuevo }) {
           </a>
         )}
         <a className="btn-mail"
-          href={`mailto:${cliente.email}?subject=${encodeURIComponent('Recibo Lessa ' + r.numero_pedido)}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}`}>
+          href={`mailto:${cliente.email}?subject=${encodeURIComponent('Recibo Lessa')}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}`}>
           Enviar recibo por correo
         </a>
         <button className="btn-secundario" onClick={() => window.print()}>Imprimir / guardar PDF</button>
@@ -87,7 +89,7 @@ function Recibo({ r, cliente, onNuevo }) {
   )
 }
 
-export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) {
+export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, adminPass }) {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -97,8 +99,9 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
   const [recibo, setRecibo] = useState(null)
   const [descuentoTipo, setDescuentoTipo] = useState('monto')
   const [descuentoValor, setDescuentoValor] = useState('')
+  const [modo, setModo] = useState('apartado')
+  const [mostrador, setMostrador] = useState(false)
 
-  const adminPass = getAdminPass()
   const normales = items.filter((i) => !i.preorden)
   const pre = items.filter((i) => i.preorden)
   const subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0)
@@ -107,7 +110,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
   const descuento = !adminPass ? 0
     : descuentoTipo === 'monto' ? Math.min(valor, subtotal) : subtotal * Math.min(valor, 100) / 100
   const total = Math.max(0, subtotal - descuento)
-  const anticipo = pre.length && subtotal ? Math.round(subPre * (total / subtotal) * 50) / 100 : 0
+  const factor = subtotal ? total / subtotal : 1
+  const totNorm = (subtotal - subPre) * factor
+  const totPre = subPre * factor
+  const frac = modo === 'total' ? 1 : PCT_ANTICIPO / 100
+  const anticipoNorm = mostrador ? 0 : Math.round(totNorm * frac * 100) / 100
+  const anticipoPre = Math.round(totPre * frac * 100) / 100
 
   const handleCheckout = async (e) => {
     e.preventDefault()
@@ -119,15 +127,17 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
       p_whatsapp: whatsapp.trim(),
       p_notas: notas,
       p_items: items.map((i) => ({ id: i.id, sku: i.sku, cantidad: i.cantidad, preorden: i.preorden })),
+      p_modo: modo,
       p_desc_tipo: descuentoTipo,
       p_desc_valor: adminPass ? valor : 0,
-      p_admin_pass: adminPass,
+      p_admin_pass: adminPass || '',
+      p_venta_mostrador: !!adminPass && mostrador,
     })
     setEnviando(false)
     if (err) {
       setError(err.message.includes('inventario') || err.message.includes('Sin ')
         ? err.message + '. Ajusta tu carrito e intenta de nuevo.'
-        : 'No se pudo registrar el pedido: ' + err.message)
+        : 'No se pudo registrar el pedido: ' + mensajeError(err))
       return
     }
     setRecibo({ r: data, cliente: { nombre: nombre.trim(), email: email.trim(), whatsapp: whatsapp.trim() } })
@@ -201,6 +211,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
                   <input type="number" min="0" step="0.01" value={descuentoValor} placeholder="0"
                     onChange={(e) => setDescuentoValor(e.target.value)} />
                 </div>
+                {normales.length > 0 && (
+                  <label className="check-mostrador">
+                    <input type="checkbox" checked={mostrador} onChange={(e) => setMostrador(e.target.checked)} />
+                    Venta en mostrador: cobrada y entregada ahora
+                  </label>
+                )}
               </div>
             )}
 
@@ -208,10 +224,23 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
               <div className="subtotal" style={{ color: '#2e7d4f' }}><span>Descuento:</span><span>-{money(descuento)}</span></div>
             )}
             <div className="total"><span>Total:</span><span>{money(total)}</span></div>
+            {!mostrador && (
+              <div className="modo-pago">
+                <label><input type="radio" checked={modo === 'apartado'} onChange={() => setModo('apartado')} />
+                  Reservar con {PCT_ANTICIPO}% ahora</label>
+                <label><input type="radio" checked={modo === 'total'} onChange={() => setModo('total')} />
+                  Pagar el total</label>
+              </div>
+            )}
+            {!mostrador && normales.length > 0 && (
+              <div className="aviso-anticipo">
+                <strong>Apartado:</strong> reserva de {money(anticipoNorm)}. Al confirmar el pago, tus piezas se guardan {DIAS_APARTADO} días.
+                Si no se recogen y pagan en ese plazo, se cancela y regresan al inventario.
+              </div>
+            )}
             {pre.length > 0 && (
               <div className="aviso-anticipo">
-                Incluye productos por encargo. Anticipo para apartarlos: <strong>{money(anticipo)}</strong>.
-                Saldo a la entrega: {money(total - anticipo)}.
+                <strong>Encargo:</strong> reserva de {money(anticipoPre)}. Llega en ~{DIAS_PREORDEN} días desde que lo pedimos al proveedor.
               </div>
             )}
           </div>
@@ -235,7 +264,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear }) 
             </div>
             {error && <p className="error-msg">{error}</p>}
             <button type="submit" className="btn-submit" disabled={enviando}>
-              {enviando ? 'Procesando...' : pre.length ? 'Confirmar y generar recibo de anticipo' : 'Confirmar pedido'}
+              {enviando ? 'Procesando...' : mostrador ? 'Registrar venta' : 'Confirmar y generar recibo'}
             </button>
             <p className="legal">Contacto: <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a></p>
           </form>

@@ -177,16 +177,23 @@ body {
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .navbar {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .nav-links {
-    gap: 1rem;
-  }
-
-  .nav-links a {
-    font-size: 0.85rem;
-  }
+  .navbar { flex-direction: column; gap: 0.5rem; padding: 0.6rem 1rem; position: static; }
+  .navbar .logo img { height: 48px; width: 48px; }
+  .nav-links { gap: 0.5rem 0.9rem; flex-wrap: wrap; justify-content: center; }
+  .nav-links a, button.admin-link { font-size: 0.85rem; }
+  .cart-link { padding: 0.4rem 0.8rem; }
+  .footer { padding: 1.25rem 1rem; margin-top: 2rem; }
+  .barra-edicion { font-size: 0.8rem; }
 }
+
+
+button.admin-link { background: white; cursor: pointer; font-size: 0.95rem; font-family: inherit; }
+button.admin-link.salir { background: var(--primary); color: white !important; }
+.barra-edicion { background: #fff3cd; color: #6b4e00; text-align: center; padding: 0.5rem 1rem; font-size: 0.9rem; border-bottom: 1px solid #f0d98a; }
+.login-modal { text-align: center; }
+.login-modal img { width: 90px; border-radius: 14px; margin-bottom: 0.5rem; }
+.login-modal input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin: 0.5rem 0; }
+.login-modal .modal-botones { justify-content: center; }
+.error-msg { color: #b3261e; background: #fdecea; padding: 0.6rem 0.75rem; border-radius: 6px; margin: 0.5rem 0; font-size: 0.9rem; }
+
+.app > .navbar, .app > .barra-edicion, .app > .footer { flex: none; }

@@ -1,287 +1,312 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
-import { money, fechaCorta, getAdminPass, setAdminPass, waNumber } from '../lib/store'
+import { money, fechaCorta, waNumber, mensajeError, DIAS_APARTADO } from '../lib/store'
 import '../styles/Admin.css'
 
 const TABS = [
-  ['stock', 'Inventario'],
-  ['pendientes', 'Pedidos pendientes de entrega'],
-  ['proveedor', 'Pedidos a proveedor'],
+  ['pendientes', 'Pendientes de entrega'],
+  ['proveedor', 'Por pedir al proveedor'],
+  ['historial', 'Historial'],
   ['nuevo', 'Nuevo producto'],
 ]
 
-export default function Admin() {
-  const [pass, setPass] = useState(getAdminPass())
-  const [input, setInput] = useState('')
+export default function Admin({ adminPass, onLogin }) {
   const [tab, setTab] = useState('pendientes')
-  const [loginError, setLoginError] = useState('')
 
-  const login = async (e) => {
-    e.preventDefault()
-    const { data, error } = await sb.rpc('admin_check', { p_pass: input })
-    if (error) return setLoginError('Error de conexión: ' + error.message)
-    if (!data) return setLoginError('Contraseña incorrecta')
-    setAdminPass(input)
-    setPass(input)
-    setLoginError('')
-  }
-
-  const logout = () => {
-    setAdminPass('')
-    setPass('')
-  }
-
-  if (!pass) {
+  if (!adminPass) {
     return (
       <div className="admin-login">
         <img src="/logo.png" alt="Lessa" />
-        <h1>Acceso del personal</h1>
-        <form onSubmit={login}>
-          <input type="password" placeholder="Contraseña" value={input} onChange={(e) => setInput(e.target.value)} autoFocus />
-          <button type="submit">Ingresar</button>
-        </form>
-        {loginError && <p className="admin-error">{loginError}</p>}
+        <h1>Panel del personal</h1>
+        <button onClick={onLogin}>Ingresar</button>
       </div>
     )
   }
 
   return (
     <div className="admin">
-      <div className="admin-top">
-        <h1>Administración</h1>
-        <button className="admin-salir" onClick={logout}>Salir</button>
-      </div>
-      <p className="admin-nota">Modo vendedor activo: en el carrito verás la opción de aplicar descuentos.</p>
+      <h1>Panel</h1>
+      <p className="admin-nota">
+        El inventario se ajusta directamente en el <Link to="/catalogo">catálogo</Link> con + y −.
+        Al salir, esos botones desaparecen.
+      </p>
       <div className="admin-tabs">
         {TABS.map(([k, label]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
-      {tab === 'stock' && <Inventario pass={pass} />}
-      {tab === 'pendientes' && <Pendientes pass={pass} />}
-      {tab === 'proveedor' && <Proveedor pass={pass} />}
-      {tab === 'nuevo' && <Nuevo pass={pass} />}
-    </div>
-  )
-}
-
-function Inventario({ pass }) {
-  const [q, setQ] = useState('')
-  const [rows, setRows] = useState([])
-  const [soloAgotados, setSoloAgotados] = useState(false)
-  const [msg, setMsg] = useState('')
-
-  const buscar = useCallback(async () => {
-    let query = sb.from('productos').select('id,sku,nombre,precio,stock').order('sku').limit(60)
-    const t = q.trim().replace(/[,()]/g, ' ')
-    if (t) query = query.or(`sku.ilike.%${t}%,nombre.ilike.%${t}%`)
-    if (soloAgotados) query = query.eq('stock', 0)
-    const { data, error } = await query
-    if (error) setMsg(error.message)
-    else { setRows(data); setMsg('') }
-  }, [q, soloAgotados])
-
-  useEffect(() => { buscar() }, [soloAgotados]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const ajustar = async (p, delta, set = null) => {
-    const { data, error } = await sb.rpc('admin_adjust_stock', { p_pass: pass, p_id: p.id, p_delta: delta, p_set: set })
-    if (error) return setMsg('No se pudo guardar: ' + error.message)
-    setRows((rs) => rs.map((r) => (r.id === p.id ? { ...r, stock: data } : r)))
-    setMsg('')
-  }
-
-  return (
-    <div>
-      <form className="admin-busqueda" onSubmit={(e) => { e.preventDefault(); buscar() }}>
-        <input placeholder="Buscar por código o nombre..." value={q} onChange={(e) => setQ(e.target.value)} />
-        <button type="submit">Buscar</button>
-      </form>
-      <label className="solo-disp">
-        <input type="checkbox" checked={soloAgotados} onChange={(e) => setSoloAgotados(e.target.checked)} /> Solo agotados
-      </label>
-      {msg && <p className="admin-error">{msg}</p>}
-      <table className="admin-tabla">
-        <thead><tr><th>Código</th><th>Producto</th><th>Precio</th><th>Existencia</th></tr></thead>
-        <tbody>
-          {rows.map((p) => (
-            <tr key={p.id}>
-              <td>{p.sku}</td>
-              <td>{p.nombre}</td>
-              <td>{money(p.precio)}</td>
-              <td>
-                <div className="stepper">
-                  <button onClick={() => ajustar(p, -1)}>−</button>
-                  <input type="number" min="0" value={p.stock}
-                    onChange={(e) => setRows(rows.map((r) => (r.id === p.id ? { ...r, stock: e.target.value } : r)))}
-                    onBlur={(e) => ajustar(p, 0, Math.max(0, parseInt(e.target.value) || 0))} />
-                  <button onClick={() => ajustar(p, 1)}>+</button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rows.length === 0 && <p>Sin resultados</p>}
+      {tab === 'pendientes' && <Pendientes pass={adminPass} />}
+      {tab === 'proveedor' && <Proveedor pass={adminPass} />}
+      {tab === 'historial' && <Historial pass={adminPass} />}
+      {tab === 'nuevo' && <Nuevo pass={adminPass} />}
     </div>
   )
 }
 
 function usePedidos(pass) {
   const [pedidos, setPedidos] = useState([])
+  const [proveedor, setProveedor] = useState([])
   const [msg, setMsg] = useState('')
   const cargar = useCallback(async () => {
-    const { data, error } = await sb.rpc('admin_listar_pedidos', { p_pass: pass })
-    if (error) setMsg(error.message)
-    else { setPedidos(data || []); setMsg('') }
+    const [a, b] = await Promise.all([
+      sb.rpc('admin_listar_pedidos', { p_pass: pass }),
+      sb.rpc('admin_listar_proveedor', { p_pass: pass }),
+    ])
+    if (a.error) setMsg(mensajeError(a.error))
+    else if (b.error) setMsg(mensajeError(b.error))
+    else { setPedidos(a.data || []); setProveedor(b.data || []); setMsg('') }
   }, [pass])
   useEffect(() => { cargar() }, [cargar])
-  return { pedidos, msg, setMsg, cargar }
+  const llamar = async (fn, args, ok) => {
+    const { error } = await sb.rpc(fn, { p_pass: pass, ...args })
+    if (error) setMsg(mensajeError(error))
+    else { setMsg(ok || ''); cargar() }
+  }
+  return { pedidos, proveedor, msg, llamar }
+}
+
+const ESTADOS = {
+  por_confirmar: 'Esperando pago de reserva',
+  confirmado: 'Reserva pagada',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
+}
+
+function Cliente({ p }) {
+  return (
+    <p className="pedido-cliente">
+      <strong>{p.nombre_cliente}</strong> | Tel: {p.whatsapp || 'sin teléfono'} | {p.email_cliente}
+      {p.whatsapp && <> | <a target="_blank" rel="noreferrer" href={`https://wa.me/${waNumber(p.whatsapp)}`}>WhatsApp</a></>}
+    </p>
+  )
+}
+
+function Dinero({ p }) {
+  const saldo = Number(p.total) - Number(p.pagado)
+  return (
+    <div className="pedido-dinero">
+      <span>Total: <strong>{money(p.total)}</strong></span>
+      <span>Reserva requerida: {money(p.anticipo_requerido)}</span>
+      <span>Pagado: {money(p.pagado)}</span>
+      {p.estado !== 'cancelado' && (
+        <span className={saldo > 0 ? 'por-cobrar' : 'ok'}>{saldo > 0 ? `Por cobrar: ${money(saldo)}` : 'Pagado completo'}</span>
+      )}
+    </div>
+  )
+}
+
+function Items({ p }) {
+  return (
+    <ul>
+      {p.items.map((i, k) => <li key={k}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}
+    </ul>
+  )
 }
 
 function Pendientes({ pass }) {
-  const { pedidos, msg, setMsg, cargar } = usePedidos(pass)
-  const [ver, setVer] = useState('pendientes')
+  const { pedidos, msg, llamar } = usePedidos(pass)
+  const lista = pedidos.filter((p) => ['por_confirmar', 'confirmado'].includes(p.estado))
+  const grupos = [
+    ['Esperando pago de la reserva', lista.filter((p) => p.estado === 'por_confirmar')],
+    ['Apartados vigentes (pieza guardada)', lista.filter((p) => p.estado === 'confirmado' && p.tipo === 'apartado')],
+    ['Encargos con reserva pagada', lista.filter((p) => p.estado === 'confirmado' && p.tipo === 'encargo')],
+  ]
 
-  const actualizar = async (id, campos) => {
-    const { error } = await sb.rpc('admin_actualizar_pedido', {
-      p_pass: pass, p_id: id,
-      p_estado: campos.estado ?? null, p_pagado: campos.pagado ?? null, p_proveedor_estado: campos.proveedor ?? null,
-    })
-    if (error) setMsg(error.message)
-    else cargar()
-  }
-
-  const lista = pedidos.filter((p) =>
-    ver === 'pendientes' ? !['entregado', 'cancelado'].includes(p.estado) : ['entregado', 'cancelado'].includes(p.estado))
-
-  const registrarPago = (p) => {
-    const v = window.prompt(`Total pagado hasta ahora por ${p.nombre_cliente} (total ${money(p.total)}):`, p.pagado)
-    if (v !== null && !isNaN(parseFloat(v))) actualizar(p.id, { pagado: parseFloat(v) })
+  const pago = (p) => {
+    const falta = Math.max(0, Number(p.anticipo_requerido) - Number(p.pagado))
+    const v = window.prompt(`¿Cuánto pagó ${p.nombre_cliente}? (reserva pendiente: ${money(falta)})`, falta || '')
+    const n = parseFloat(v)
+    if (v !== null && n > 0) llamar('admin_registrar_pago', { p_id: p.id, p_monto: n, p_nota: '' }, 'Pago registrado')
   }
 
   return (
     <div>
-      <div className="admin-subtabs">
-        <button className={ver === 'pendientes' ? 'on' : ''} onClick={() => setVer('pendientes')}>Pendientes de entregar</button>
-        <button className={ver === 'cerrados' ? 'on' : ''} onClick={() => setVer('cerrados')}>Entregados / cancelados</button>
-      </div>
-      {msg && <p className="admin-error">{msg}</p>}
-      {lista.length === 0 && <p>No hay pedidos en esta lista.</p>}
-      {lista.map((p) => {
-        const saldo = Number(p.total) - Number(p.pagado)
-        return (
-          <div className="pedido-card" key={p.id}>
-            <div className="pedido-cab">
-              <strong>{p.numero_pedido}</strong>
-              <span>{fechaCorta(p.created_at.slice(0, 10))}</span>
-              <span className={`pill ${p.estado}`}>{p.estado}</span>
-              {p.tiene_preorden && (
-                <span className="pill encargo">
-                  encargo: {p.proveedor_estado === 'por_pedir' ? 'por pedir al proveedor' : p.proveedor_estado === 'pedido' ? 'pedido al proveedor' : 'recibido'}
-                </span>
-              )}
-            </div>
-            <p className="pedido-cliente">
-              <strong>{p.nombre_cliente}</strong> | Tel: {p.whatsapp || 'sin teléfono'} | {p.email_cliente}
-              {p.whatsapp && <> | <a target="_blank" rel="noreferrer" href={`https://wa.me/${waNumber(p.whatsapp)}`}>WhatsApp</a></>}
-            </p>
-            <ul>
-              {p.items.map((i, k) => (
-                <li key={k}>{i.cantidad} x {i.nombre} ({i.sku}) {i.preorden && <em className="tag-encargo">encargo</em>}</li>
-              ))}
-            </ul>
-            <div className="pedido-dinero">
-              <span>Total: <strong>{money(p.total)}</strong></span>
-              <span>Pagado: {money(p.pagado)}</span>
-              <span className={saldo > 0 ? 'por-cobrar' : 'ok'}>{saldo > 0 ? `Por cobrar: ${money(saldo)}` : 'Pagado completo'}</span>
-              {p.tiene_preorden && <span>Anticipo requerido: {money(p.anticipo_requerido)}</span>}
-              {p.entrega_estimada && p.tiene_preorden && <span>Entrega estimada: {fechaCorta(p.entrega_estimada)}</span>}
-            </div>
-            {p.notas && <p className="pedido-notas">Notas: {p.notas}</p>}
-            {ver === 'pendientes' && (
-              <div className="pedido-acciones">
-                <button onClick={() => registrarPago(p)}>Registrar pago</button>
-                {saldo > 0 && <button onClick={() => actualizar(p.id, { pagado: Number(p.total) })}>Marcar pagado completo</button>}
-                {p.tiene_preorden && p.proveedor_estado === 'pedido' && (
-                  <button onClick={() => actualizar(p.id, { proveedor: 'recibido' })}>Llegó del proveedor</button>
-                )}
-                <button className="verde" disabled={p.tiene_preorden && p.proveedor_estado !== 'recibido'}
-                  title={p.tiene_preorden && p.proveedor_estado !== 'recibido' ? 'Primero debe llegar del proveedor' : ''}
-                  onClick={() => actualizar(p.id, { estado: 'entregado' })}>Marcar entregado</button>
-                <button className="rojo" onClick={() => { if (window.confirm('¿Cancelar este pedido? El inventario reservado se regresa.')) actualizar(p.id, { estado: 'cancelado' }) }}>Cancelar</button>
+      {msg && <p className="admin-nota">{msg}</p>}
+      {lista.length === 0 && <p>No hay pedidos pendientes.</p>}
+      {grupos.map(([titulo, arr]) => arr.length > 0 && (
+        <section key={titulo}>
+          <h2>{titulo} ({arr.length})</h2>
+          {arr.map((p) => {
+            const dias = p.limite_apartado ? Math.ceil((new Date(p.limite_apartado) - new Date()) / 86400000) : null
+            return (
+              <div className="pedido-card" key={p.id}>
+                <div className="pedido-cab">
+                  <strong>{p.numero_pedido}</strong>
+                  <span>{fechaCorta(p.created_at)}</span>
+                  <span className={`pill ${p.estado}`}>{ESTADOS[p.estado]}</span>
+                  <span className="pill encargo">{p.tipo}</span>
+                  {p.tipo === 'encargo' && p.estado === 'confirmado' && (
+                    <span className="pill encargo">
+                      {p.proveedor_estado === 'por_pedir' ? 'por pedir al proveedor' : p.proveedor_estado === 'pedido' ? 'pedido al proveedor' : 'ya llegó'}
+                    </span>
+                  )}
+                  {dias !== null && <span className={`pill ${dias <= 3 ? 'cancelado' : ''}`}>vence {fechaCorta(p.limite_apartado)} ({dias} día{dias === 1 ? '' : 's'})</span>}
+                </div>
+                <Cliente p={p} />
+                <Items p={p} />
+                <Dinero p={p} />
+                {p.notas && <p className="pedido-notas">Notas: {p.notas}</p>}
+                <div className="pedido-acciones">
+                  <button onClick={() => pago(p)}>{p.estado === 'por_confirmar' ? 'Confirmar pago de reserva' : 'Registrar pago'}</button>
+                  {p.estado === 'confirmado' && (
+                    <button className="verde"
+                      disabled={p.tipo === 'encargo' && p.proveedor_estado !== 'recibido'}
+                      title={p.tipo === 'encargo' && p.proveedor_estado !== 'recibido' ? 'Primero debe llegar del proveedor' : ''}
+                      onClick={() => llamar('admin_entregar', { p_id: p.id, p_cobrar_saldo: true }, 'Venta cerrada')}>
+                      Cobrar saldo y entregar
+                    </button>
+                  )}
+                  <button className="rojo" onClick={() => { if (window.confirm('¿Cancelar este pedido?' + (p.tipo === 'apartado' ? ' Las piezas regresan al inventario.' : ''))) llamar('admin_cancelar', { p_id: p.id }, 'Pedido cancelado') }}>
+                    Cancelar
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
-        )
-      })}
+            )
+          })}
+        </section>
+      ))}
     </div>
   )
 }
 
 function Proveedor({ pass }) {
-  const { pedidos, msg, setMsg, cargar } = usePedidos(pass)
-  const porPedir = pedidos.filter((p) => p.proveedor_estado === 'por_pedir' && p.estado !== 'cancelado')
-  const enCamino = pedidos.filter((p) => p.proveedor_estado === 'pedido' && p.estado !== 'cancelado')
+  const { pedidos, proveedor, msg, llamar } = usePedidos(pass)
+  const porPedir = pedidos.filter((p) => p.tipo === 'encargo' && p.estado === 'confirmado' && p.proveedor_estado === 'por_pedir')
+  const enEspera = pedidos.filter((p) => p.tipo === 'encargo' && p.estado === 'por_confirmar')
+  const enCamino = proveedor.filter((x) => x.estado === 'pedido')
 
-  const resumen = (lista) => {
-    const m = {}
-    lista.forEach((p) => p.items.filter((i) => i.preorden).forEach((i) => {
-      m[i.sku] = m[i.sku] || { sku: i.sku, nombre: i.nombre, cantidad: 0, precio: i.precio, clientes: [] }
-      m[i.sku].cantidad += i.cantidad
-      m[i.sku].clientes.push(p.nombre_cliente)
-    }))
-    return Object.values(m).sort((a, b) => a.sku.localeCompare(b.sku))
-  }
-  const lista = resumen(porPedir)
-  const enviado = resumen(enCamino)
-  const totalPiezas = lista.reduce((s, i) => s + i.cantidad, 0)
+  const resumen = {}
+  porPedir.forEach((p) => p.items.forEach((i) => {
+    resumen[i.sku] = resumen[i.sku] || { sku: i.sku, nombre: i.nombre, cantidad: 0, clientes: [] }
+    resumen[i.sku].cantidad += i.cantidad
+    resumen[i.sku].clientes.push(p.nombre_cliente)
+  }))
+  const lista = Object.values(resumen).sort((a, b) => a.sku.localeCompare(b.sku))
 
   const copiar = async () => {
     const t = 'Pedido a proveedor Lessa\n' + lista.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
-    try { await navigator.clipboard.writeText(t); setMsg('Lista copiada') } catch { setMsg(t) }
-  }
-
-  const marcar = async () => {
-    const { error } = await sb.rpc('admin_marcar_pedido_proveedor', { p_pass: pass })
-    if (error) setMsg(error.message)
-    else { setMsg('Marcados como pedidos al proveedor'); cargar() }
+    try { await navigator.clipboard.writeText(t); alert('Lista copiada') } catch { alert(t) }
   }
 
   return (
     <div>
-      <h2>Por pedir al proveedor</h2>
       {msg && <p className="admin-nota">{msg}</p>}
-      {lista.length === 0 ? <p>No hay nada pendiente por pedir.</p> : (
+      <h2>Lista por pedir al proveedor</h2>
+      <p className="admin-nota">Solo aparecen encargos con la reserva ya pagada.</p>
+      {lista.length === 0 ? <p>No hay nada por pedir.</p> : (
         <>
-          <table className="admin-tabla">
-            <thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Clientes</th></tr></thead>
-            <tbody>{lista.map((i) => (
-              <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td><td>{i.clientes.join(', ')}</td></tr>
-            ))}</tbody>
-          </table>
-          <p>Total: {totalPiezas} pieza(s)</p>
+          <div className="tabla-scroll">
+            <table className="admin-tabla">
+              <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Clientes</th></tr></thead>
+              <tbody>{lista.map((i) => (
+                <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td><td>{i.clientes.join(', ')}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
           <div className="pedido-acciones">
             <button onClick={copiar}>Copiar lista</button>
-            <button className="verde" onClick={marcar}>Ya hice el pedido al proveedor</button>
+            <button className="verde" onClick={() => llamar('admin_pedir_proveedor', {}, 'Pedido al proveedor registrado')}>
+              Ya hice el pedido al proveedor
+            </button>
           </div>
         </>
       )}
-      <h2 style={{ marginTop: '2rem' }}>Ya pedidos, en camino</h2>
-      {enviado.length === 0 ? <p>Nada en camino.</p> : (
-        <table className="admin-tabla">
-          <thead><tr><th>Código</th><th>Producto</th><th>Cantidad</th><th>Clientes</th></tr></thead>
-          <tbody>{enviado.map((i) => (
-            <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td>{i.cantidad}</td><td>{i.clientes.join(', ')}</td></tr>
-          ))}</tbody>
-        </table>
+
+      <h2 style={{ marginTop: '2rem' }}>Pedidos al proveedor en camino</h2>
+      {enCamino.length === 0 ? <p>Nada en camino.</p> : enCamino.map((x) => (
+        <div className="pedido-card" key={x.id}>
+          <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span></div>
+          <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
+          <div className="pedido-acciones">
+            <button className="verde" onClick={() => llamar('admin_recibir_proveedor', { p_id: x.id }, 'Marcado como recibido')}>
+              Ya llegó este pedido
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {enEspera.length > 0 && (
+        <>
+          <h2 style={{ marginTop: '2rem' }}>Encargos esperando pago de reserva</h2>
+          <p className="admin-nota">Aún no se piden al proveedor. Confírmalos en "Pendientes de entrega".</p>
+          <ul>{enEspera.map((p) => <li key={p.id}>{p.numero_pedido}: {p.nombre_cliente}, {p.items.map((i) => `${i.cantidad} x ${i.sku}`).join(', ')}</li>)}</ul>
+        </>
       )}
+    </div>
+  )
+}
+
+const MOTIVOS = { vencido: 'Anulada: no se recogió en 15 días', sin_pago: 'Cancelada: no pagó la reserva', manual: 'Cancelada manualmente' }
+
+function Historial({ pass }) {
+  const { pedidos, proveedor, msg } = usePedidos(pass)
+  const [ver, setVer] = useState('ventas')
+
+  const vistas = {
+    ventas: pedidos.filter((p) => p.estado === 'entregado'),
+    reservas: pedidos.filter((p) => p.estado !== 'cancelado' && p.pagos?.[0]?.nota !== 'Venta en mostrador'),
+    cancelaciones: pedidos.filter((p) => p.estado === 'cancelado'),
+  }
+  const totalVentas = vistas.ventas.reduce((s, p) => s + Number(p.total), 0)
+
+  return (
+    <div>
+      {msg && <p className="admin-nota">{msg}</p>}
+      <div className="admin-subtabs">
+        {[['ventas', 'Ventas'], ['reservas', 'Reservas y apartados'], ['cancelaciones', 'Cancelaciones y anuladas'], ['proveedor', 'Pedidos al proveedor']].map(([k, l]) => (
+          <button key={k} className={ver === k ? 'on' : ''} onClick={() => setVer(k)}>{l}</button>
+        ))}
+      </div>
+
+      {ver === 'ventas' && <p className="admin-nota">{vistas.ventas.length} venta(s) cerradas por {money(totalVentas)}</p>}
+
+      {ver === 'proveedor' ? (
+        proveedor.length === 0 ? <p>Aún no hay pedidos al proveedor.</p> : proveedor.map((x) => (
+          <div className="pedido-card" key={x.id}>
+            <div className="pedido-cab">
+              <strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span>
+              <span className={`pill ${x.estado === 'recibido' ? 'entregado' : 'pendiente'}`}>
+                {x.estado === 'recibido' ? `Recibido ${fechaCorta(x.recibido_at)}` : 'En camino'}
+              </span>
+            </div>
+            <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
+          </div>
+        ))
+      ) : (
+        <>
+          {vistas[ver].length === 0 && <p>No hay registros.</p>}
+          {vistas[ver].map((p) => (
+            <div className="pedido-card" key={p.id}>
+              <div className="pedido-cab">
+                <strong>{p.numero_pedido}</strong><span>{fechaCorta(p.created_at)}</span>
+                <span className={`pill ${p.estado}`}>{ESTADOS[p.estado]}</span>
+                <span className="pill encargo">{p.tipo}</span>
+                {p.estado === 'cancelado' && <span className="pill cancelado">{MOTIVOS[p.motivo_cancelacion] || 'Cancelada'}</span>}
+                {p.estado === 'entregado' && <span>Cerrada {fechaCorta(p.entregado_at)}</span>}
+              </div>
+              <Cliente p={p} />
+              <Items p={p} />
+              <Dinero p={p} />
+              {p.estado === 'cancelado' && Number(p.pagado) > 0 && (
+                <p className="admin-error">Ya había pagado {money(p.pagado)}: pendiente de devolver o reasignar.</p>
+              )}
+              {p.pagos?.length > 0 && (
+                <p className="pedido-notas">Pagos: {p.pagos.map((x) => `${money(x.monto)} (${fechaCorta(x.fecha)})`).join(', ')}</p>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+      <p className="pedido-notas" style={{ marginTop: '1rem' }}>Los apartados se guardan {DIAS_APARTADO} días desde que se confirma la reserva.</p>
     </div>
   )
 }
 
 function Nuevo({ pass }) {
   const [cats, setCats] = useState([])
-  const [f, setF] = useState({ nombre: '', sku: '', precio: '', categoria: '', stock: '0' })
+  const vacio = { nombre: '', sku: '', precio: '', categoria: '', stock: '0' }
+  const [f, setF] = useState(vacio)
   const [msg, setMsg] = useState('')
   useEffect(() => { sb.from('categorias').select('*').order('nombre').then(({ data }) => setCats(data || [])) }, [])
 
@@ -291,8 +316,8 @@ function Nuevo({ pass }) {
       p_pass: pass, p_nombre: f.nombre.trim(), p_sku: f.sku.trim(), p_precio: parseFloat(f.precio),
       p_categoria_id: parseInt(f.categoria), p_stock: parseInt(f.stock) || 0,
     })
-    if (error) setMsg('Error: ' + (error.message.includes('duplicate') ? 'ese código ya existe' : error.message))
-    else { setMsg('Producto agregado. Para su foto, agrégala a public/fotos con el nombre del código.jpg'); setF({ nombre: '', sku: '', precio: '', categoria: '', stock: '0' }) }
+    if (error) setMsg('Error: ' + (error.message.includes('duplicate') ? 'ese código ya existe' : mensajeError(error)))
+    else { setMsg('Producto agregado. Su foto debe llamarse CÓDIGO.jpg dentro de public/fotos.'); setF(vacio) }
   }
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
 

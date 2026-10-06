@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
-import { money, fotoUrl, DIAS_PREORDEN } from '../lib/store'
+import { money, fotoUrl, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO } from '../lib/store'
 import '../styles/Catalogo.css'
 
 const PAGINA = 48
@@ -17,7 +17,7 @@ function Foto({ sku, nombre }) {
   return <img src={fotoUrl(sku)} alt={nombre} loading="lazy" onError={() => setError(true)} />
 }
 
-export default function Catalogo({ cart, onAddToCart }) {
+export default function Catalogo({ cart, onAddToCart, adminPass }) {
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -32,6 +32,7 @@ export default function Catalogo({ cart, onAddToCart }) {
   useEffect(() => {
     const cargar = async () => {
       try {
+        await sb.rpc('vencer_apartados')
         const q = (from, to) =>
           sb.from('productos').select('*').eq('activo', true).order('id').range(from, to)
         const [cats, p1, p2] = await Promise.all([
@@ -75,6 +76,12 @@ export default function Catalogo({ cart, onAddToCart }) {
     const msg = onAddToCart(p, false)
     setAviso(msg || `Agregado: ${p.nombre}`)
     setTimeout(() => setAviso(''), 2500)
+  }
+
+  const ajustar = async (p, delta, fijo = null) => {
+    const { data, error } = await sb.rpc('admin_adjust_stock', { p_pass: adminPass, p_id: p.id, p_delta: delta, p_set: fijo })
+    if (error) { setAviso('No se pudo guardar: ' + error.message); return setTimeout(() => setAviso(''), 3500) }
+    setProductos((ps) => ps.map((x) => (x.id === p.id ? { ...x, stock: data } : x)))
   }
 
   const confirmarPreorden = () => {
@@ -138,13 +145,25 @@ export default function Catalogo({ cart, onAddToCart }) {
                 </div>
                 <h3>{prod.nombre}</h3>
                 <p className="precio">{money(prod.precio)}</p>
+                {adminPass && (
+                  <div className="stock-admin">
+                    <span>Existencia</span>
+                    <div className="stepper">
+                      <button onClick={() => ajustar(prod, -1)} disabled={prod.stock <= 0}>−</button>
+                      <input type="number" min="0" value={prod.stock}
+                        onChange={(e) => setProductos(productos.map((x) => (x.id === prod.id ? { ...x, stock: e.target.value } : x)))}
+                        onBlur={(e) => ajustar(prod, 0, Math.max(0, parseInt(e.target.value) || 0))} />
+                      <button onClick={() => ajustar(prod, 1)}>+</button>
+                    </div>
+                  </div>
+                )}
                 {agotado ? (
                   <button className="btn-carrito btn-encargo" onClick={() => setPreorden(prod)}>
                     Encargar (llega en ~{DIAS_PREORDEN} días)
                   </button>
                 ) : (
                   <>
-                    <p className="stock-info">{prod.stock <= 3 ? `Últimas ${prod.stock} pieza(s)` : 'Disponible'}</p>
+                    <p className="stock-info">{prod.stock <= 3 ? `Últimas ${prod.stock} pieza(s)` : 'Disponible'} · se puede apartar {DIAS_APARTADO} días</p>
                     <button className="btn-carrito" disabled={restante <= 0} onClick={() => agregar(prod)}>
                       {restante <= 0 ? 'Ya está todo en tu carrito' : 'Agregar al carrito'}
                     </button>
@@ -171,7 +190,7 @@ export default function Catalogo({ cart, onAddToCart }) {
             <p><strong>{preorden.nombre}</strong> ({money(preorden.precio)}) no está disponible por ahora.</p>
             <p>
               Podemos pedirlo a nuestro proveedor. Llega en aproximadamente <strong>{DIAS_PREORDEN} días</strong>.
-              Para apartarlo se pide un anticipo del 50% y el resto al entregarlo. Te enviaremos tu recibo.
+              Para reservarlo se pide un anticipo del {PCT_ANTICIPO}% y el resto al entregarlo. Tu pedido queda confirmado cuando se recibe ese pago, y te enviaremos tu recibo.
             </p>
             <p>¿Quieres encargarlo?</p>
             <div className="modal-botones">

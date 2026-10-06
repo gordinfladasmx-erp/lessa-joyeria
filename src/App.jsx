@@ -4,7 +4,8 @@ import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
 import Admin from './pages/Admin'
-import { WA_TIENDA, EMAIL_TIENDA } from './lib/store'
+import { sb } from './lib/supabase'
+import { WA_TIENDA, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
 
 const leerCarrito = () => {
@@ -18,6 +19,27 @@ const leerCarrito = () => {
 
 export default function App() {
   const [cart, setCart] = useState(leerCarrito)
+  const [adminPass, setPass] = useState(getAdminPass)
+  const [loginAbierto, setLoginAbierto] = useState(false)
+  const [loginInput, setLoginInput] = useState('')
+  const [loginError, setLoginError] = useState('')
+
+  const login = async (e) => {
+    e.preventDefault()
+    const { data, error } = await sb.rpc('admin_check', { p_pass: loginInput })
+    if (error) return setLoginError(mensajeError(error))
+    if (!data) return setLoginError('Contraseña incorrecta')
+    setAdminPass(loginInput)
+    setPass(loginInput)
+    setLoginAbierto(false)
+    setLoginInput('')
+    setLoginError('')
+  }
+
+  const logout = () => {
+    setAdminPass('')
+    setPass('')
+  }
 
   useEffect(() => {
     try { localStorage.setItem('lessa_cart', JSON.stringify(cart)) } catch { /* sin storage */ }
@@ -59,6 +81,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="app">
+        {adminPass && <div className="barra-edicion">Modo edición activo: ajusta el inventario con + y − en el catálogo. Pulsa Salir al terminar.</div>}
         <nav className="navbar">
           <Link to="/" className="logo">
             <img src="/logo.png" alt="Lessa Joyería" />
@@ -69,15 +92,20 @@ export default function App() {
             <Link to="/carrito" className="cart-link">
               Carrito ({cartCount})
             </Link>
-            <Link to="/admin" className="admin-link">
-              Ingresar
-            </Link>
+            {adminPass ? (
+              <>
+                <Link to="/admin" className="admin-link">Panel</Link>
+                <button className="admin-link salir" onClick={logout}>Salir</button>
+              </>
+            ) : (
+              <button className="admin-link" onClick={() => setLoginAbierto(true)}>Ingresar</button>
+            )}
           </div>
         </nav>
 
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} />} />
+          <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} adminPass={adminPass} />} />
           <Route
             path="/carrito"
             element={
@@ -86,11 +114,28 @@ export default function App() {
                 onUpdateQuantity={updateQuantity}
                 onRemove={removeFromCart}
                 onClear={clearCart}
+                adminPass={adminPass}
               />
             }
           />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<Admin adminPass={adminPass} onLogin={() => setLoginAbierto(true)} />} />
         </Routes>
+
+        {loginAbierto && (
+          <div className="modal-fondo" onClick={() => setLoginAbierto(false)}>
+            <form className="modal login-modal" onClick={(e) => e.stopPropagation()} onSubmit={login}>
+              <img src="/logo.png" alt="Lessa" />
+              <h2>Acceso del personal</h2>
+              <input type="password" placeholder="Contraseña" value={loginInput} autoFocus
+                onChange={(e) => setLoginInput(e.target.value)} />
+              {loginError && <p className="error-msg">{loginError}</p>}
+              <div className="modal-botones">
+                <button type="submit" className="btn-primary">Entrar</button>
+                <button type="button" className="btn-secundario" onClick={() => setLoginAbierto(false)}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <footer className="footer">
           <p>

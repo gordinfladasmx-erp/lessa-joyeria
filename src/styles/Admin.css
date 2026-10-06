@@ -19,9 +19,6 @@
 .admin-tabla { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
 .admin-tabla th { text-align: left; background: #fbeef3; color: var(--primary); padding: 0.7rem; font-size: 0.85rem; }
 .admin-tabla td { padding: 0.6rem 0.7rem; border-bottom: 1px solid #f0f0f0; }
-.stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.stepper button { width: 38px; height: 38px; border: none; background: #fbeef3; color: var(--primary); font-size: 1.3rem; cursor: pointer; }
-.stepper input { width: 56px; height: 38px; border: none; text-align: center; font-size: 1rem; }
 .admin-form { display: grid; gap: 0.75rem; max-width: 460px; }
 .admin-form input, .admin-form select { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
 .pedido-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
@@ -42,3 +39,17 @@
 .pill.entregado { background: #d9f2e3; }
 .pill.cancelado { background: #fdecea; }
 .pill.encargo { background: #e8e1f7; }
+
+.admin section h2 { margin: 1.5rem 0 0.75rem; font-size: 1.15rem; }
+.tabla-scroll { overflow-x: auto; }
+.admin a { color: var(--primary); }
+
+@media (max-width: 768px) {
+  .admin { padding: 1rem 0.75rem; }
+  .admin-tabs button, .admin-subtabs button { padding: 0.5rem 0.8rem; font-size: 0.85rem; }
+  .admin-subtabs { flex-wrap: wrap; }
+  .pedido-card { padding: 0.9rem; }
+  .pedido-dinero { gap: 0.5rem 1rem; font-size: 0.88rem; }
+  .pedido-acciones button { flex: 1 1 100%; padding: 0.7rem; }
+  .admin-form { max-width: 100%; }
+}

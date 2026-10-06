@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import {
   money, fotoUrl, waNumber, reciboTexto, fechaCorta, mensajeError,
-  WA_TIENDA, EMAIL_TIENDA, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
+  WA_TIENDA, EMAIL_TIENDA, CLABE, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
 } from '../lib/store'
 import '../styles/Carrito.css'
 
@@ -63,7 +63,10 @@ function Recibo({ r, cliente, onNuevo }) {
         ))}
         <div className="recibo-totales"><div className="grande"><span>Total general</span><span>{money(r.total)}</span></div></div>
         {!r.pedidos.every((p) => p.mostrador) && (
-          <p className="recibo-nota">Te contactaremos por WhatsApp para indicarte cómo pagar la reserva.</p>
+          <p className="recibo-nota">
+            Para confirmar tu reserva, transfiere el monto de la reserva a la CLABE <strong>{CLABE}</strong> y envía tu
+            comprobante por WhatsApp al +52 449 387 6360 indicando tu número de recibo.
+          </p>
         )}
       </div>
 

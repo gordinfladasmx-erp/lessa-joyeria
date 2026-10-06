@@ -1,5 +1,6 @@
 export const WA_TIENDA = '524493876360'
 export const EMAIL_TIENDA = 'alessandra.reyes04@gmail.com'
+export const CLABE = '638180010154516719'
 export const DIAS_PREORDEN = 15
 export const DIAS_APARTADO = 15
 export const PCT_ANTICIPO = 30
@@ -57,6 +58,8 @@ function bloque(p) {
 export function reciboTexto(r, cliente) {
   let t = `*Lessa Joyería*\nCliente: ${cliente.nombre}\n\n`
   t += r.pedidos.map(bloque).join('\n')
-  t += `\n*Total general: ${money(r.total)}*\n\nGracias por tu preferencia.`
+  t += `\n*Total general: ${money(r.total)}*\n`
+  if (!r.pedidos.every((p) => p.mostrador)) t += `\nPara confirmar, transfiere la reserva a la CLABE *${CLABE}* y envía tu comprobante por WhatsApp indicando tu número de recibo.\n`
+  t += `\nGracias por tu preferencia.`
   return t
 }

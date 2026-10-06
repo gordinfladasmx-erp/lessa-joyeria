@@ -19,8 +19,8 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const [visibles, setVisibles] = useState(PAGINA)
   const [aviso, setAviso] = useState('')
   const [preorden, setPreorden] = useState(null)
-  const [verOcultos, setVerOcultos] = useState(false)
-  const [ocultos, setOcultos] = useState(null)
+  const [soloOcultos, setSoloOcultos] = useState(false)
+  const [ocultos, setOcultos] = useState([])
 
   useEffect(() => {
     const cargar = async () => {
@@ -46,38 +46,35 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
     cargar()
   }, [])
 
-  useEffect(() => setVisibles(PAGINA), [selectedCategory, searchTerm, soloDisponibles, soloDestacados])
+  useEffect(() => setVisibles(PAGINA), [selectedCategory, searchTerm, soloDisponibles, soloDestacados, soloOcultos])
 
   useEffect(() => {
-    if (!adminPass) { setVerOcultos(false); setOcultos(null) }
-  }, [adminPass])
-
-  const alternarOcultos = async () => {
-    const nuevo = !verOcultos
-    setVerOcultos(nuevo)
-    if (nuevo && ocultos === null) {
-      const { data, error } = await sb.rpc('admin_listar_ocultos', { p_pass: adminPass })
-      if (error) { setAviso('No se pudo cargar: ' + error.message); setVerOcultos(false); return setTimeout(() => setAviso(''), 3500) }
+    if (!adminPass) { setSoloOcultos(false); setOcultos([]); return }
+    sb.rpc('admin_listar_ocultos', { p_pass: adminPass }).then(({ data, error }) => {
+      if (error) { setAviso('Para ver los ocultos falta ejecutar supabase_lessa_ocultar.sql en Supabase.'); return setTimeout(() => setAviso(''), 5000) }
       setOcultos(data || [])
-    }
-  }
+    })
+  }, [adminPass])
 
   const cambiarVisibilidad = async (p, activo) => {
     const { error } = await sb.rpc('admin_set_activo', { p_pass: adminPass, p_id: p.id, p_valor: activo })
     if (error) { setAviso('No se pudo guardar: ' + error.message); return setTimeout(() => setAviso(''), 3500) }
     if (activo) {
-      setOcultos((os) => (os || []).filter((x) => x.id !== p.id))
-      setProductos((ps) => [...ps, { ...p, activo: true }].sort((a, b) => a.id - b.id))
+      setOcultos((os) => os.filter((x) => x.id !== p.id))
+      setProductos((ps) => [...ps, { ...p, activo: true }])
       setAviso(`${p.nombre} ya se muestra en la tienda`)
     } else {
       setProductos((ps) => ps.filter((x) => x.id !== p.id))
-      setOcultos((os) => (os === null ? null : [...os, { ...p, activo: false }]))
-      setAviso(`${p.nombre} quedó oculto. Lo encuentras en "Ver ocultos".`)
+      setOcultos((os) => [...os, { ...p, activo: false }])
+      setAviso(`${p.nombre} quedó OCULTO: los clientes ya no lo ven. Aquí lo sigues viendo atenuado.`)
     }
-    setTimeout(() => setAviso(''), 3000)
+    setTimeout(() => setAviso(''), 4000)
   }
 
-  const lista = verOcultos ? (ocultos || []) : productos
+  const lista = useMemo(
+    () => (adminPass ? [...productos, ...ocultos].sort((a, b) => a.id - b.id) : productos),
+    [productos, ocultos, adminPass]
+  )
 
   const filtrados = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -86,15 +83,16 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
         (!selectedCategory || p.categoria_id === selectedCategory) &&
         (!soloDisponibles || p.stock > 0) &&
         (!soloDestacados || p.destacado) &&
+        (!soloOcultos || p.activo === false) &&
         (!term || p.nombre?.toLowerCase().includes(term) || p.sku?.toLowerCase().includes(term))
     )
-  }, [lista, selectedCategory, searchTerm, soloDisponibles, soloDestacados])
+  }, [lista, selectedCategory, searchTerm, soloDisponibles, soloDestacados, soloOcultos])
 
   const conteo = useMemo(() => {
     const m = {}
-    productos.forEach((p) => { m[p.categoria_id] = (m[p.categoria_id] || 0) + 1 })
+    lista.forEach((p) => { m[p.categoria_id] = (m[p.categoria_id] || 0) + 1 })
     return m
-  }, [productos])
+  }, [lista])
 
   const enCarrito = (id) => cart.find((i) => i.key === String(id))?.cantidad || 0
 
@@ -136,7 +134,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
 
       <div className="categorias">
         <button className={`cat-btn ${!selectedCategory ? 'active' : ''}`} onClick={() => setSelectedCategory(null)}>
-          Todas ({productos.length})
+          Todas ({lista.length})
         </button>
         {categorias.map((cat) => (
           <button
@@ -151,8 +149,8 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
 
       <div className="filtros-extra">
         {adminPass && (
-          <button type="button" className={`chip-ocultos ${verOcultos ? 'on' : ''}`} onClick={alternarOcultos}>
-            {verOcultos ? 'Volver a los productos visibles' : `Ver productos ocultos${ocultos ? ` (${ocultos.length})` : ''}`}
+          <button type="button" className={`chip-ocultos ${soloOcultos ? 'on' : ''}`} onClick={() => setSoloOcultos(!soloOcultos)}>
+            {soloOcultos ? 'Mostrar todos' : `Ver solo los ocultos (${ocultos.length})`}
           </button>
         )}
         <label className="solo-disp">
@@ -178,18 +176,18 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
             const restante = prod.stock - n
             const sel = n > 0 || nPre > 0
             return (
-              <div key={prod.id} className={`producto-card ${agotado ? 'agotado' : ''} ${sel ? 'seleccionado' : ''} ${verOcultos ? 'oculto' : ''}`}>
+              <div key={prod.id} className={`producto-card ${agotado ? 'agotado' : ''} ${sel ? 'seleccionado' : ''} ${prod.activo === false ? 'oculto' : ''}`}>
                 <div className="foto-wrap">
                   <Foto sku={prod.sku} nombre={prod.nombre} />
-                  {agotado && <span className="badge-agotado">Sobre pedido</span>}
+                  {agotado && prod.activo !== false && <span className="badge-agotado">Sobre pedido</span>}
                   {sel && <span className="badge-sel">{nPre > 0 ? `✓ Pedido${nPre > 1 ? ` (${nPre})` : ''}` : `✓ En tu carrito${n > 1 ? ` (${n})` : ''}`}</span>}
-                  {verOcultos && <span className="badge-oculto">Oculto</span>}
+                  {prod.activo === false && <span className="badge-oculto">OCULTO</span>}
                   {adminPass && (
-                    <button type="button" className={`btn-ocultar ${verOcultos ? 'mostrar' : ''}`}
-                      title={verOcultos ? 'Mostrar en la tienda' : 'Ocultar de la tienda'}
-                      aria-label={verOcultos ? 'Mostrar en la tienda' : 'Ocultar de la tienda'}
-                      onClick={() => cambiarVisibilidad(prod, verOcultos)}>
-                      {verOcultos ? (
+                    <button type="button" className={`btn-ocultar ${prod.activo === false ? 'mostrar' : ''}`}
+                      title={prod.activo === false ? 'Mostrar en la tienda' : 'Ocultar de la tienda'}
+                      aria-label={prod.activo === false ? 'Mostrar en la tienda' : 'Ocultar de la tienda'}
+                      onClick={() => cambiarVisibilidad(prod, prod.activo === false)}>
+                      {prod.activo === false ? (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z" /><circle cx="12" cy="12" r="3" /></svg>
                       ) : (
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.9 10.9 0 0 1 12 19.5C5.5 19.5 1.5 12 1.5 12a19.6 19.6 0 0 1 4.6-5.7M9.9 4.7A10 10 0 0 1 12 4.5C18.5 4.5 22.5 12 22.5 12a19.5 19.5 0 0 1-2.7 3.7M1 1l22 22" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>
@@ -214,7 +212,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
                     </div>
                   </div>
                 )}
-                {verOcultos ? (
+                {prod.activo === false ? (
                   <button className="btn-carrito btn-mostrar" onClick={() => cambiarVisibilidad(prod, true)}>Mostrar en la tienda</button>
                 ) : agotado ? (
                   nPre > 0 ? (

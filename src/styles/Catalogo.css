@@ -225,3 +225,7 @@
 .chip-ocultos { border: 1.5px dashed #777; background: #fff; color: #555; border-radius: 20px; padding: 0.4rem 0.9rem; cursor: pointer; font-size: 0.85rem; }
 .chip-ocultos.on { background: #555; color: #fff; border-style: solid; }
 .btn-mostrar { background: #2e7d4f !important; }
+
+.producto-card.oculto { background: #f1f1f1; border: 2px dashed #777; }
+.producto-card.oculto h3, .producto-card.oculto .precio { opacity: 0.6; }
+.badge-oculto { background: #222 !important; font-size: 0.8rem !important; letter-spacing: 0.08em; }

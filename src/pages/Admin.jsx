@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
-import { money, fechaCorta, waNumber, mensajeError, DIAS_APARTADO } from '../lib/store'
+import { money, fechaCorta, waNumber, mensajeError, mensajeConfirmacion, DIAS_APARTADO } from '../lib/store'
 import Reportes from './Reportes'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
 import '../styles/Admin.css'
@@ -96,6 +96,8 @@ function Dinero({ p }) {
   const saldo = Number(p.total) - Number(p.pagado)
   return (
     <div className="pedido-dinero">
+      {Number(p.descuento) > 0 && <span>Descuento: -{money(p.descuento)}</span>}
+      {Number(p.envio) > 0 && <span>Envío: {money(p.envio)}</span>}
       <span>Total: <strong>{money(p.total)}</strong></span>
       <span>Reserva requerida: {money(p.anticipo_requerido)}</span>
       <span>Pagado: {money(p.pagado)}</span>
@@ -111,6 +113,44 @@ function Items({ p }) {
     <ul>
       {p.items.map((i, k) => <li key={k}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}
     </ul>
+  )
+}
+
+function Validar({ p, onValidar }) {
+  const [tipo, setTipo] = useState('monto')
+  const [valor, setValor] = useState(Number(p.descuento) > 0 ? String(p.descuento) : '')
+  const [envio, setEnvio] = useState(Number(p.envio) > 0 ? String(p.envio) : '')
+  const [fecha, setFecha] = useState(p.fecha_entrega || '')
+  const v = parseFloat(valor) || 0
+  const desc = tipo === 'porcentaje' ? Number(p.subtotal) * Math.min(v, 100) / 100 : Math.min(v, Number(p.subtotal))
+  const neto = Number(p.subtotal) - desc + (parseFloat(envio) || 0)
+  return (
+    <div className="validar-box">
+      <strong>{p.validado_at ? 'Ajustar validación' : 'Validar pedido'}</strong>
+      <div className="validar-grid">
+        <label>Descuento
+          <span className="descuento-fila">
+            <span className="segmento">
+              <button type="button" className={tipo === 'monto' ? 'on' : ''} onClick={() => setTipo('monto')}>$</button>
+              <button type="button" className={tipo === 'porcentaje' ? 'on' : ''} onClick={() => setTipo('porcentaje')}>%</button>
+            </span>
+            <input type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0" />
+          </span>
+        </label>
+        <label>Envío local ($)
+          <input type="number" min="0" step="0.01" value={envio} onChange={(e) => setEnvio(e.target.value)} placeholder="0" />
+        </label>
+        <label>Fecha de entrega
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </label>
+      </div>
+      <p className="validar-neto">Valor neto: <strong>{money(neto)}</strong> (subtotal {money(p.subtotal)})</p>
+      <div className="pedido-acciones">
+        <button className="verde" onClick={() => onValidar(p.id, { p_desc_tipo: tipo, p_desc_valor: v, p_envio: parseFloat(envio) || 0, p_fecha_entrega: fecha || null })}>
+          {p.validado_at ? 'Guardar cambios' : 'Validar y fijar valor neto'}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -145,6 +185,8 @@ function Pendientes({ pass }) {
                   <strong>{p.numero_pedido}</strong>
                   <span>{fechaCorta(p.created_at)}</span>
                   <span className={`pill ${p.estado}`}>{ESTADOS[p.estado]}</span>
+                  {!p.validado_at && p.estado === 'por_confirmar' && <span className="pill cancelado">POR VALIDAR</span>}
+                  {p.validado_at && p.estado === 'por_confirmar' && <span className="pill entregado">validado</span>}
                   <span className="pill encargo">{p.tipo}</span>
                   {p.tipo === 'encargo' && p.estado === 'confirmado' && (
                     <span className="pill encargo">
@@ -156,6 +198,16 @@ function Pendientes({ pass }) {
                 <Cliente p={p} />
                 <Items p={p} />
                 <Dinero p={p} />
+                {p.descuento_solicitado && <p className="solicitud">Solicitud de descuento / código del cliente: <strong>{p.descuento_solicitado}</strong></p>}
+                {p.entrega_tipo === 'envio' && <p className="pedido-notas">Envío local a: {p.direccion}</p>}
+                {p.fecha_entrega && <p className="pedido-notas">Fecha de entrega: {fechaCorta(p.fecha_entrega)}</p>}
+                {p.estado === 'por_confirmar' && <Validar key={p.id + String(p.total) + String(p.validado_at)} p={p} onValidar={(id, a) => llamar('admin_validar_pedido', { p_id: id, ...a }, 'Pedido validado')} />}
+                {p.validado_at && (
+                  <div className="pedido-acciones">
+                    {p.whatsapp && <a className="btn-wa-panel" target="_blank" rel="noreferrer" href={`https://wa.me/${waNumber(p.whatsapp)}?text=${encodeURIComponent(mensajeConfirmacion(p))}`}>Enviar confirmación por WhatsApp</a>}
+                    <a className="btn-wa-panel gris" href={`mailto:${p.email_cliente}?subject=${encodeURIComponent('Confirmación de tu pedido ' + p.numero_pedido)}&body=${encodeURIComponent(mensajeConfirmacion(p).replace(/\*/g, ''))}`}>Enviar por correo</a>
+                  </div>
+                )}
                 {p.notas && <p className="pedido-notas">Notas: {p.notas}</p>}
                 <div className="pedido-acciones">
                   <button onClick={() => pago(p)}>{p.estado === 'por_confirmar' ? 'Confirmar pago de reserva' : 'Registrar pago'}</button>

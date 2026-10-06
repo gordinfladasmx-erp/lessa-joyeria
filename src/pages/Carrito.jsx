@@ -25,7 +25,7 @@ function Recibo({ r, cliente, onNuevo }) {
         <div className="recibo-cabecera">
           <img src="/logo.png" alt="Lessa" />
           <div>
-            <h2>Recibo de {r.pedidos.some((p) => p.mostrador) ? 'venta' : 'reserva'}</h2>
+            <h2>{r.pedidos.some((p) => p.mostrador) ? 'Recibo de venta' : r.pedidos.every((p) => p.validado) ? 'Recibo de reserva' : 'Pedido recibido'}</h2>
             <p>{fechaCorta(new Date().toISOString())}</p>
           </div>
         </div>
@@ -47,7 +47,7 @@ function Recibo({ r, cliente, onNuevo }) {
               <div className="grande"><span>Total</span><span>{money(p.total)}</span></div>
               {p.mostrador ? <div><span>Pagado</span><span>{money(p.total)}</span></div> : (
                 <>
-                  <div><span>Reserva a pagar ahora</span><span>{money(p.anticipo)}</span></div>
+                  <div><span>{p.validado ? 'Reserva a pagar' : 'Reserva estimada'}</span><span>{money(p.anticipo)}</span></div>
                   <div><span>Saldo a la entrega</span><span>{money(p.total - p.anticipo)}</span></div>
                 </>
               )}
@@ -62,7 +62,14 @@ function Recibo({ r, cliente, onNuevo }) {
           </div>
         ))}
         <div className="recibo-totales"><div className="grande"><span>Total general</span><span>{money(r.total)}</span></div></div>
-        {!r.pedidos.every((p) => p.mostrador) && (
+        {cliente.solicitud && <p className="recibo-nota"><strong>Tu solicitud de descuento / código:</strong> {cliente.solicitud}</p>}
+        {cliente.entrega === 'envio' && <p className="recibo-nota"><strong>Envío local a:</strong> {cliente.direccion}. Lessa confirmará el costo.</p>}
+        {r.pedidos.some((p) => !p.validado && !p.mostrador) ? (
+          <p className="recibo-nota">
+            Lessa revisará tu pedido (descuento, envío y fecha de entrega) y te confirmará por WhatsApp el valor final
+            y cómo pagar la reserva. Por favor no hagas ninguna transferencia hasta recibir esa confirmación.
+          </p>
+        ) : !r.pedidos.every((p) => p.mostrador) && (
           <p className="recibo-nota">
             Para confirmar tu reserva, transfiere el monto de la reserva a la CLABE <strong>{CLABE}</strong> y envía tu
             comprobante por WhatsApp al +52 449 387 6360 indicando tu número de recibo.
@@ -104,13 +111,22 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const [descuentoValor, setDescuentoValor] = useState('')
   const [modo, setModo] = useState('apartado')
   const [mostrador, setMostrador] = useState(false)
+  const [solicitud, setSolicitud] = useState('')
+  const [entrega, setEntrega] = useState('recoger')
+  const [direccion, setDireccion] = useState('')
+  const [verCodigo, setVerCodigo] = useState(false)
+  const [codigo, setCodigo] = useState('')
+  const [codigoOk, setCodigoOk] = useState(false)
+  const [codigoMsg, setCodigoMsg] = useState('')
 
   const normales = items.filter((i) => !i.preorden)
   const pre = items.filter((i) => i.preorden)
   const subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0)
   const subPre = pre.reduce((s, i) => s + i.precio * i.cantidad, 0)
   const valor = parseFloat(descuentoValor) || 0
-  const descuento = !adminPass ? 0
+  const claveAut = adminPass || (codigoOk ? codigo : '')
+  const autorizado = !!claveAut
+  const descuento = !autorizado ? 0
     : descuentoTipo === 'monto' ? Math.min(valor, subtotal) : subtotal * Math.min(valor, 100) / 100
   const total = Math.max(0, subtotal - descuento)
   const factor = subtotal ? total / subtotal : 1
@@ -119,6 +135,14 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const frac = modo === 'total' ? 1 : PCT_ANTICIPO / 100
   const anticipoNorm = mostrador ? 0 : Math.round(totNorm * frac * 100) / 100
   const anticipoPre = Math.round(totPre * frac * 100) / 100
+
+  const validarCodigo = async () => {
+    setCodigoMsg('')
+    const { data, error: err } = await sb.rpc('admin_check', { p_pass: codigo })
+    if (err) return setCodigoMsg(mensajeError(err))
+    setCodigoOk(!!data)
+    setCodigoMsg(data ? 'Código válido: ya puedes aplicar el descuento autorizado.' : 'Código incorrecto')
+  }
 
   const handleCheckout = async (e) => {
     e.preventDefault()
@@ -132,9 +156,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
       p_items: items.map((i) => ({ id: i.id, sku: i.sku, cantidad: i.cantidad, preorden: i.preorden })),
       p_modo: modo,
       p_desc_tipo: descuentoTipo,
-      p_desc_valor: adminPass ? valor : 0,
-      p_admin_pass: adminPass || '',
-      p_venta_mostrador: !!adminPass && mostrador,
+      p_desc_valor: autorizado ? valor : 0,
+      p_admin_pass: claveAut,
+      p_venta_mostrador: autorizado && mostrador,
+      p_solicitud: solicitud.trim(),
+      p_entrega: entrega,
+      p_direccion: entrega === 'envio' ? direccion.trim() : '',
     })
     setEnviando(false)
     if (err) {
@@ -143,7 +170,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
         : 'No se pudo registrar el pedido: ' + mensajeError(err))
       return
     }
-    setRecibo({ r: data, cliente: { nombre: nombre.trim(), email: email.trim(), whatsapp: whatsapp.trim() } })
+    setRecibo({ r: data, cliente: { nombre: nombre.trim(), email: email.trim(), whatsapp: whatsapp.trim(), solicitud: solicitud.trim(), entrega, direccion: direccion.trim() } })
     onClear()
   }
 
@@ -203,30 +230,50 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
             <h2>Resumen</h2>
             <div className="subtotal"><span>Subtotal:</span><span>{money(subtotal)}</span></div>
 
-            {adminPass && (
-              <div className="descuento-box">
-                <label>Descuento (modo vendedor)</label>
-                <div className="descuento-fila">
-                  <div className="segmento">
-                    <button type="button" className={descuentoTipo === 'monto' ? 'on' : ''} onClick={() => setDescuentoTipo('monto')}>$</button>
-                    <button type="button" className={descuentoTipo === 'porcentaje' ? 'on' : ''} onClick={() => setDescuentoTipo('porcentaje')}>%</button>
+            <div className="descuento-box">
+              <label>Descuento o código promocional</label>
+              {!autorizado ? (
+                <>
+                  <textarea rows="2" value={solicitud} onChange={(e) => setSolicitud(e.target.value)}
+                    placeholder="Escribe tu código promocional o solicita un descuento. Lessa lo revisa y te confirma el valor final." />
+                  {!verCodigo ? (
+                    <button type="button" className="link-btn" onClick={() => setVerCodigo(true)}>Tengo un código de autorización de Lessa</button>
+                  ) : (
+                    <div className="descuento-fila" style={{ marginTop: '0.5rem' }}>
+                      <input type="password" value={codigo} placeholder="Código de autorización"
+                        onChange={(e) => { setCodigo(e.target.value); setCodigoOk(false) }} />
+                      <button type="button" className="btn-validar" onClick={validarCodigo}>Validar</button>
+                    </div>
+                  )}
+                  {codigoMsg && <p className={codigoOk ? 'ok-msg' : 'error-msg'}>{codigoMsg}</p>}
+                </>
+              ) : (
+                <>
+                  <p className="ok-msg" style={{ marginTop: 0 }}>Descuento autorizado</p>
+                  <div className="descuento-fila">
+                    <div className="segmento">
+                      <button type="button" className={descuentoTipo === 'monto' ? 'on' : ''} onClick={() => setDescuentoTipo('monto')}>$</button>
+                      <button type="button" className={descuentoTipo === 'porcentaje' ? 'on' : ''} onClick={() => setDescuentoTipo('porcentaje')}>%</button>
+                    </div>
+                    <input type="number" min="0" step="0.01" value={descuentoValor} placeholder="0"
+                      onChange={(e) => setDescuentoValor(e.target.value)} />
                   </div>
-                  <input type="number" min="0" step="0.01" value={descuentoValor} placeholder="0"
-                    onChange={(e) => setDescuentoValor(e.target.value)} />
-                </div>
-                {normales.length > 0 && (
-                  <label className="check-mostrador">
-                    <input type="checkbox" checked={mostrador} onChange={(e) => setMostrador(e.target.checked)} />
-                    Venta en mostrador: cobrada y entregada ahora
-                  </label>
-                )}
-              </div>
-            )}
+                  {normales.length > 0 && (
+                    <label className="check-mostrador">
+                      <input type="checkbox" checked={mostrador} onChange={(e) => setMostrador(e.target.checked)} />
+                      Venta en mostrador: cobrada y entregada ahora
+                    </label>
+                  )}
+                </>
+              )}
+            </div>
 
             {descuento > 0 && (
               <div className="subtotal" style={{ color: '#2e7d4f' }}><span>Descuento:</span><span>-{money(descuento)}</span></div>
             )}
-            <div className="total"><span>Total:</span><span>{money(total)}</span></div>
+            {entrega === 'envio' && <div className="subtotal"><span>Envío local:</span><span>lo confirma Lessa</span></div>}
+            <div className="total"><span>{autorizado ? 'Total:' : 'Total estimado:'}</span><span>{money(total)}</span></div>
+            {!autorizado && <p className="legal" style={{ textAlign: 'left', marginTop: '0.4rem' }}>Lessa valida tu pedido y confirma el valor final y la fecha de entrega.</p>}
             {!mostrador && (
               <div className="modo-pago">
                 <label><input type="radio" checked={modo === 'apartado'} onChange={() => setModo('apartado')} />
@@ -262,12 +309,22 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
               <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} required />
             </div>
             <div className="form-group">
+              <label>Entrega</label>
+              <div className="modo-pago" style={{ marginTop: 0 }}>
+                <label><input type="radio" checked={entrega === 'recoger'} onChange={() => setEntrega('recoger')} /> Recoger</label>
+                <label><input type="radio" checked={entrega === 'envio'} onChange={() => setEntrega('envio')} /> Envío local (el costo lo confirma Lessa)</label>
+              </div>
+              {entrega === 'envio' && (
+                <textarea rows="2" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección de entrega" style={{ marginTop: '0.5rem' }} />
+              )}
+            </div>
+            <div className="form-group">
               <label>Notas adicionales</label>
               <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows="3" />
             </div>
             {error && <p className="error-msg">{error}</p>}
             <button type="submit" className="btn-submit" disabled={enviando}>
-              {enviando ? 'Procesando...' : mostrador ? 'Registrar venta' : 'Confirmar y generar recibo'}
+              {enviando ? 'Procesando...' : autorizado && mostrador ? 'Registrar venta' : 'Enviar pedido a Lessa'}
             </button>
             <p className="legal">Contacto: <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a></p>
           </form>

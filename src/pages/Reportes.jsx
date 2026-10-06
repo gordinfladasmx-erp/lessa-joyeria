@@ -70,7 +70,8 @@ export default function Reportes({ pass }) {
     const fechaVenta = (p) => new Date(p.entregado_at || p.created_at)
 
     const ventas = pedidos.filter((p) => p.estado === 'entregado' && fechaVenta(p) >= ini)
-    const ingresos = ventas.reduce((s, p) => s + Number(p.total), 0)
+    const ingresos = ventas.reduce((s, p) => s + Number(p.total) - Number(p.envio || 0), 0)
+    const envios = ventas.reduce((s, p) => s + Number(p.envio || 0), 0)
     const costo = ventas.reduce((s, p) => s + Number(p.subtotal || p.total) * COSTO, 0)
     const descuentos = ventas.reduce((s, p) => s + Number(p.descuento || 0), 0)
     const uds = ventas.reduce((s, p) => s + unidades(p), 0)
@@ -104,8 +105,8 @@ export default function Reportes({ pass }) {
     ventas.forEach((p) => {
       const k = clave(fechaVenta(p))
       serie[k] = serie[k] || { ing: 0, gan: 0 }
-      serie[k].ing += Number(p.total)
-      serie[k].gan += Number(p.total) - Number(p.subtotal || p.total) * COSTO
+      serie[k].ing += Number(p.total) - Number(p.envio || 0)
+      serie[k].gan += Number(p.total) - Number(p.envio || 0) - Number(p.subtotal || p.total) * COSTO
     })
     const claves = Object.keys(serie).sort()
 
@@ -139,7 +140,7 @@ export default function Reportes({ pass }) {
       'Cancelados (periodo)': canc.length,
     }
     return {
-      ventas, ingresos, costo, ganancia: ingresos - costo, descuentos, uds, cobrado, porCobrar, deudores,
+      ventas, ingresos, envios, costo, ganancia: ingresos - costo, descuentos, uds, cobrado, porCobrar, deudores,
       apartados, encargos, porConfirmar, anticipos, canc, cancPor, serie, claves, udsCat, topArr,
       invCat, piezas, valorVenta, agotados, estados,
       productosActivos: productos.filter((p) => p.activo).length,
@@ -167,6 +168,7 @@ export default function Reportes({ pass }) {
         <Kpi titulo="Costo" valor={money(d.costo)} />
         <Kpi titulo="Unidades vendidas" valor={d.uds} />
         <Kpi titulo="Descuentos dados" valor={money(d.descuentos)} />
+        <Kpi titulo="Envíos cobrados" valor={money(d.envios)} sub="no cuentan como ingreso" />
         <Kpi titulo="Cobrado (incluye reservas)" valor={money(d.cobrado)} />
       </div>
 

@@ -301,3 +301,9 @@ form {
   .carrito-item .btn-remove { display: block; grid-column: 2; justify-self: end; margin-top: -2rem; }
   .carrito-item img { width: 56px; height: 56px; }
 }
+
+.descuento-box textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: inherit; resize: vertical; }
+.link-btn { background: none; border: none; color: var(--primary); text-decoration: underline; cursor: pointer; font-size: 0.85rem; margin-top: 0.5rem; padding: 0; }
+.btn-validar { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 0 1rem; cursor: pointer; font-weight: 600; }
+.ok-msg { color: #2e7d4f; background: #e6f4ec; padding: 0.5rem 0.75rem; border-radius: 6px; margin-top: 0.5rem; font-size: 0.85rem; }
+.form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-family: inherit; }

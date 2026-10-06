@@ -3,6 +3,7 @@
 -- Reglas (editables abajo): anticipo 30%, apartado 15 dias, sin pago de reserva se libera a los 2 dias.
 
 drop function if exists crear_pedido(text,text,text,text,jsonb,text,numeric,text);
+drop function if exists crear_pedido(text,text,text,text,jsonb,text,text,numeric,text,boolean);
 drop function if exists admin_actualizar_pedido(text,bigint,text,numeric,text);
 drop function if exists admin_marcar_pedido_proveedor(text);
 
@@ -20,7 +21,14 @@ alter table pedidos
   add column if not exists cancelado_at timestamptz,
   add column if not exists proveedor_estado text default 'na',       -- na | por_pedir | pedido | recibido
   add column if not exists proveedor_pedido_id bigint,
-  add column if not exists entrega_estimada date;
+  add column if not exists entrega_estimada date,
+  add column if not exists envio numeric(10,2) default 0,
+  add column if not exists descuento_solicitado text,
+  add column if not exists entrega_tipo text default 'recoger',       -- recoger | envio
+  add column if not exists direccion text,
+  add column if not exists modo_pago text default 'apartado',         -- apartado (30%) | total
+  add column if not exists validado_at timestamptz,
+  add column if not exists fecha_entrega date;
 
 create table if not exists pedidos_proveedor (
   id bigint primary key generated always as identity,
@@ -78,7 +86,8 @@ create or replace function crear_pedido(
   p_nombre text, p_email text, p_whatsapp text, p_notas text, p_items jsonb,
   p_modo text default 'apartado',          -- apartado (30%) | total (100%)
   p_desc_tipo text default 'monto', p_desc_valor numeric default 0,
-  p_admin_pass text default '', p_venta_mostrador boolean default false
+  p_admin_pass text default '', p_venta_mostrador boolean default false,
+  p_solicitud text default '', p_entrega text default 'recoger', p_direccion text default ''
 ) returns json
 language plpgsql security definer set search_path = public as $$
 declare
@@ -129,9 +138,12 @@ begin
   if jsonb_array_length(v_norm) > 0 then
     ant := case when p_modo = 'total' or p_venta_mostrador then t_norm else round(t_norm * pct, 2) end;
     insert into pedidos(numero_pedido, tipo, nombre_cliente, email_cliente, whatsapp, items, subtotal, descuento,
-        total, estado, notas, anticipo_requerido, pagado, proveedor_estado)
+        total, estado, notas, anticipo_requerido, pagado, proveedor_estado,
+        descuento_solicitado, entrega_tipo, direccion, modo_pago, validado_at)
     values ('TMP'||clock_timestamp()::text, 'apartado', p_nombre, p_email, p_whatsapp, v_norm, s_norm, d_norm,
-        t_norm, 'por_confirmar', p_notas, ant, 0, 'na') returning id into v_id;
+        t_norm, 'por_confirmar', p_notas, ant, 0, 'na',
+        p_solicitud, p_entrega, p_direccion, case when p_modo = 'total' then 'total' else 'apartado' end,
+        case when es_admin then now() end) returning id into v_id;
     v_num := 'LESSA-' || lpad(v_id::text, 5, '0');
     update pedidos set numero_pedido = v_num where id = v_id;
     if es_admin and p_venta_mostrador then
@@ -141,23 +153,47 @@ begin
     end if;
     res := res || jsonb_build_object('id', v_id, 'numero_pedido', v_num, 'tipo', 'apartado', 'items', v_norm,
         'subtotal', s_norm, 'descuento', d_norm, 'total', t_norm, 'anticipo', ant, 'mostrador', es_admin and p_venta_mostrador,
-        'dias_apartado', 15);
+        'dias_apartado', 15, 'validado', es_admin);
   end if;
 
   if jsonb_array_length(v_pre) > 0 then
     ant := case when p_modo = 'total' then t_pre else round(t_pre * pct, 2) end;
     insert into pedidos(numero_pedido, tipo, nombre_cliente, email_cliente, whatsapp, items, subtotal, descuento,
-        total, estado, notas, anticipo_requerido, pagado, proveedor_estado, entrega_estimada)
+        total, estado, notas, anticipo_requerido, pagado, proveedor_estado, entrega_estimada,
+        descuento_solicitado, entrega_tipo, direccion, modo_pago, validado_at)
     values ('TMP'||clock_timestamp()::text, 'encargo', p_nombre, p_email, p_whatsapp, v_pre, s_pre, d_pre,
-        t_pre, 'por_confirmar', p_notas, ant, 0, 'na', current_date + 15) returning id into v_id;
+        t_pre, 'por_confirmar', p_notas, ant, 0, 'na', current_date + 15,
+        p_solicitud, p_entrega, p_direccion, case when p_modo = 'total' then 'total' else 'apartado' end,
+        case when es_admin then now() end) returning id into v_id;
     v_num := 'LESSA-' || lpad(v_id::text, 5, '0') || '-E';
     update pedidos set numero_pedido = v_num where id = v_id;
     res := res || jsonb_build_object('id', v_id, 'numero_pedido', v_num, 'tipo', 'encargo', 'items', v_pre,
         'subtotal', s_pre, 'descuento', d_pre, 'total', t_pre, 'anticipo', ant, 'mostrador', false,
-        'entrega_estimada', current_date + 15);
+        'entrega_estimada', current_date + 15, 'validado', es_admin);
   end if;
 
   return json_build_object('pedidos', res, 'total', t_norm + t_pre);
+end $$;
+
+-- El cliente solo solicita; Lessa valida: descuento, envio local, valor neto y fecha de entrega.
+create or replace function admin_validar_pedido(p_pass text, p_id bigint, p_desc_tipo text default 'monto',
+  p_desc_valor numeric default 0, p_envio numeric default 0, p_fecha_entrega date default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare p pedidos%rowtype; v_desc numeric; v_envio numeric; v_total numeric;
+begin
+  if not lessa_admin_ok(p_pass) then raise exception 'No autorizado'; end if;
+  select * into p from pedidos where id = p_id for update;
+  if not found then raise exception 'Pedido no existe'; end if;
+  if p.estado <> 'por_confirmar' then raise exception 'Solo se puede ajustar antes de confirmar el pago de la reserva'; end if;
+  v_desc := case when p_desc_tipo = 'porcentaje'
+                 then p.subtotal * least(greatest(coalesce(p_desc_valor,0),0),100) / 100
+                 else least(greatest(coalesce(p_desc_valor,0),0), p.subtotal) end;
+  v_envio := greatest(coalesce(p_envio,0),0);
+  v_total := round(p.subtotal - v_desc + v_envio, 2);
+  update pedidos set descuento = round(v_desc,2), envio = v_envio, total = v_total,
+      anticipo_requerido = case when modo_pago = 'total' then v_total else round(v_total * 0.30, 2) end,
+      fecha_entrega = p_fecha_entrega, validado_at = now(), updated_at = now()
+   where id = p_id;
 end $$;
 
 create or replace function admin_check(p_pass text) returns boolean
@@ -283,7 +319,8 @@ end $$;
 revoke execute on function lessa_restock(jsonb) from public, anon, authenticated;
 
 grant execute on function vencer_apartados() to anon, authenticated;
-grant execute on function crear_pedido(text,text,text,text,jsonb,text,text,numeric,text,boolean) to anon, authenticated;
+grant execute on function crear_pedido(text,text,text,text,jsonb,text,text,numeric,text,boolean,text,text,text) to anon, authenticated;
+grant execute on function admin_validar_pedido(text,bigint,text,numeric,numeric,date) to anon, authenticated;
 grant execute on function admin_check(text) to anon, authenticated;
 grant execute on function admin_adjust_stock(text,bigint,int,int) to anon, authenticated;
 grant execute on function admin_agregar_producto(text,text,text,numeric,bigint,int) to anon, authenticated;

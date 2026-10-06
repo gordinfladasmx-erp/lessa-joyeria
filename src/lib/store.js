@@ -41,17 +41,13 @@ function bloque(p) {
   const lineas = p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')
   let t = ''
   if (p.tipo === 'encargo') {
-    t += `*Encargo ${p.numero_pedido}* (llega en ~${DIAS_PREORDEN} días, aprox. ${fechaCorta(p.entrega_estimada)})\n${lineas}\n`
+    t += `*Encargo ${p.numero_pedido}* (llega en ~${DIAS_PREORDEN} días)\n${lineas}\n`
   } else {
     t += `*${p.mostrador ? 'Venta' : 'Apartado'} ${p.numero_pedido}*\n${lineas}\n`
   }
   if (p.descuento > 0) t += `Descuento: -${money(p.descuento)}\n`
-  t += `Total: ${money(p.total)}\n`
-  if (!p.mostrador) {
-    t += `Reserva a pagar para confirmar: *${money(p.anticipo)}*\n`
-    if (p.tipo === 'apartado') t += `Se aparta ${DIAS_APARTADO} días desde que se confirma el pago. Pasado ese plazo sin recoger, se cancela.\n`
-    t += `Saldo a la entrega: ${money(p.total - p.anticipo)}\n`
-  }
+  t += `${p.validado || p.mostrador ? 'Total' : 'Total estimado'}: ${money(p.total)}\n`
+  if (!p.mostrador) t += `${p.validado ? 'Reserva a pagar' : 'Reserva estimada'}: ${money(p.anticipo)}\n`
   return t
 }
 
@@ -59,7 +55,28 @@ export function reciboTexto(r, cliente) {
   let t = `*Lessa Joyería*\nCliente: ${cliente.nombre}\n\n`
   t += r.pedidos.map(bloque).join('\n')
   t += `\n*Total general: ${money(r.total)}*\n`
-  if (!r.pedidos.every((p) => p.mostrador)) t += `\nPara confirmar, transfiere la reserva a la CLABE *${CLABE}* y envía tu comprobante por WhatsApp indicando tu número de recibo.\n`
+  if (cliente.solicitud) t += `\nSolicitud de descuento / código: ${cliente.solicitud}\n`
+  if (cliente.entrega === 'envio') t += `\nEnvío local a: ${cliente.direccion}\n`
+  if (r.pedidos.some((p) => !p.validado && !p.mostrador)) {
+    t += `\nLessa validará tu pedido (descuento, envío y fecha de entrega) y te confirmará el valor final y cómo pagar la reserva. No hagas transferencias hasta recibir esa confirmación.\n`
+  } else if (!r.pedidos.every((p) => p.mostrador)) {
+    t += `\nPara confirmar, transfiere la reserva a la CLABE *${CLABE}* y envía tu comprobante por WhatsApp indicando tu número de recibo.\n`
+  }
   t += `\nGracias por tu preferencia.`
+  return t
+}
+
+// Mensaje que Lessa manda al cliente cuando valida el pedido (valor neto, envío y fecha).
+export function mensajeConfirmacion(p) {
+  const lineas = p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')
+  let t = `*Lessa Joyería*\nHola ${p.nombre_cliente}, validamos tu pedido *${p.numero_pedido}*:\n\n${lineas}\n\nSubtotal: ${money(p.subtotal)}\n`
+  if (Number(p.descuento) > 0) t += `Descuento: -${money(p.descuento)}\n`
+  if (Number(p.envio) > 0) t += `Envío local: ${money(p.envio)}\n`
+  t += `*Valor neto: ${money(p.total)}*\n\n`
+  t += `Reserva a pagar para confirmar: *${money(p.anticipo_requerido)}*\nSaldo a la entrega: ${money(Number(p.total) - Number(p.anticipo_requerido))}\n`
+  const f = p.fecha_entrega || (p.tipo === 'encargo' ? p.entrega_estimada : null)
+  if (f) t += `Fecha de entrega: ${fechaCorta(f)}\n`
+  else if (p.tipo === 'apartado') t += `Tu pieza se aparta ${DIAS_APARTADO} días desde que confirmemos el pago.\n`
+  t += `\nTransfiere la reserva a la CLABE *${CLABE}* y envíanos tu comprobante por WhatsApp indicando tu número de pedido.\n\nGracias por tu preferencia.`
   return t
 }

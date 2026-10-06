@@ -217,3 +217,10 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .footer-marca { display: inline-flex; align-items: center; justify-content: center; gap: 0.9rem; flex-wrap: wrap; font-size: 1rem; font-weight: 600; }
 .footer-marca .sep-v { width: 1px; height: 1.4em; background: rgba(255, 255, 255, 0.55); }
 .footer-marca a { display: inline-flex; align-items: center; gap: 0.45rem; color: #ffffff !important; }
+
+.footer-contactanos { font-size: 0.8rem; letter-spacing: 0.25em; text-transform: uppercase; color: #E8C4D6 !important; margin-bottom: 0.6rem; }
+.footer-iconos { display: inline-flex; gap: 0.6rem; }
+.footer-iconos a { width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.15s; }
+.footer-iconos a:hover { transform: scale(1.12); }
+.footer-iconos .ic-wa { background: #25D366; color: #ffffff !important; }
+.footer-iconos .ic-mail { background: #ffffff; color: #970B3E !important; }

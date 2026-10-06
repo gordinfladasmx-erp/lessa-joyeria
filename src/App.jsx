@@ -6,7 +6,8 @@ import DestacadosPage from './pages/DestacadosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
-import { getAdminPass, setAdminPass, mensajeError } from './lib/store'
+import { IconoWhatsApp, IconoCorreo, IconoInstagram } from './components/Iconos'
+import { WA_TIENDA, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
 
 const leerCarrito = () => {
@@ -158,18 +159,20 @@ export default function App() {
         )}
 
         <footer className="footer">
-          <p className="footer-marca">
+          <p className="footer-contactanos">Contáctanos</p>
+          <div className="footer-marca">
             <span>Lessa Joyería</span>
             <span className="sep-v" aria-hidden="true"></span>
             <a href="https://www.instagram.com/lessa_joyeria" target="_blank" rel="noreferrer" aria-label="Instagram de Lessa">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="5" />
-                <circle cx="12" cy="12" r="4" />
-                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-              </svg>
+              <IconoInstagram size={22} />
               @lessa_joyeria
             </a>
-          </p>
+            <span className="sep-v" aria-hidden="true"></span>
+            <span className="footer-iconos">
+              <a className="ic-wa" href={`https://wa.me/${WA_TIENDA}`} target="_blank" rel="noreferrer" aria-label="WhatsApp" title="WhatsApp"><IconoWhatsApp size={20} /></a>
+              <a className="ic-mail" href={`mailto:${EMAIL_TIENDA}`} aria-label="Correo" title="Correo"><IconoCorreo size={20} /></a>
+            </span>
+          </div>
           <div className="footer-legal">
             <span>® 2026 Lessa Joyería. Todos los derechos reservados.</span>
             <span>Powered by Aria by BP&amp;S - Anthropic IA</span>

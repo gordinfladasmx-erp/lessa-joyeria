@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
+import DestacadosPage from './pages/DestacadosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
@@ -101,6 +102,7 @@ export default function App() {
           <div className="nav-links">
             <Link to="/">Inicio</Link>
             <Link to="/catalogo">Catálogo</Link>
+            <Link to="/destacados" className="nav-dest">★ Destacados</Link>
             <Link to="/carrito" className="cart-link">
               Carrito ({cartCount})
             </Link>
@@ -117,6 +119,7 @@ export default function App() {
 
         <Routes>
           <Route path="/" element={<Landing onAddToCart={addToCart} adminPass={adminPass} />} />
+          <Route path="/destacados" element={<DestacadosPage onAddToCart={addToCart} adminPass={adminPass} />} />
           <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} adminPass={adminPass} />} />
           <Route
             path="/carrito"

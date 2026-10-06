@@ -1,59 +1,38 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
-import Foto from '../components/Foto'
-import Estrella from '../components/Estrella'
-import { money } from '../lib/store'
+import TarjetasDestacadas from '../components/TarjetasDestacadas'
 import '../styles/Landing.css'
+
+const EN_INICIO = 20
 
 function Destacados({ onAddToCart, adminPass }) {
   const [prods, setProds] = useState([])
+  const [total, setTotal] = useState(0)
   const [cargado, setCargado] = useState(false)
-  const [aviso, setAviso] = useState({})
 
   useEffect(() => {
-    sb.from('productos').select('*').eq('activo', true).eq('destacado', true)
-      .order('stock', { ascending: false }).order('sku').limit(300)
-      .then(({ data }) => { setProds(data || []); setCargado(true) })
+    sb.from('productos').select('*', { count: 'exact' }).eq('activo', true).eq('destacado', true)
+      .order('stock', { ascending: false }).order('sku').limit(EN_INICIO)
+      .then(({ data, count }) => { setProds(data || []); setTotal(count || (data || []).length); setCargado(true) })
   }, [])
 
-  const agregar = (p) => {
-    const msg = onAddToCart(p, false)
-    setAviso((a) => ({ ...a, [p.id]: msg || '✓ Agregado' }))
-    setTimeout(() => setAviso((a) => ({ ...a, [p.id]: '' })), 1800)
-  }
-
   if (!cargado || (prods.length === 0 && !adminPass)) return null
+  const restantes = total - prods.length
   return (
     <section className="destacados">
       <div className="destacados-cab">
         <h2><span className="estrella-titulo">★</span> Productos destacados</h2>
-        <Link to="/catalogo" className="ver-todo">Ver todo el catálogo</Link>
+        <Link to="/destacados" className="ver-todo">Ver todos los destacados</Link>
       </div>
       {adminPass && <p className="admin-nota-landing">Modo edición: pulsa la estrella de una tarjeta para quitarla de destacados. Para agregar más, marca la estrella en el catálogo.</p>}
       {prods.length === 0 ? <p>Aún no hay productos destacados.</p> : (
-        <div className="grid-destacados">
-          {prods.map((p) => {
-            const agotado = !(p.stock > 0)
-            return (
-              <div key={p.id} className={`dest-card ${agotado ? 'agotado' : ''}`}>
-                <div className="dest-foto">
-                  <Foto sku={p.sku} nombre={p.nombre} />
-                  {adminPass
-                    ? <Estrella producto={p} pass={adminPass} onCambio={(id, v) => !v && setProds((ps) => ps.filter((x) => x.id !== id))} />
-                    : <span className="badge-dest" title="Destacado">★</span>}
-                  {agotado && <span className="badge-agotado">Agotado</span>}
-                </div>
-                <h3>{p.nombre}</h3>
-                <p className="dest-precio">{money(p.precio)}</p>
-                {agotado ? (
-                  <Link to="/catalogo" className="btn-dest ver">Ver en catálogo</Link>
-                ) : (
-                  <button className="btn-dest" onClick={() => agregar(p)}>{aviso[p.id] || 'Agregar'}</button>
-                )}
-              </div>
-            )
-          })}
+        <TarjetasDestacadas prods={prods} onAddToCart={onAddToCart} adminPass={adminPass}
+          onQuitar={(id) => { setProds((ps) => ps.filter((x) => x.id !== id)); setTotal((t) => t - 1) }} />
+      )}
+      {restantes > 0 && (
+        <div className="ver-mas-dest">
+          <Link to="/destacados" className="btn-dest-grande">Ver más destacados ({restantes} más) →</Link>
         </div>
       )}
     </section>
@@ -69,7 +48,7 @@ export default function Landing({ onAddToCart, adminPass }) {
             <img src="/lessa-wordmark.png" alt="" className="marca-lessa" />
             <span className="marca-joyeria">joyería</span>
           </h1>
-          <p>Joyería de calidad para momentos especiales</p>
+          <p>El arte de lucir accesorios de calidad</p>
           <Link to="/catalogo" className="btn-primary">
             Ver catálogo
           </Link>
@@ -82,7 +61,7 @@ export default function Landing({ onAddToCart, adminPass }) {
         <div className="feature">
           <div className="icon">✦</div>
           <h3>Diseños exclusivos</h3>
-          <p>Colecciones únicas en acero y plata</p>
+          <p>Colecciones únicas e innovadoras</p>
         </div>
         <div className="feature">
           <div className="icon">💎</div>
@@ -92,7 +71,7 @@ export default function Landing({ onAddToCart, adminPass }) {
         <div className="feature">
           <div className="icon">🚚</div>
           <h3>Envío rápido</h3>
-          <p>Entrega en 24-48 horas</p>
+          <p>Envíos locales y a toda la república</p>
         </div>
       </div>
 
@@ -109,9 +88,6 @@ export default function Landing({ onAddToCart, adminPass }) {
         </div>
       </div>
 
-      <div style={{textAlign: 'center', padding: '2rem', borderTop: '1px solid #ddd'}}>
-        <Link to="/admin" style={{color: '#999', textDecoration: 'none', fontSize: '0.9rem'}}>Administración</Link>
-      </div>
     </div>
   )
 }

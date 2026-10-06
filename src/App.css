@@ -206,3 +206,6 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .footer-legal { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 1.25rem; padding-top: 0.9rem; border-top: 1px solid rgba(255, 255, 255, 0.2); font-size: 0.8rem; color: #d9d9d9; }
 .footer-legal span { color: #d9d9d9; }
 @media (max-width: 768px) { .footer-legal { flex-direction: column; text-align: center; } }
+
+.nav-links a.nav-dest { color: #c77700; font-weight: 700; }
+.nav-links a.nav-dest:hover { color: #FF2E63; }

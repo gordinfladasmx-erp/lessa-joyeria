@@ -51,15 +51,15 @@ export default function Reportes({ pass }) {
   useEffect(() => {
     (async () => {
       const q = (a, b) => sb.from('productos').select('id,sku,nombre,precio,stock,categoria_id,activo').order('id').range(a, b)
-      const [ped, c, p1, p2] = await Promise.all([
+      const [ped, c, p1, p2, p3] = await Promise.all([
         sb.rpc('admin_listar_pedidos', { p_pass: pass }),
         sb.from('categorias').select('*'),
-        q(0, 999), q(1000, 1999),
+        q(0, 999), q(1000, 1999), q(2000, 2999),
       ])
       if (ped.error) return setMsg(mensajeError(ped.error))
       setPedidos(ped.data || [])
       setCats(c.data || [])
-      setProductos([...(p1.data || []), ...(p2.data || [])])
+      setProductos([...(p1.data || []), ...(p2.data || []), ...(p3.data || [])])
     })()
   }, [pass])
 

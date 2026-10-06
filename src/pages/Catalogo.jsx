@@ -35,14 +35,15 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
         await sb.rpc('vencer_apartados')
         const q = (from, to) =>
           sb.from('productos').select('*').eq('activo', true).order('id').range(from, to)
-        const [cats, p1, p2] = await Promise.all([
+        const [cats, p1, p2, p3] = await Promise.all([
           sb.from('categorias').select('*').order('nombre'),
           q(0, 999),
           q(1000, 1999),
+          q(2000, 2999),
         ])
         if (p1.error) throw p1.error
         setCategorias(cats.data || [])
-        setProductos([...(p1.data || []), ...(p2.data || [])])
+        setProductos([...(p1.data || []), ...(p2.data || []), ...(p3.data || [])])
       } catch (e) {
         setErrorCarga('No se pudo cargar el catálogo: ' + e.message)
       } finally {

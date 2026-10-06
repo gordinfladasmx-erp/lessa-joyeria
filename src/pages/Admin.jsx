@@ -9,6 +9,7 @@ import '../styles/Admin.css'
 const TABS = [
   ['pendientes', 'Pendientes de entrega'],
   ['proveedor', 'Pedidos a proveedor'],
+  ['inventario', 'Inventario actual'],
   ['historial', 'Historial'],
   ['reportes', 'Reportes'],
   ['nuevo', 'Nuevo producto'],
@@ -42,6 +43,7 @@ export default function Admin({ adminPass, onLogin }) {
       {tab === 'pendientes' && <Pendientes pass={adminPass} />}
       {tab === 'proveedor' && <Proveedor pass={adminPass} />}
       {tab === 'historial' && <Historial pass={adminPass} />}
+      {tab === 'inventario' && <InventarioActual />}
       {tab === 'reportes' && <Reportes pass={adminPass} />}
       {tab === 'nuevo' && <Nuevo pass={adminPass} />}
     </div>
@@ -246,6 +248,92 @@ function LineaEditable({ cantidad, onGuardar, onQuitar, etiquetaQuitar = 'Quitar
       <input type="number" min="1" value={v} onChange={(e) => setV(e.target.value)} />
       <button className="verde" disabled={!cambio} onClick={() => onGuardar(n)}>Guardar</button>
       <button className="rojo" onClick={onQuitar}>{etiquetaQuitar}</button>
+    </div>
+  )
+}
+
+const COSTO_PCT = 0.5
+
+function InventarioActual() {
+  const [prods, setProds] = useState([])
+  const [cats, setCats] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [q, setQ] = useState('')
+  const [cat, setCat] = useState('')
+  const [conAgotados, setConAgotados] = useState(false)
+
+  useEffect(() => {
+    (async () => {
+      const r = (a, b) => sb.from('productos').select('id,sku,nombre,precio,stock,categoria_id,activo').eq('activo', true).order('sku').range(a, b)
+      const [c, p1, p2, p3] = await Promise.all([sb.from('categorias').select('*').order('nombre'), r(0, 999), r(1000, 1999), r(2000, 2999)])
+      setCats(c.data || [])
+      setProds([...(p1.data || []), ...(p2.data || []), ...(p3.data || [])])
+      setCargando(false)
+    })()
+  }, [])
+
+  const nomCat = Object.fromEntries(cats.map((c) => [c.id, c.nombre]))
+  const term = q.trim().toLowerCase()
+  const filas = prods
+    .filter((p) => (conAgotados || Number(p.stock) > 0) && (!cat || String(p.categoria_id) === cat) &&
+      (!term || p.sku.toLowerCase().includes(term) || p.nombre.toLowerCase().includes(term)))
+    .map((p) => ({ ...p, categoria: nomCat[p.categoria_id] || 'Sin categoría', costo: p.precio * COSTO_PCT, valor: p.precio * COSTO_PCT * Number(p.stock) }))
+    .sort((a, b) => a.categoria.localeCompare(b.categoria) || a.sku.localeCompare(b.sku))
+  const piezas = filas.reduce((s, f) => s + Number(f.stock), 0)
+  const valorCosto = filas.reduce((s, f) => s + f.valor, 0)
+  const valorVenta = filas.reduce((s, f) => s + f.precio * Number(f.stock), 0)
+
+  const csv = () => {
+    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`
+    const lineas = [['Categoría', 'Producto', 'Código', 'Precio', 'Costo', 'Cantidad', 'Valor del inventario'].join(',')]
+    filas.forEach((f) => lineas.push([f.categoria, f.nombre, f.sku, f.precio.toFixed(2), f.costo.toFixed(2), f.stock, f.valor.toFixed(2)].map(esc).join(',')))
+    lineas.push(['TOTAL', '', '', '', '', piezas, valorCosto.toFixed(2)].map(esc).join(','))
+    const blob = new Blob(['\ufeff' + lineas.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `inventario-lessa-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+  }
+
+  if (cargando) return <p>Cargando inventario...</p>
+  return (
+    <div>
+      <div className="kpis">
+        <div className="kpi"><span className="kpi-t">Piezas en existencia</span><strong>{piezas}</strong><small>{filas.length} producto(s)</small></div>
+        <div className="kpi"><span className="kpi-t">Valor del inventario (a costo)</span><strong>{money(valorCosto)}</strong></div>
+        <div className="kpi"><span className="kpi-t">Valor a precio de venta</span><strong>{money(valorVenta)}</strong></div>
+      </div>
+      <p className="admin-nota">Costo = 50% del precio de venta. Valor del inventario = costo x cantidad. Para ajustar existencias entra al catálogo con tu sesión y usa + y −.</p>
+      <div className="admin-busqueda">
+        <input placeholder="Buscar por código o producto..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <select value={cat} onChange={(e) => setCat(e.target.value)} className="select-cat">
+          <option value="">Todas las categorías</option>
+          {cats.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+        </select>
+        <button type="button" onClick={csv} disabled={filas.length === 0}>Descargar CSV</button>
+      </div>
+      <label className="solo-disp">
+        <input type="checkbox" checked={conAgotados} onChange={(e) => setConAgotados(e.target.checked)} /> Incluir productos agotados
+      </label>
+      {filas.length === 0 ? <p>No hay productos con existencia.</p> : (
+        <div className="tabla-scroll">
+          <table className="admin-tabla">
+            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th></tr></thead>
+            <tbody>
+              {filas.map((f) => (
+                <tr key={f.id}>
+                  <td>{f.categoria}</td><td>{f.nombre}</td><td>{f.sku}</td>
+                  <td className="der">{money(f.precio)}</td><td className="der">{money(f.costo)}</td>
+                  <td className="der"><strong>{f.stock}</strong></td><td className="der">{money(f.valor)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td></tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

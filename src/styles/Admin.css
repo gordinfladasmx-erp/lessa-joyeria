@@ -95,3 +95,8 @@
 .fila-ok { background: #f1faf4; }
 .destino span { display: block; font-size: 0.85rem; }
 .ok-msg { color: #2e7d4f; background: #e6f4ec; padding: 0.5rem 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
+
+.admin-tabla .der { text-align: right; }
+.admin-tabla tfoot td { background: #fbeef3; padding: 0.7rem; border-top: 2px solid var(--primary-light); }
+.select-cat { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: white; }
+@media (max-width: 768px) { .admin-busqueda { flex-wrap: wrap; } .admin-busqueda input { flex: 1 1 100%; } }

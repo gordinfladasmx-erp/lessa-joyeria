@@ -88,3 +88,33 @@
     padding: 2rem 1rem;
   }
 }
+
+.destacados { max-width: 1280px; margin: 0 auto; padding: 2.5rem 1.25rem 0; }
+.destacados-cab { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.destacados-cab h2 { color: var(--primary); font-size: 1.7rem; }
+.estrella-titulo { color: #FFB400; }
+.ver-todo { color: var(--primary); font-weight: 600; text-decoration: none; }
+.ver-todo:hover { text-decoration: underline; }
+.admin-nota-landing { background: #fff3cd; border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem; }
+.grid-destacados { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.75rem; }
+.dest-card { background: white; border: 1px solid #f3dca0; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 4px rgba(255, 180, 0, 0.18); transition: transform 0.15s, box-shadow 0.15s; }
+.dest-card:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(255, 120, 0, 0.22); }
+.dest-foto { position: relative; aspect-ratio: 1 / 1; background: #fbf4f7; overflow: hidden; }
+.dest-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dest-foto .foto-placeholder { height: 100%; }
+.dest-foto .foto-placeholder img { width: 60%; height: auto; }
+.dest-foto .badge-dest, .dest-foto .estrella { top: 6px; right: 6px; width: 26px; height: 26px; font-size: 0.95rem; }
+.dest-foto .badge-agotado { top: 6px; left: 6px; font-size: 0.65rem; padding: 0.1rem 0.45rem; }
+.dest-card h3 { font-size: 0.78rem; font-weight: 600; padding: 0.45rem 0.5rem 0; line-height: 1.2; min-height: 2.1rem; color: var(--text); }
+.dest-precio { padding: 0 0.5rem; font-weight: 700; font-size: 0.95rem; color: var(--primary); }
+.btn-dest { margin: 0.4rem 0.5rem 0.55rem; padding: 0.45rem 0.3rem; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; color: #fff; background: linear-gradient(135deg, #FF7A00, #FF2E63); box-shadow: 0 2px 6px rgba(255, 70, 70, 0.35); }
+.btn-dest:hover { filter: brightness(1.08); }
+.btn-dest.ver { background: #fff; color: #FF2E63; border: 1.5px solid #FF2E63; box-shadow: none; }
+@media (max-width: 600px) {
+  .destacados { padding: 1.5rem 0.75rem 0; }
+  .destacados-cab h2 { font-size: 1.3rem; }
+  .grid-destacados { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .dest-card h3 { font-size: 0.68rem; padding: 0.35rem 0.35rem 0; min-height: 1.8rem; }
+  .dest-precio { font-size: 0.8rem; padding: 0 0.35rem; }
+  .btn-dest { font-size: 0.7rem; margin: 0.3rem 0.35rem 0.4rem; }
+}

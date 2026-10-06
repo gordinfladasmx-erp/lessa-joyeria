@@ -1,7 +1,66 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { sb } from '../lib/supabase'
+import Foto from '../components/Foto'
+import Estrella from '../components/Estrella'
+import { money } from '../lib/store'
 import '../styles/Landing.css'
 
-export default function Landing() {
+function Destacados({ onAddToCart, adminPass }) {
+  const [prods, setProds] = useState([])
+  const [cargado, setCargado] = useState(false)
+  const [aviso, setAviso] = useState({})
+
+  useEffect(() => {
+    sb.from('productos').select('*').eq('activo', true).eq('destacado', true)
+      .order('stock', { ascending: false }).order('sku').limit(300)
+      .then(({ data }) => { setProds(data || []); setCargado(true) })
+  }, [])
+
+  const agregar = (p) => {
+    const msg = onAddToCart(p, false)
+    setAviso((a) => ({ ...a, [p.id]: msg || '✓ Agregado' }))
+    setTimeout(() => setAviso((a) => ({ ...a, [p.id]: '' })), 1800)
+  }
+
+  if (!cargado || (prods.length === 0 && !adminPass)) return null
+  return (
+    <section className="destacados">
+      <div className="destacados-cab">
+        <h2><span className="estrella-titulo">★</span> Productos destacados</h2>
+        <Link to="/catalogo" className="ver-todo">Ver todo el catálogo</Link>
+      </div>
+      {adminPass && <p className="admin-nota-landing">Modo edición: pulsa la estrella de una tarjeta para quitarla de destacados. Para agregar más, marca la estrella en el catálogo.</p>}
+      {prods.length === 0 ? <p>Aún no hay productos destacados.</p> : (
+        <div className="grid-destacados">
+          {prods.map((p) => {
+            const agotado = !(p.stock > 0)
+            return (
+              <div key={p.id} className={`dest-card ${agotado ? 'agotado' : ''}`}>
+                <div className="dest-foto">
+                  <Foto sku={p.sku} nombre={p.nombre} />
+                  {adminPass
+                    ? <Estrella producto={p} pass={adminPass} onCambio={(id, v) => !v && setProds((ps) => ps.filter((x) => x.id !== id))} />
+                    : <span className="badge-dest" title="Destacado">★</span>}
+                  {agotado && <span className="badge-agotado">Agotado</span>}
+                </div>
+                <h3>{p.nombre}</h3>
+                <p className="dest-precio">{money(p.precio)}</p>
+                {agotado ? (
+                  <Link to="/catalogo" className="btn-dest ver">Ver en catálogo</Link>
+                ) : (
+                  <button className="btn-dest" onClick={() => agregar(p)}>{aviso[p.id] || 'Agregar'}</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+export default function Landing({ onAddToCart, adminPass }) {
   return (
     <div className="landing">
       <div className="hero">
@@ -13,6 +72,8 @@ export default function Landing() {
           </Link>
         </div>
       </div>
+
+      <Destacados onAddToCart={onAddToCart} adminPass={adminPass} />
 
       <div className="features">
         <div className="feature">

@@ -116,7 +116,7 @@ export default function App() {
         </nav>
 
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Landing onAddToCart={addToCart} adminPass={adminPass} />} />
           <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} adminPass={adminPass} />} />
           <Route
             path="/carrito"

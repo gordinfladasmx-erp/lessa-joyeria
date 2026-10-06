@@ -1,21 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { sb } from '../lib/supabase'
-import { money, fotoUrl, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO } from '../lib/store'
+import Foto from '../components/Foto'
+import Estrella from '../components/Estrella'
+import { money, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO } from '../lib/store'
 import '../styles/Catalogo.css'
 
 const PAGINA = 48
-
-function Foto({ sku, nombre }) {
-  const [error, setError] = useState(false)
-  if (error) {
-    return (
-      <div className="foto-placeholder">
-        <img src="/logo.png" alt="" />
-      </div>
-    )
-  }
-  return <img src={fotoUrl(sku)} alt={nombre} loading="lazy" onError={() => setError(true)} />
-}
 
 export default function Catalogo({ cart, onAddToCart, adminPass }) {
   const [productos, setProductos] = useState([])
@@ -25,6 +15,7 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
   const [errorCarga, setErrorCarga] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [soloDisponibles, setSoloDisponibles] = useState(false)
+  const [soloDestacados, setSoloDestacados] = useState(false)
   const [visibles, setVisibles] = useState(PAGINA)
   const [aviso, setAviso] = useState('')
   const [preorden, setPreorden] = useState(null)
@@ -53,7 +44,7 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
     cargar()
   }, [])
 
-  useEffect(() => setVisibles(PAGINA), [selectedCategory, searchTerm, soloDisponibles])
+  useEffect(() => setVisibles(PAGINA), [selectedCategory, searchTerm, soloDisponibles, soloDestacados])
 
   const filtrados = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -61,9 +52,10 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
       (p) =>
         (!selectedCategory || p.categoria_id === selectedCategory) &&
         (!soloDisponibles || p.stock > 0) &&
+        (!soloDestacados || p.destacado) &&
         (!term || p.nombre?.toLowerCase().includes(term) || p.sku?.toLowerCase().includes(term))
     )
-  }, [productos, selectedCategory, searchTerm, soloDisponibles])
+  }, [productos, selectedCategory, searchTerm, soloDisponibles, soloDestacados])
 
   const conteo = useMemo(() => {
     const m = {}
@@ -124,10 +116,16 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
         ))}
       </div>
 
-      <label className="solo-disp">
-        <input type="checkbox" checked={soloDisponibles} onChange={(e) => setSoloDisponibles(e.target.checked)} />
-        Mostrar solo productos disponibles
-      </label>
+      <div className="filtros-extra">
+        <label className="solo-disp">
+          <input type="checkbox" checked={soloDisponibles} onChange={(e) => setSoloDisponibles(e.target.checked)} />
+          Mostrar solo productos disponibles
+        </label>
+        <label className="solo-disp solo-dest">
+          <input type="checkbox" checked={soloDestacados} onChange={(e) => setSoloDestacados(e.target.checked)} />
+          ★ Solo destacados
+        </label>
+      </div>
 
       {aviso && <div className="toast">{aviso}</div>}
 
@@ -143,6 +141,9 @@ export default function Catalogo({ cart, onAddToCart, adminPass }) {
                 <div className="foto-wrap">
                   <Foto sku={prod.sku} nombre={prod.nombre} />
                   {agotado && <span className="badge-agotado">Agotado</span>}
+                  {adminPass
+                    ? <Estrella producto={prod} pass={adminPass} onCambio={(id, v) => setProductos((ps) => ps.map((x) => (x.id === id ? { ...x, destacado: v } : x)))} />
+                    : prod.destacado && <span className="badge-dest" title="Destacado">★</span>}
                 </div>
                 <h3>{prod.nombre}</h3>
                 <p className="precio">{money(prod.precio)}</p>

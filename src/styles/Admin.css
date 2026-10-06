@@ -105,3 +105,6 @@
 .admin-tabla .stepper button { width: 36px; height: 36px; border: none; background: #fbeef3; color: var(--primary); font-size: 1.3rem; cursor: pointer; }
 .admin-tabla .stepper button:disabled { color: #ccc; cursor: not-allowed; }
 .admin-tabla .stepper input { width: 56px; height: 36px; border: none; text-align: center; font-size: 1rem; }
+
+.celda-estrella { text-align: center; }
+.celda-estrella .estrella { position: static; display: inline-flex; }

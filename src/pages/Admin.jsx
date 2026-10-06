@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import { money, fechaCorta, waNumber, mensajeError, mensajeConfirmacion, DIAS_APARTADO } from '../lib/store'
 import Reportes from './Reportes'
+import Estrella from '../components/Estrella'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
 import '../styles/Admin.css'
 
@@ -266,7 +267,7 @@ function InventarioActual({ pass }) {
 
   useEffect(() => {
     (async () => {
-      const r = (a, b) => sb.from('productos').select('id,sku,nombre,precio,stock,categoria_id,activo').eq('activo', true).order('sku').range(a, b)
+      const r = (a, b) => sb.from('productos').select('id,sku,nombre,precio,stock,categoria_id,activo,destacado').eq('activo', true).order('sku').range(a, b)
       const [c, p1, p2, p3] = await Promise.all([sb.from('categorias').select('*').order('nombre'), r(0, 999), r(1000, 1999), r(2000, 2999)])
       setCats(c.data || [])
       setProds([...(p1.data || []), ...(p2.data || []), ...(p3.data || [])])
@@ -328,7 +329,7 @@ function InventarioActual({ pass }) {
       {filas.length === 0 ? <p>No hay productos con existencia.</p> : (
         <div className="tabla-scroll">
           <table className="admin-tabla">
-            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th></tr></thead>
+            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th><th>Destacado</th></tr></thead>
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id}>
@@ -344,11 +345,12 @@ function InventarioActual({ pass }) {
                     </div>
                   </td>
                   <td className="der">{money(f.valor)}</td>
+                  <td className="celda-estrella"><Estrella producto={f} pass={pass} onCambio={(id, v) => setProds((ps) => ps.map((x) => (x.id === id ? { ...x, destacado: v } : x)))} /></td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td></tr>
+              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td><td></td></tr>
             </tfoot>
           </table>
         </div>

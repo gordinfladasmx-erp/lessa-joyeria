@@ -81,7 +81,8 @@ function Recibo({ r, cliente, onNuevo }) {
 
       {!todoMostrador && (
         <div className="aviso-enviar">
-          <strong>Paso final:</strong> pulsa el botón verde para enviar tu pedido a Lessa por WhatsApp. Sin ese envío, Lessa no lo recibe.
+          <strong>Paso final:</strong> pulsa el botón verde para enviar tu pedido a Lessa por WhatsApp
+          (<strong>{WA_TIENDA_VISIBLE}</strong>). Sin ese envío, Lessa no lo recibe.
         </div>
       )}
       <div className="recibo-acciones">

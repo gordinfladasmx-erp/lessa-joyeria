@@ -5,7 +5,7 @@ import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
-import { WA_TIENDA, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
+import { WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
 
 const leerCarrito = () => {
@@ -153,7 +153,7 @@ export default function App() {
           <p>
             Lessa Joyería | Contacto:{' '}
             <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a> | WhatsApp:{' '}
-            <a href={`https://wa.me/${WA_TIENDA}`}>+52 449 387 6360</a>
+            <a href={`https://wa.me/${WA_TIENDA}`}>{WA_TIENDA_VISIBLE}</a>
           </p>
           <p className="footer-ig">
             <a href="https://www.instagram.com/lessa_joyeria" target="_blank" rel="noreferrer" aria-label="Instagram de Lessa">

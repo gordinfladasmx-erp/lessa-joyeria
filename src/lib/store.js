@@ -1,4 +1,5 @@
-export const WA_TIENDA = '524493876360'
+export const WA_TIENDA = '524493876270'
+export const WA_TIENDA_VISIBLE = '+52 449 387 6270'
 export const EMAIL_TIENDA = 'alessandra.reyes04@gmail.com'
 export const CLABE = '638180010154516719'
 export const DIAS_PREORDEN = 15
@@ -78,5 +79,19 @@ export function mensajeConfirmacion(p) {
   if (f) t += `Fecha de entrega: ${fechaCorta(f)}\n`
   else if (p.tipo === 'apartado') t += `Tu pieza se aparta ${DIAS_APARTADO} días desde que confirmemos el pago.\n`
   t += `\nTransfiere la reserva a la CLABE *${CLABE}* y envíanos tu comprobante por WhatsApp indicando tu número de pedido.\n\nGracias por tu preferencia.`
+  return t
+}
+
+// Mensaje que el cliente envia a Lessa por WhatsApp para que Lessa revise el pedido en el panel.
+export function pedidoParaLessa(r, cliente) {
+  let t = `*NUEVO PEDIDO LESSA*\n`
+  t += r.pedidos.map((p) => `Pedido ${p.numero_pedido} (${p.tipo === 'encargo' ? 'encargo' : 'apartado'})`).join('\n')
+  t += `\n\n*Cliente:* ${cliente.nombre}\n*WhatsApp:* ${cliente.whatsapp}\n*Correo:* ${cliente.email}\n\n`
+  t += r.pedidos.map((p) => p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')).join('\n')
+  t += `\n\n*Total estimado: ${money(r.total)}*\n`
+  t += `*Entrega:* ${cliente.entrega === 'envio' ? `Envío local a ${cliente.direccion}` : 'Recoger'}\n`
+  if (cliente.solicitud) t += `*Código / solicitud de descuento:* ${cliente.solicitud}\n`
+  if (cliente.notas) t += `*Notas:* ${cliente.notas}\n`
+  t += `\nPor favor valida mi pedido (descuento, envío y fecha de entrega) y confírmame el valor final.`
   return t
 }

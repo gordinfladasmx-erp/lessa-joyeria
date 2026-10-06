@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import {
-  money, fotoUrl, waNumber, reciboTexto, fechaCorta, mensajeError,
-  WA_TIENDA, EMAIL_TIENDA, CLABE, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
+  money, fotoUrl, waNumber, reciboTexto, pedidoParaLessa, fechaCorta, mensajeError,
+  WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, CLABE, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
 } from '../lib/store'
 import '../styles/Carrito.css'
 
 function Recibo({ r, cliente, onNuevo }) {
   const texto = reciboTexto(r, cliente)
+  const textoLessa = pedidoParaLessa(r, cliente)
+  const todoMostrador = r.pedidos.every((p) => p.mostrador)
   const waCliente = waNumber(cliente.whatsapp)
   const fila = (i) => (
     <tr key={i.id}>
@@ -72,27 +74,29 @@ function Recibo({ r, cliente, onNuevo }) {
         ) : !r.pedidos.every((p) => p.mostrador) && (
           <p className="recibo-nota">
             Para confirmar tu reserva, transfiere el monto de la reserva a la CLABE <strong>{CLABE}</strong> y envía tu
-            comprobante por WhatsApp al +52 449 387 6360 indicando tu número de recibo.
+            comprobante por WhatsApp al {WA_TIENDA_VISIBLE} indicando tu número de recibo.
           </p>
         )}
       </div>
 
+      {!todoMostrador && (
+        <div className="aviso-enviar">
+          <strong>Paso final:</strong> pulsa el botón verde para enviar tu pedido a Lessa por WhatsApp. Sin ese envío, Lessa no lo recibe.
+        </div>
+      )}
       <div className="recibo-acciones">
-        {waCliente && (
+        {!todoMostrador ? (
+          <a className="btn-wa btn-grande" target="_blank" rel="noreferrer"
+            href={`https://wa.me/${WA_TIENDA}?text=${encodeURIComponent(textoLessa)}`}>
+            Enviar mi pedido a Lessa por WhatsApp
+          </a>
+        ) : waCliente && (
           <a className="btn-wa" target="_blank" rel="noreferrer"
             href={`https://wa.me/${waCliente}?text=${encodeURIComponent(texto)}`}>
-            Enviar recibo por WhatsApp
+            Enviar recibo al cliente por WhatsApp
           </a>
         )}
-        <a className="btn-mail"
-          href={`mailto:${cliente.email}?subject=${encodeURIComponent('Recibo Lessa')}&body=${encodeURIComponent(texto.replace(/\*/g, ''))}`}>
-          Enviar recibo por correo
-        </a>
         <button className="btn-secundario" onClick={() => window.print()}>Imprimir / guardar PDF</button>
-        <a className="btn-secundario" target="_blank" rel="noreferrer"
-          href={`https://wa.me/${WA_TIENDA}?text=${encodeURIComponent(texto)}`}>
-          Avisar a Lessa por WhatsApp
-        </a>
         <Link className="btn-secundario" to="/catalogo" onClick={onNuevo}>Seguir comprando</Link>
       </div>
     </div>
@@ -170,7 +174,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
         : 'No se pudo registrar el pedido: ' + mensajeError(err))
       return
     }
-    setRecibo({ r: data, cliente: { nombre: nombre.trim(), email: email.trim(), whatsapp: whatsapp.trim(), solicitud: solicitud.trim(), entrega, direccion: direccion.trim() } })
+    setRecibo({ r: data, cliente: { nombre: nombre.trim(), email: email.trim(), whatsapp: whatsapp.trim(), solicitud: solicitud.trim(), entrega, direccion: direccion.trim(), notas: notas.trim() } })
     onClear()
   }
 

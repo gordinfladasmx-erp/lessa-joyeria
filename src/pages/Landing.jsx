@@ -36,7 +36,7 @@ export default function Landing() {
         <h2>¿Preguntas?</h2>
         <p>Contactanos por WhatsApp o email</p>
         <div className="contact-buttons">
-          <a href="https://wa.me/524493876360" className="btn-whatsapp">
+          <a href="https://wa.me/524493876270" className="btn-whatsapp">
             💬 WhatsApp
           </a>
           <a href="mailto:alessandra.reyes04@gmail.com" className="btn-email">

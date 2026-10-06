@@ -71,6 +71,25 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
     setTimeout(() => setAviso(''), 4000)
   }
 
+  const borrarProducto = async (p) => {
+    if (!window.confirm(`¿Borrar DEFINITIVAMENTE ${p.nombre}? No se puede deshacer. El historial de ventas no se afecta.`)) return
+    const { error } = await sb.rpc('admin_borrar_producto', { p_pass: adminPass, p_id: p.id })
+    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_borrar_productos.sql en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
+    setOcultos((os) => os.filter((x) => x.id !== p.id))
+    setAviso(`${p.nombre} se borró definitivamente`)
+    setTimeout(() => setAviso(''), 3000)
+  }
+
+  const borrarTodosOcultos = async () => {
+    if (!window.confirm(`¿Borrar DEFINITIVAMENTE los ${ocultos.length} productos ocultos? No se puede deshacer. Revisa la lista antes de confirmar.`)) return
+    const { data, error } = await sb.rpc('admin_borrar_ocultos', { p_pass: adminPass })
+    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_borrar_productos.sql en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
+    setOcultos([])
+    setSoloOcultos(false)
+    setAviso(`${data} producto(s) borrados definitivamente`)
+    setTimeout(() => setAviso(''), 3500)
+  }
+
   const lista = useMemo(
     () => (adminPass ? [...productos, ...ocultos].sort((a, b) => a.id - b.id) : productos),
     [productos, ocultos, adminPass]
@@ -163,6 +182,13 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
         </label>
       </div>
 
+      {adminPass && soloOcultos && ocultos.length > 0 && (
+        <div className="barra-borrar">
+          <span>Estás viendo solo los productos ocultos. Puedes mostrarlos de nuevo o borrarlos.</span>
+          <button type="button" onClick={borrarTodosOcultos}>Borrar los {ocultos.length} ocultos</button>
+        </div>
+      )}
+
       {aviso && <div className="toast">{aviso}</div>}
 
       <div className="grid-productos">
@@ -213,7 +239,10 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
                   </div>
                 )}
                 {prod.activo === false ? (
-                  <button className="btn-carrito btn-mostrar" onClick={() => cambiarVisibilidad(prod, true)}>Mostrar en la tienda</button>
+                  <>
+                    <button className="btn-carrito btn-mostrar" onClick={() => cambiarVisibilidad(prod, true)}>Mostrar en la tienda</button>
+                    <button className="btn-carrito btn-borrar" onClick={() => borrarProducto(prod)}>Borrar definitivamente</button>
+                  </>
                 ) : agotado ? (
                   nPre > 0 ? (
                     <>

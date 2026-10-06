@@ -229,3 +229,8 @@
 .producto-card.oculto { background: #f1f1f1; border: 2px dashed #777; }
 .producto-card.oculto h3, .producto-card.oculto .precio { opacity: 0.6; }
 .badge-oculto { background: #222 !important; font-size: 0.8rem !important; letter-spacing: 0.08em; }
+
+.btn-borrar { background: #fff !important; color: #b3261e !important; border: 1.5px solid #b3261e !important; margin-top: -0.4rem; }
+.btn-borrar:hover { background: #b3261e !important; color: #fff !important; }
+.barra-borrar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: #fdecea; border: 1px solid #f1b8b3; border-radius: 10px; padding: 0.7rem 1rem; margin-bottom: 1.25rem; font-size: 0.9rem; }
+.barra-borrar button { background: #b3261e; color: #fff; border: none; border-radius: 8px; padding: 0.55rem 1.1rem; font-weight: 700; cursor: pointer; }

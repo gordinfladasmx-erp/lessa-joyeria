@@ -76,7 +76,7 @@ function usePedidos(pass) {
       (activo ? ' Las piezas apartadas regresan al inventario.' : '')
     if (window.confirm(t)) llamar('admin_borrar_pedido', { p_id: p.id }, 'Pedido borrado')
   }
-  return { pedidos, proveedor, lineas, msg, llamar, borrar }
+  return { pedidos, proveedor, lineas, msg, llamar, borrar, cargar, setMsg }
 }
 
 const ESTADOS = {
@@ -250,8 +250,102 @@ function LineaEditable({ cantidad, onGuardar, onQuitar, etiquetaQuitar = 'Quitar
   )
 }
 
+function Cotejo({ lote, pass, onCerrar, recargar }) {
+  const [rec, setRec] = useState(() => Object.fromEntries(lote.items.map((i) => [i.sku, String(i.recibido ?? i.cantidad)])))
+  const [msg, setMsg] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const cerrado = lote.estado === 'recibido'
+
+  const destino = (i, n) => {
+    const cust = Math.max(Number(i.cantidad) - Number(i.manual || 0), 0)
+    const alloc = Math.min(n, cust)
+    return { alloc, inv: n - alloc }
+  }
+
+  const confirmar = async (i) => {
+    const n = parseInt(rec[i.sku])
+    if (isNaN(n) || n < 0) return setMsg('Escribe la cantidad recibida (0 si no llegó).')
+    setOcupado(true)
+    const { data, error } = await sb.rpc('admin_confirmar_recepcion', { p_pass: pass, p_batch_id: lote.id, p_sku: i.sku, p_recibido: n })
+    setOcupado(false)
+    if (error) return setMsg(mensajeError(error))
+    setMsg(`${i.sku}: ${data.al_inventario} pieza(s) sumadas al inventario, ${data.para_clientes} separadas para clientes.${data.cerrado ? ' Pedido cerrado.' : ''}`)
+    recargar()
+  }
+
+  const confirmarTodas = async () => {
+    setOcupado(true)
+    for (const i of lote.items.filter((x) => !x.confirmado)) {
+      const n = parseInt(rec[i.sku])
+      if (isNaN(n) || n < 0) { setMsg(`Revisa la cantidad de ${i.sku}`); break }
+      const { error } = await sb.rpc('admin_confirmar_recepcion', { p_pass: pass, p_batch_id: lote.id, p_sku: i.sku, p_recibido: n })
+      if (error) { setMsg(mensajeError(error)); break }
+      setMsg('Líneas confirmadas e inventario actualizado.')
+    }
+    setOcupado(false)
+    recargar()
+  }
+
+  const cerrarForzado = async () => {
+    if (!window.confirm('¿Cerrar este pedido? Lo que no hayas confirmado se considera no recibido y lo de clientes vuelve a la lista por pedir.')) return
+    const { error } = await sb.rpc('admin_cerrar_pedido_proveedor', { p_pass: pass, p_batch_id: lote.id })
+    if (error) return setMsg(mensajeError(error))
+    recargar()
+  }
+
+  const pendientes = lote.items.filter((i) => !i.confirmado)
+  return (
+    <div className="modal-fondo" onClick={onCerrar}>
+      <div className="modal modal-ancho" onClick={(e) => e.stopPropagation()}>
+        <h2>Cotejar pedido #{lote.id}</h2>
+        <p className="admin-nota">
+          Captura lo que realmente llegó y confirma cada línea. Al confirmar, el inventario se actualiza al momento:
+          lo que corresponde a encargos de clientes se separa para ellos y el resto entra al inventario.
+        </p>
+        <div className="tabla-scroll">
+          <table className="admin-tabla">
+            <thead><tr><th>Código</th><th>Producto</th><th>Pedido</th><th>Recibido</th><th>Destino</th><th></th></tr></thead>
+            <tbody>
+              {lote.items.map((i) => {
+                const n = parseInt(rec[i.sku]); const ok = !isNaN(n)
+                const d = ok ? destino(i, n) : { alloc: 0, inv: 0 }
+                const dif = ok ? n - Number(i.cantidad) : 0
+                const fila = i.confirmado ? destino(i, Number(i.recibido)) : d
+                return (
+                  <tr key={i.sku} className={i.confirmado ? 'fila-ok' : ''}>
+                    <td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td>
+                    <td>
+                      {i.confirmado ? <strong>{i.recibido}</strong> : (
+                        <input type="number" min="0" value={rec[i.sku]} className="input-cotejo"
+                          onChange={(e) => setRec({ ...rec, [i.sku]: e.target.value })} />
+                      )}
+                      {!i.confirmado && dif !== 0 && <small className={dif < 0 ? 'por-cobrar' : 'ok'}> {dif < 0 ? `faltan ${-dif}` : `sobran ${dif}`}</small>}
+                    </td>
+                    <td className="destino">{fila.alloc > 0 && <span>Clientes: {fila.alloc}</span>}{fila.inv > 0 && <span>Inventario: +{fila.inv}</span>}</td>
+                    <td>{i.confirmado ? <span className="pill entregado">Confirmado</span> : (
+                      <button className="verde" disabled={ocupado || cerrado} onClick={() => confirmar(i)}>Confirmar</button>
+                    )}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {msg && <p className="admin-nota">{msg}</p>}
+        {cerrado && <p className="ok-msg">Pedido cerrado. Lo que faltó de encargos de clientes regresó a la lista por pedir.</p>}
+        <div className="pedido-acciones">
+          {!cerrado && pendientes.length > 0 && <button className="verde" disabled={ocupado} onClick={confirmarTodas}>Confirmar todas las pendientes</button>}
+          {!cerrado && <button className="rojo" onClick={cerrarForzado}>Cerrar sin confirmar lo demás</button>}
+          <button onClick={onCerrar}>{cerrado ? 'Listo' : 'Cerrar ventana'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Proveedor({ pass }) {
-  const { pedidos, proveedor, lineas, msg, llamar } = usePedidos(pass)
+  const { pedidos, proveedor, lineas, msg, llamar, cargar } = usePedidos(pass)
+  const [cotejando, setCotejando] = useState(null)
   const [conPendientes, setConPendientes] = useState(false)
   const [generando, setGenerando] = useState(false)
   const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
@@ -383,12 +477,13 @@ function Proveedor({ pass }) {
           </div>
           <div className="pedido-acciones">
             <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
-            <button className="verde" onClick={() => llamar('admin_recibir_proveedor', { p_id: x.id }, 'Recibido: encargos listos y reposición sumada al inventario')}>
-              Ya llegó este pedido
-            </button>
+            <button className="verde" onClick={() => setCotejando(x.id)}>Ya llegó: cotejar y recibir</button>
           </div>
         </div>
       ))}
+      {cotejando && proveedor.find((x) => x.id === cotejando) && (
+        <Cotejo lote={proveedor.find((x) => x.id === cotejando)} pass={pass} onCerrar={() => setCotejando(null)} recargar={cargar} />
+      )}
     </div>
   )
 }
@@ -426,7 +521,7 @@ function Historial({ pass }) {
                 {x.estado === 'recibido' ? `Recibido ${fechaCorta(x.recibido_at)}` : 'En camino'}
               </span>
             </div>
-            <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
+            <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku}){i.confirmado ? ` | recibido: ${i.recibido}` : ''}</li>)}</ul>
             <div className="pedido-acciones">
               <button onClick={() => pdfPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
             </div>

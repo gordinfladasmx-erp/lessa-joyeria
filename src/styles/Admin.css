@@ -89,3 +89,9 @@
 .linea-nueva { max-width: none; margin-top: 1.25rem; background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; }
 .linea-nueva-fila { display: grid; grid-template-columns: 1.2fr 0.7fr 1.6fr auto; gap: 0.5rem; margin-top: 0.5rem; }
 @media (max-width: 768px) { .linea-nueva-fila { grid-template-columns: 1fr 1fr; } }
+
+.modal-ancho { max-width: 860px; max-height: 90vh; overflow-y: auto; }
+.input-cotejo { width: 80px; padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; text-align: center; }
+.fila-ok { background: #f1faf4; }
+.destino span { display: block; font-size: 0.85rem; }
+.ok-msg { color: #2e7d4f; background: #e6f4ec; padding: 0.5rem 0.75rem; border-radius: 6px; margin: 0.5rem 0; }

@@ -123,3 +123,5 @@
 .marca-lessa { width: min(420px, 78vw); height: auto; display: block; }
 .marca-joyeria { margin-top: 0.35rem; font-family: 'Bodoni Moda', 'Didot', 'Playfair Display', Georgia, serif; font-weight: 500; font-size: clamp(1.1rem, 3.2vw, 1.7rem); letter-spacing: 0.55em; padding-left: 0.55em; color: #970B3E; text-transform: lowercase; }
 .hero-content p { font-family: 'Bodoni Moda', Georgia, serif; font-size: 1.15rem; color: #5a2a3a; opacity: 1; }
+.hero .btn-primary { background: #970B3E; color: #fff; }
+.hero .btn-primary:hover { background: #7d0933; }

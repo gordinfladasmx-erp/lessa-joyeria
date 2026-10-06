@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BotonAmpliar } from '../components/Foto'
 import { sb } from '../lib/supabase'
 import {
   money, fotoUrl, waNumber, reciboTexto, pedidoParaLessa, fechaCorta, mensajeError,
@@ -193,7 +194,10 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
 
   const renderItem = (item) => (
     <div key={item.key} className="carrito-item">
-      <img src={fotoUrl(item.sku)} alt={item.nombre} onError={(e) => { e.currentTarget.src = '/logo.png' }} />
+      <div className="cart-foto">
+        <img src={fotoUrl(item.sku)} alt={item.nombre} onError={(e) => { e.currentTarget.src = '/logo.png' }} />
+        <BotonAmpliar sku={item.sku} nombre={item.nombre} chico />
+      </div>
       <div className="item-info">
         <h3>{item.nombre}</h3>
         <p className="precio">{money(item.precio)}</p>

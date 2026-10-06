@@ -100,3 +100,8 @@
 .admin-tabla tfoot td { background: #fbeef3; padding: 0.7rem; border-top: 2px solid var(--primary-light); }
 .select-cat { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: white; }
 @media (max-width: 768px) { .admin-busqueda { flex-wrap: wrap; } .admin-busqueda input { flex: 1 1 100%; } }
+
+.admin-tabla .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: white; }
+.admin-tabla .stepper button { width: 36px; height: 36px; border: none; background: #fbeef3; color: var(--primary); font-size: 1.3rem; cursor: pointer; }
+.admin-tabla .stepper button:disabled { color: #ccc; cursor: not-allowed; }
+.admin-tabla .stepper input { width: 56px; height: 36px; border: none; text-align: center; font-size: 1rem; }

@@ -43,7 +43,7 @@ export default function Admin({ adminPass, onLogin }) {
       {tab === 'pendientes' && <Pendientes pass={adminPass} />}
       {tab === 'proveedor' && <Proveedor pass={adminPass} />}
       {tab === 'historial' && <Historial pass={adminPass} />}
-      {tab === 'inventario' && <InventarioActual />}
+      {tab === 'inventario' && <InventarioActual pass={adminPass} />}
       {tab === 'reportes' && <Reportes pass={adminPass} />}
       {tab === 'nuevo' && <Nuevo pass={adminPass} />}
     </div>
@@ -254,13 +254,15 @@ function LineaEditable({ cantidad, onGuardar, onQuitar, etiquetaQuitar = 'Quitar
 
 const COSTO_PCT = 0.5
 
-function InventarioActual() {
+function InventarioActual({ pass }) {
   const [prods, setProds] = useState([])
   const [cats, setCats] = useState([])
   const [cargando, setCargando] = useState(true)
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
   const [conAgotados, setConAgotados] = useState(false)
+  const [tocados, setTocados] = useState({})
+  const [aviso, setAviso] = useState('')
 
   useEffect(() => {
     (async () => {
@@ -275,10 +277,17 @@ function InventarioActual() {
   const nomCat = Object.fromEntries(cats.map((c) => [c.id, c.nombre]))
   const term = q.trim().toLowerCase()
   const filas = prods
-    .filter((p) => (conAgotados || Number(p.stock) > 0) && (!cat || String(p.categoria_id) === cat) &&
+    .filter((p) => (conAgotados || Number(p.stock) > 0 || tocados[p.id]) && (!cat || String(p.categoria_id) === cat) &&
       (!term || p.sku.toLowerCase().includes(term) || p.nombre.toLowerCase().includes(term)))
     .map((p) => ({ ...p, categoria: nomCat[p.categoria_id] || 'Sin categoría', costo: p.precio * COSTO_PCT, valor: p.precio * COSTO_PCT * Number(p.stock) }))
     .sort((a, b) => a.categoria.localeCompare(b.categoria) || a.sku.localeCompare(b.sku))
+  const ajustar = async (f, delta, fijo = null) => {
+    const { data, error } = await sb.rpc('admin_adjust_stock', { p_pass: pass, p_id: f.id, p_delta: delta, p_set: fijo })
+    if (error) return setAviso('No se pudo guardar: ' + mensajeError(error))
+    setAviso('')
+    setTocados((t) => ({ ...t, [f.id]: true }))
+    setProds((ps) => ps.map((x) => (x.id === f.id ? { ...x, stock: data } : x)))
+  }
   const piezas = filas.reduce((s, f) => s + Number(f.stock), 0)
   const valorCosto = filas.reduce((s, f) => s + f.valor, 0)
   const valorVenta = filas.reduce((s, f) => s + f.precio * Number(f.stock), 0)
@@ -303,7 +312,8 @@ function InventarioActual() {
         <div className="kpi"><span className="kpi-t">Valor del inventario (a costo)</span><strong>{money(valorCosto)}</strong></div>
         <div className="kpi"><span className="kpi-t">Valor a precio de venta</span><strong>{money(valorVenta)}</strong></div>
       </div>
-      <p className="admin-nota">Costo = 50% del precio de venta. Valor del inventario = costo x cantidad. Para ajustar existencias entra al catálogo con tu sesión y usa + y −.</p>
+      <p className="admin-nota">Costo = 50% del precio de venta. Valor del inventario = costo x cantidad. Ajusta la cantidad de cada línea con + y −, o escribe el número. Para sumar un producto agotado activa "Incluir productos agotados".</p>
+      {aviso && <p className="admin-error">{aviso}</p>}
       <div className="admin-busqueda">
         <input placeholder="Buscar por código o producto..." value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={cat} onChange={(e) => setCat(e.target.value)} className="select-cat">
@@ -324,7 +334,16 @@ function InventarioActual() {
                 <tr key={f.id}>
                   <td>{f.categoria}</td><td>{f.nombre}</td><td>{f.sku}</td>
                   <td className="der">{money(f.precio)}</td><td className="der">{money(f.costo)}</td>
-                  <td className="der"><strong>{f.stock}</strong></td><td className="der">{money(f.valor)}</td>
+                  <td className="der">
+                    <div className="stepper">
+                      <button onClick={() => ajustar(f, -1)} disabled={Number(f.stock) <= 0}>−</button>
+                      <input type="number" min="0" value={f.stock}
+                        onChange={(e) => setProds(prods.map((x) => (x.id === f.id ? { ...x, stock: e.target.value } : x)))}
+                        onBlur={(e) => ajustar(f, 0, Math.max(0, parseInt(e.target.value) || 0))} />
+                      <button onClick={() => ajustar(f, 1)}>+</button>
+                    </div>
+                  </td>
+                  <td className="der">{money(f.valor)}</td>
                 </tr>
               ))}
             </tbody>

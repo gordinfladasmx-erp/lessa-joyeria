@@ -8,7 +8,7 @@ import '../styles/Admin.css'
 
 const TABS = [
   ['pendientes', 'Pendientes de entrega'],
-  ['proveedor', 'Por pedir al proveedor'],
+  ['proveedor', 'Pedidos a proveedor'],
   ['historial', 'Historial'],
   ['reportes', 'Reportes'],
   ['nuevo', 'Nuevo producto'],
@@ -51,15 +51,18 @@ export default function Admin({ adminPass, onLogin }) {
 function usePedidos(pass) {
   const [pedidos, setPedidos] = useState([])
   const [proveedor, setProveedor] = useState([])
+  const [lineas, setLineas] = useState([])
   const [msg, setMsg] = useState('')
   const cargar = useCallback(async () => {
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
       sb.rpc('admin_listar_pedidos', { p_pass: pass }),
       sb.rpc('admin_listar_proveedor', { p_pass: pass }),
+      sb.rpc('admin_listar_proveedor_lineas', { p_pass: pass }),
     ])
-    if (a.error) setMsg(mensajeError(a.error))
-    else if (b.error) setMsg(mensajeError(b.error))
-    else { setPedidos(a.data || []); setProveedor(b.data || []); setMsg('') }
+    if (a.error) return setMsg(mensajeError(a.error))
+    if (b.error) return setMsg(mensajeError(b.error))
+    setPedidos(a.data || []); setProveedor(b.data || []); setLineas(c.data || [])
+    setMsg(c.error ? 'Para editar líneas del proveedor falta ejecutar supabase_lessa_proveedor_lineas.sql en Supabase.' : '')
   }, [pass])
   useEffect(() => { cargar() }, [cargar])
   const llamar = async (fn, args, ok) => {
@@ -73,7 +76,7 @@ function usePedidos(pass) {
       (activo ? ' Las piezas apartadas regresan al inventario.' : '')
     if (window.confirm(t)) llamar('admin_borrar_pedido', { p_id: p.id }, 'Pedido borrado')
   }
-  return { pedidos, proveedor, msg, llamar, borrar }
+  return { pedidos, proveedor, lineas, msg, llamar, borrar }
 }
 
 const ESTADOS = {
@@ -233,28 +236,44 @@ function Pendientes({ pass }) {
   )
 }
 
+function LineaEditable({ cantidad, onGuardar, onQuitar, etiquetaQuitar = 'Quitar' }) {
+  const [v, setV] = useState(String(cantidad))
+  useEffect(() => setV(String(cantidad)), [cantidad])
+  const n = parseInt(v) || 0
+  const cambio = n > 0 && n !== cantidad
+  return (
+    <div className="linea-edit">
+      <input type="number" min="1" value={v} onChange={(e) => setV(e.target.value)} />
+      <button className="verde" disabled={!cambio} onClick={() => onGuardar(n)}>Guardar</button>
+      <button className="rojo" onClick={onQuitar}>{etiquetaQuitar}</button>
+    </div>
+  )
+}
+
 function Proveedor({ pass }) {
-  const { pedidos, proveedor, msg, llamar } = usePedidos(pass)
+  const { pedidos, proveedor, lineas, msg, llamar } = usePedidos(pass)
   const [conPendientes, setConPendientes] = useState(false)
   const [generando, setGenerando] = useState(false)
+  const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
 
-  const encargos = pedidos.filter((p) => p.tipo === 'encargo' && p.proveedor_estado !== 'pedido' && p.proveedor_estado !== 'recibido' && p.estado !== 'cancelado' && p.estado !== 'entregado')
-  const listos = encargos.filter((p) => p.estado === 'confirmado')
-  const pendientes = encargos.filter((p) => p.estado === 'por_confirmar')
+  const encargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
+  const filasCli = []
+  encargos.forEach((p) => p.items.forEach((i, idx) => filasCli.push({ p, idx, i, listo: p.estado === 'confirmado' })))
   const enCamino = proveedor.filter((x) => x.estado === 'pedido')
+  const listos = encargos.filter((p) => p.estado === 'confirmado')
 
-  const resumir = (lista) => {
+  const resumir = (arr) => {
     const m = {}
-    lista.forEach((p) => p.items.forEach((i) => {
-      m[i.sku] = m[i.sku] || { sku: i.sku, nombre: i.nombre, cantidad: 0, clientes: [] }
-      m[i.sku].cantidad += i.cantidad
-      m[i.sku].clientes.push(p.nombre_cliente)
-    }))
+    arr.forEach(({ sku, nombre, cantidad }) => {
+      m[sku] = m[sku] || { sku, nombre, cantidad: 0 }
+      m[sku].cantidad += cantidad
+    })
     return Object.values(m).sort((a, b) => a.sku.localeCompare(b.sku))
   }
-  const resListos = resumir(listos)
-  const resPend = resumir(pendientes)
-  const paraPdf = resumir(conPendientes ? [...listos, ...pendientes] : listos)
+  const paraPdf = resumir([
+    ...filasCli.filter((f) => conPendientes || f.listo).map((f) => ({ sku: f.i.sku, nombre: f.i.nombre, cantidad: f.i.cantidad })),
+    ...lineas.map((l) => ({ sku: l.sku, nombre: l.nombre, cantidad: l.cantidad })),
+  ])
 
   const pdf = async (lista, titulo) => {
     setGenerando(true)
@@ -264,46 +283,81 @@ function Proveedor({ pass }) {
     const t = 'Pedido a proveedor Lessa\n' + paraPdf.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
     try { await navigator.clipboard.writeText(t); alert('Lista copiada') } catch { alert(t) }
   }
-
-  const tabla = (lista, estado) => (
-    <div className="tabla-scroll">
-      <table className="admin-tabla">
-        <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Clientes</th><th>Reserva</th></tr></thead>
-        <tbody>{lista.map((i) => (
-          <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td><td>{i.clientes.join(', ')}</td>
-            <td><span className={`pill ${estado === 'ok' ? 'entregado' : 'pendiente'}`}>{estado === 'ok' ? 'pagada' : 'falta pagar'}</span></td></tr>
-        ))}</tbody>
-      </table>
-    </div>
-  )
+  const agregar = async (e) => {
+    e.preventDefault()
+    await llamar('admin_agregar_linea_proveedor', { p_sku: nuevo.sku.trim(), p_cantidad: parseInt(nuevo.cantidad) || 0, p_nota: nuevo.nota }, 'Pieza agregada a la lista')
+    setNuevo({ sku: '', cantidad: '1', nota: '' })
+  }
+  const hayAlgo = filasCli.length > 0 || lineas.length > 0
 
   return (
     <div>
       {msg && <p className="admin-nota">{msg}</p>}
-      <h2>Lista de encargos por pedir al proveedor</h2>
-      <p className="admin-nota">Aquí se suman todos los encargos de clientes. Los de reserva pagada están listos para pedirse.</p>
+      <h2>Pedidos a proveedor: lista por pedir</h2>
+      <p className="admin-nota">
+        Aquí se suman los encargos de clientes y las piezas que quieras reponer para el inventario. Cada línea se puede
+        cambiar de cantidad o quitar. Al marcar "Ya llegó", las piezas de reposición se suman solas al inventario.
+      </p>
 
-      <h3 className="sub-titulo">Listos para pedir (reserva pagada)</h3>
-      {resListos.length === 0 ? <p>Ninguno por ahora.</p> : tabla(resListos, 'ok')}
-      <h3 className="sub-titulo">Encargos que aún no pagan la reserva</h3>
-      {resPend.length === 0 ? <p>Ninguno.</p> : tabla(resPend, 'falta')}
+      {!hayAlgo ? <p>No hay nada por pedir.</p> : (
+        <div className="tabla-scroll">
+          <table className="admin-tabla">
+            <thead><tr><th>Código</th><th>Producto</th><th>Para</th><th>Cantidad</th></tr></thead>
+            <tbody>
+              {filasCli.map(({ p, idx, i, listo }) => (
+                <tr key={p.id + '-' + idx}>
+                  <td>{i.sku}</td><td>{i.nombre}</td>
+                  <td>{p.nombre_cliente} <span className={`pill ${listo ? 'entregado' : 'pendiente'}`}>{listo ? 'reserva pagada' : 'falta reserva'}</span></td>
+                  <td>
+                    <LineaEditable cantidad={i.cantidad}
+                      onGuardar={(n) => llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: n }, 'Cantidad actualizada y total del pedido recalculado')}
+                      onQuitar={() => { if (window.confirm(`¿Quitar ${i.nombre} del pedido de ${p.nombre_cliente}? Se recalcula el total de su pedido.`)) llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: 0 }, 'Línea quitada') }} />
+                  </td>
+                </tr>
+              ))}
+              {lineas.map((l) => (
+                <tr key={'l' + l.id}>
+                  <td>{l.sku}</td><td>{l.nombre}</td>
+                  <td><span className="pill encargo">Reposición de inventario</span> {l.nota}</td>
+                  <td>
+                    <LineaEditable cantidad={l.cantidad}
+                      onGuardar={(n) => llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: n }, 'Cantidad actualizada')}
+                      onQuitar={() => { if (window.confirm('¿Quitar esta pieza de la lista?')) llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: 0 }, 'Línea quitada') }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {(resListos.length > 0 || resPend.length > 0) && (
+      <form className="admin-form linea-nueva" onSubmit={agregar}>
+        <strong>Agregar pieza para reponer inventario</strong>
+        <div className="linea-nueva-fila">
+          <input required placeholder="Código (SKU)" value={nuevo.sku} onChange={(e) => setNuevo({ ...nuevo, sku: e.target.value })} />
+          <input required type="number" min="1" placeholder="Cantidad" value={nuevo.cantidad} onChange={(e) => setNuevo({ ...nuevo, cantidad: e.target.value })} />
+          <input placeholder="Nota (opcional)" value={nuevo.nota} onChange={(e) => setNuevo({ ...nuevo, nota: e.target.value })} />
+          <button type="submit">Agregar</button>
+        </div>
+      </form>
+
+      {hayAlgo && (
         <>
           <label className="solo-disp" style={{ marginTop: '1rem' }}>
             <input type="checkbox" checked={conPendientes} onChange={(e) => setConPendientes(e.target.checked)} />
-            Incluir en el PDF y la lista copiada los que aún no pagan reserva
+            Incluir en el PDF y la lista copiada los encargos que aún no pagan reserva
           </label>
           <div className="pedido-acciones">
             <button disabled={generando || paraPdf.length === 0} onClick={() => pdf(paraPdf, 'Pedido a proveedor')}>
               {generando ? 'Generando...' : 'Descargar PDF para enviar'}
             </button>
             <button disabled={paraPdf.length === 0} onClick={copiar}>Copiar lista</button>
-            <button className="verde" disabled={listos.length === 0}
+            <button className="verde" disabled={listos.length === 0 && lineas.length === 0}
               onClick={() => llamar('admin_pedir_proveedor', {}, 'Pedido al proveedor registrado')}>
-              Ya hice el pedido al proveedor ({listos.length} encargo{listos.length === 1 ? '' : 's'})
+              Ya hice el pedido al proveedor
             </button>
           </div>
+          <p className="pedido-notas">El pedido incluye los encargos con reserva pagada ({listos.length}) y las piezas de reposición ({lineas.length}).</p>
         </>
       )}
 
@@ -311,10 +365,25 @@ function Proveedor({ pass }) {
       {enCamino.length === 0 ? <p>Nada en camino.</p> : enCamino.map((x) => (
         <div className="pedido-card" key={x.id}>
           <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span></div>
-          <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
+          <div className="tabla-scroll">
+            <table className="admin-tabla">
+              <thead><tr><th>Código</th><th>Producto</th><th>Detalle</th><th>Cantidad</th></tr></thead>
+              <tbody>{x.items.map((i) => (
+                <tr key={i.sku}>
+                  <td>{i.sku}</td><td>{i.nombre}</td>
+                  <td>{Number(i.manual) > 0 ? `${i.manual} para inventario` : 'para clientes'}</td>
+                  <td>
+                    <LineaEditable cantidad={i.cantidad}
+                      onGuardar={(n) => llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: n }, 'Cantidad actualizada')}
+                      onQuitar={() => { if (window.confirm(`¿Quitar ${i.sku} de este pedido al proveedor?`)) llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: 0 }, 'Línea quitada') }} />
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
           <div className="pedido-acciones">
             <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
-            <button className="verde" onClick={() => llamar('admin_recibir_proveedor', { p_id: x.id }, 'Marcado como recibido')}>
+            <button className="verde" onClick={() => llamar('admin_recibir_proveedor', { p_id: x.id }, 'Recibido: encargos listos y reposición sumada al inventario')}>
               Ya llegó este pedido
             </button>
           </div>

@@ -289,32 +289,7 @@ begin
    where id = p_id;
 end $$;
 
--- Junta todos los encargos confirmados y crea el pedido al proveedor.
-create or replace function admin_pedir_proveedor(p_pass text) returns bigint
-language plpgsql security definer set search_path = public as $$
-declare ids bigint[]; agg jsonb; nid bigint;
-begin
-  if not lessa_admin_ok(p_pass) then raise exception 'No autorizado'; end if;
-  select array_agg(id) into ids from pedidos
-   where tipo = 'encargo' and estado = 'confirmado' and proveedor_estado = 'por_pedir';
-  if ids is null then raise exception 'No hay encargos por pedir'; end if;
-  select jsonb_agg(jsonb_build_object('sku', sku, 'nombre', nombre, 'cantidad', cant)) into agg from (
-    select i->>'sku' as sku, max(i->>'nombre') as nombre, sum((i->>'cantidad')::int) as cant
-      from pedidos p, jsonb_array_elements(p.items) i where p.id = any(ids) group by i->>'sku' order by 1) x;
-  insert into pedidos_proveedor(items, pedido_ids) values (agg, ids) returning id into nid;
-  update pedidos set proveedor_estado = 'pedido', proveedor_pedido_id = nid, entrega_estimada = current_date + 15,
-         updated_at = now() where id = any(ids);
-  return nid;
-end $$;
 
-create or replace function admin_recibir_proveedor(p_pass text, p_id bigint) returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  if not lessa_admin_ok(p_pass) then raise exception 'No autorizado'; end if;
-  update pedidos_proveedor set estado = 'recibido', recibido_at = now() where id = p_id;
-  update pedidos set proveedor_estado = 'recibido', updated_at = now()
-   where proveedor_pedido_id = p_id and estado <> 'cancelado';
-end $$;
 
 revoke execute on function lessa_restock(jsonb) from public, anon, authenticated;
 
@@ -329,7 +304,5 @@ grant execute on function admin_listar_proveedor(text) to anon, authenticated;
 grant execute on function admin_registrar_pago(text,bigint,numeric,text) to anon, authenticated;
 grant execute on function admin_entregar(text,bigint,boolean) to anon, authenticated;
 grant execute on function admin_cancelar(text,bigint) to anon, authenticated;
-grant execute on function admin_pedir_proveedor(text) to anon, authenticated;
-grant execute on function admin_recibir_proveedor(text,bigint) to anon, authenticated;
 
 notify pgrst, 'reload schema';

@@ -1,5 +1,5 @@
-export const WA_TIENDA = '524493876270'
-export const WA_TIENDA_VISIBLE = '+52 449 387 6270'
+export const WA_TIENDA = '524493876360'
+export const WA_TIENDA_VISIBLE = '+52 449 387 6360'
 export const EMAIL_TIENDA = 'alessandra.reyes04@gmail.com'
 export const CLABE = '638180010154516719'
 export const DIAS_PREORDEN = 15

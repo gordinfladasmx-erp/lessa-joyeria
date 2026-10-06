@@ -245,3 +245,42 @@ form {
     display: none;
   }
 }
+
+.grupo-titulo { padding: 0.9rem 1rem; background: #fbeef3; color: var(--primary); font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+.tag-encargo { font-size: 0.8rem; color: #8a5a00; background: #fff3cd; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; margin-top: 0.25rem; }
+.item-quantity button:disabled { color: #ccc; cursor: not-allowed; }
+.descuento-box { background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; margin: 0.75rem 0; }
+.descuento-box label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.descuento-fila { display: flex; gap: 0.5rem; }
+.descuento-fila input { flex: 1; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+.segmento { display: flex; border: 1px solid var(--primary); border-radius: 8px; overflow: hidden; }
+.segmento button { border: none; background: white; color: var(--primary); padding: 0 1rem; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.segmento button.on { background: var(--primary); color: white; }
+.aviso-anticipo { margin-top: 0.75rem; background: #fff3cd; border-radius: 8px; padding: 0.75rem; font-size: 0.9rem; line-height: 1.4; }
+.error-msg { color: #b3261e; background: #fdecea; padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.9rem; }
+.legal { font-size: 0.8rem; color: var(--text-light); margin-top: 0.75rem; text-align: center; }
+
+.carrito.recibo-pagina { max-width: 760px; }
+.recibo { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 2rem; }
+.recibo-cabecera { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid var(--primary); padding-bottom: 1rem; }
+.recibo-cabecera img { width: 72px; height: 72px; border-radius: 12px; }
+.recibo-cabecera h2 { color: var(--primary); }
+.recibo h3 { margin: 1.25rem 0 0.5rem; font-size: 1rem; color: var(--primary); }
+.recibo table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.recibo th { text-align: left; border-bottom: 1px solid var(--border); padding: 0.4rem 0; }
+.recibo td { padding: 0.4rem 0; border-bottom: 1px solid #f0f0f0; }
+.recibo .num { text-align: right; }
+.recibo-totales { margin-top: 1.25rem; margin-left: auto; max-width: 320px; }
+.recibo-totales div { display: flex; justify-content: space-between; padding: 0.2rem 0; }
+.recibo-totales .grande { font-weight: 700; font-size: 1.15rem; color: var(--primary); border-top: 1px solid var(--border); margin-top: 0.3rem; padding-top: 0.5rem; }
+.recibo-nota { margin-top: 1rem; background: #fff3cd; padding: 0.75rem; border-radius: 8px; font-size: 0.9rem; }
+.recibo-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+.recibo-acciones a, .recibo-acciones button { text-decoration: none; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+.btn-wa { background: #25D366; color: white; border: none; }
+.btn-mail { background: var(--primary); color: white; border: none; }
+.recibo-acciones .btn-secundario { background: white; color: var(--text); border: 1px solid var(--border); }
+
+@media print {
+  .navbar, .footer, .recibo-acciones { display: none !important; }
+  .recibo { border: none; }
+}

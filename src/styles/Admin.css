@@ -1,0 +1,44 @@
+.admin { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.admin-top { display: flex; justify-content: space-between; align-items: center; }
+.admin h1, .admin h2 { color: var(--primary); }
+.admin-salir { background: #888; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; }
+.admin-nota { background: #fbf4f7; border: 1px solid var(--primary-light); padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.75rem 0; font-size: 0.9rem; }
+.admin-error { color: #b3261e; background: #fdecea; padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.75rem 0; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 1.5rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.75rem; }
+.admin-tabs button, .admin-subtabs button { background: white; border: 1px solid var(--primary-light); color: var(--primary); padding: 0.6rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.95rem; }
+.admin-tabs button.on, .admin-subtabs button.on { background: var(--primary); color: white; border-color: var(--primary); }
+.admin-subtabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.admin-login { max-width: 360px; margin: 4rem auto; text-align: center; padding: 1rem; }
+.admin-login img { width: 120px; border-radius: 16px; }
+.admin-login h1 { color: var(--primary); margin: 1rem 0; font-size: 1.4rem; }
+.admin-login input { width: 100%; padding: 0.75rem; margin-bottom: 0.75rem; font-size: 1rem; border: 1px solid var(--border); border-radius: 8px; }
+.admin-login button { width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+.admin-busqueda { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.admin-busqueda input { flex: 1; padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+.admin-busqueda button, .admin-form button { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 0.7rem 1.4rem; cursor: pointer; font-size: 1rem; }
+.admin-tabla { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+.admin-tabla th { text-align: left; background: #fbeef3; color: var(--primary); padding: 0.7rem; font-size: 0.85rem; }
+.admin-tabla td { padding: 0.6rem 0.7rem; border-bottom: 1px solid #f0f0f0; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.stepper button { width: 38px; height: 38px; border: none; background: #fbeef3; color: var(--primary); font-size: 1.3rem; cursor: pointer; }
+.stepper input { width: 56px; height: 38px; border: none; text-align: center; font-size: 1rem; }
+.admin-form { display: grid; gap: 0.75rem; max-width: 460px; }
+.admin-form input, .admin-form select { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+.pedido-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.pedido-cab { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.5rem; }
+.pedido-cliente { margin-bottom: 0.5rem; }
+.pedido-card ul { margin: 0.5rem 0 0.75rem 1.2rem; }
+.pedido-dinero { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.95rem; }
+.por-cobrar { color: #b3261e; font-weight: 700; }
+.ok { color: #2e7d4f; font-weight: 700; }
+.pedido-notas { margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-light); }
+.pedido-acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+.pedido-acciones button { background: white; border: 1px solid var(--primary); color: var(--primary); border-radius: 8px; padding: 0.55rem 1rem; cursor: pointer; }
+.pedido-acciones button.verde { background: #2e7d4f; color: white; border-color: #2e7d4f; }
+.pedido-acciones button.rojo { color: #b3261e; border-color: #b3261e; }
+.pedido-acciones button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pill { padding: 0.15rem 0.6rem; border-radius: 12px; font-size: 0.8rem; background: #eee; }
+.pill.pendiente { background: #fff3cd; }
+.pill.entregado { background: #d9f2e3; }
+.pill.cancelado { background: #fdecea; }
+.pill.encargo { background: #e8e1f7; }

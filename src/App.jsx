@@ -4,84 +4,80 @@ import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
 import Admin from './pages/Admin'
+import { WA_TIENDA, EMAIL_TIENDA } from './lib/store'
 import './App.css'
 
+const leerCarrito = () => {
+  try {
+    const items = JSON.parse(localStorage.getItem('lessa_cart') || '[]')
+    return items.map((i) => ({ ...i, key: i.key || String(i.id), preorden: !!i.preorden }))
+  } catch {
+    return []
+  }
+}
+
 export default function App() {
-  const [cartCount, setCartCount] = useState(0)
-  const [cart, setCart] = useState([])
+  const [cart, setCart] = useState(leerCarrito)
 
   useEffect(() => {
-    const saved = localStorage.getItem('lessa_cart')
-    if (saved) {
-      const items = JSON.parse(saved)
-      setCart(items)
-      setCartCount(items.reduce((sum, item) => sum + item.cantidad, 0))
-    }
-  }, [])
+    try { localStorage.setItem('lessa_cart', JSON.stringify(cart)) } catch { /* sin storage */ }
+  }, [cart])
 
-  const addToCart = (producto) => {
-    const existing = cart.find(item => item.id === producto.id)
-    let newCart
-    if (existing) {
-      newCart = cart.map(item =>
-        item.id === producto.id
-          ? { ...item, cantidad: item.cantidad + 1 }
-          : item
-      )
-    } else {
-      newCart = [...cart, { ...producto, cantidad: 1 }]
+  const cartCount = cart.reduce((s, i) => s + i.cantidad, 0)
+
+  // Devuelve null si se agregó, o un mensaje si no se puede.
+  const addToCart = (producto, preorden = false) => {
+    const key = preorden ? `${producto.id}-pre` : String(producto.id)
+    const existing = cart.find((i) => i.key === key)
+    if (!preorden) {
+      const enCarrito = existing ? existing.cantidad : 0
+      if ((producto.stock || 0) <= 0) return 'Producto agotado'
+      if (enCarrito >= producto.stock) return `Solo hay ${producto.stock} disponible(s) y ya los tienes en el carrito`
     }
-    setCart(newCart)
-    setCartCount(newCart.reduce((sum, item) => sum + item.cantidad, 0))
-    localStorage.setItem('lessa_cart', JSON.stringify(newCart))
+    const item = {
+      key, id: producto.id, sku: producto.sku, nombre: producto.nombre,
+      precio: producto.precio, stock: producto.stock || 0, preorden,
+    }
+    setCart(existing
+      ? cart.map((i) => (i.key === key ? { ...i, cantidad: i.cantidad + 1 } : i))
+      : [...cart, { ...item, cantidad: 1 }])
+    return null
   }
 
-  const removeFromCart = (id) => {
-    const newCart = cart.filter(item => item.id !== id)
-    setCart(newCart)
-    setCartCount(newCart.reduce((sum, item) => sum + item.cantidad, 0))
-    localStorage.setItem('lessa_cart', JSON.stringify(newCart))
+  const removeFromCart = (key) => setCart(cart.filter((i) => i.key !== key))
+
+  const updateQuantity = (key, cantidad) => {
+    const item = cart.find((i) => i.key === key)
+    if (!item) return
+    if (cantidad <= 0) return removeFromCart(key)
+    const max = item.preorden ? 99 : item.stock
+    setCart(cart.map((i) => (i.key === key ? { ...i, cantidad: Math.min(cantidad, max) } : i)))
   }
 
-  const updateQuantity = (id, cantidad) => {
-    if (cantidad <= 0) {
-      removeFromCart(id)
-      return
-    }
-    const newCart = cart.map(item =>
-      item.id === id ? { ...item, cantidad } : item
-    )
-    setCart(newCart)
-    setCartCount(newCart.reduce((sum, item) => sum + item.cantidad, 0))
-    localStorage.setItem('lessa_cart', JSON.stringify(newCart))
-  }
+  const clearCart = () => setCart([])
 
   return (
     <BrowserRouter>
       <div className="app">
         <nav className="navbar">
           <Link to="/" className="logo">
-            <img src="/logo.png" alt="Lessa" style={{height: '40px', marginRight: '10px'}} />
-            Lessa Joyería
+            <img src="/logo.png" alt="Lessa Joyería" />
           </Link>
           <div className="nav-links">
             <Link to="/">Inicio</Link>
             <Link to="/catalogo">Catálogo</Link>
             <Link to="/carrito" className="cart-link">
-              🛒 Carrito ({cartCount})
+              Carrito ({cartCount})
             </Link>
-            <Link to="/admin" style={{fontSize: '0.9rem', color: '#999'}}>
-              ⚙️ Admin
+            <Link to="/admin" className="admin-link">
+              Ingresar
             </Link>
           </div>
         </nav>
 
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route
-            path="/catalogo"
-            element={<Catalogo onAddToCart={addToCart} />}
-          />
+          <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} />} />
           <Route
             path="/carrito"
             element={
@@ -89,6 +85,7 @@ export default function App() {
                 items={cart}
                 onUpdateQuantity={updateQuantity}
                 onRemove={removeFromCart}
+                onClear={clearCart}
               />
             }
           />
@@ -97,12 +94,9 @@ export default function App() {
 
         <footer className="footer">
           <p>
-            Lessa Joyería © 2025 | Contacto:{' '}
-            <a href="mailto:alessandra.reyes04@gmail.com">
-              alessandra.reyes04@gmail.com
-            </a>{' '}
-            | WhatsApp:{' '}
-            <a href="https://wa.me/524493876360">+52 449 387 6360</a>
+            Lessa Joyería | Contacto:{' '}
+            <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a> | WhatsApp:{' '}
+            <a href={`https://wa.me/${WA_TIENDA}`}>+52 449 387 6360</a>
           </p>
         </footer>
       </div>

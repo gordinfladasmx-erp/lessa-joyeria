@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import { money, fechaCorta, waNumber, mensajeError, DIAS_APARTADO } from '../lib/store'
+import Reportes from './Reportes'
+import { pdfPedidoProveedor } from '../lib/pdfProveedor'
 import '../styles/Admin.css'
 
 const TABS = [
   ['pendientes', 'Pendientes de entrega'],
   ['proveedor', 'Por pedir al proveedor'],
   ['historial', 'Historial'],
+  ['reportes', 'Reportes'],
   ['nuevo', 'Nuevo producto'],
 ]
 
@@ -39,6 +42,7 @@ export default function Admin({ adminPass, onLogin }) {
       {tab === 'pendientes' && <Pendientes pass={adminPass} />}
       {tab === 'proveedor' && <Proveedor pass={adminPass} />}
       {tab === 'historial' && <Historial pass={adminPass} />}
+      {tab === 'reportes' && <Reportes pass={adminPass} />}
       {tab === 'nuevo' && <Nuevo pass={adminPass} />}
     </div>
   )
@@ -63,7 +67,13 @@ function usePedidos(pass) {
     if (error) setMsg(mensajeError(error))
     else { setMsg(ok || ''); cargar() }
   }
-  return { pedidos, proveedor, msg, llamar }
+  const borrar = (p) => {
+    const activo = p.tipo === 'apartado' && ['por_confirmar', 'confirmado'].includes(p.estado)
+    const t = `¿Borrar definitivamente ${p.numero_pedido} de ${p.nombre_cliente}? No se puede deshacer y desaparece de los reportes.` +
+      (activo ? ' Las piezas apartadas regresan al inventario.' : '')
+    if (window.confirm(t)) llamar('admin_borrar_pedido', { p_id: p.id }, 'Pedido borrado')
+  }
+  return { pedidos, proveedor, msg, llamar, borrar }
 }
 
 const ESTADOS = {
@@ -105,7 +115,7 @@ function Items({ p }) {
 }
 
 function Pendientes({ pass }) {
-  const { pedidos, msg, llamar } = usePedidos(pass)
+  const { pedidos, msg, llamar, borrar } = usePedidos(pass)
   const lista = pedidos.filter((p) => ['por_confirmar', 'confirmado'].includes(p.estado))
   const grupos = [
     ['Esperando pago de la reserva', lista.filter((p) => p.estado === 'por_confirmar')],
@@ -160,6 +170,7 @@ function Pendientes({ pass }) {
                   <button className="rojo" onClick={() => { if (window.confirm('¿Cancelar este pedido?' + (p.tipo === 'apartado' ? ' Las piezas regresan al inventario.' : ''))) llamar('admin_cancelar', { p_id: p.id }, 'Pedido cancelado') }}>
                     Cancelar
                   </button>
+                  <button className="rojo" onClick={() => borrar(p)}>Borrar</button>
                 </div>
               </div>
             )
@@ -172,42 +183,73 @@ function Pendientes({ pass }) {
 
 function Proveedor({ pass }) {
   const { pedidos, proveedor, msg, llamar } = usePedidos(pass)
-  const porPedir = pedidos.filter((p) => p.tipo === 'encargo' && p.estado === 'confirmado' && p.proveedor_estado === 'por_pedir')
-  const enEspera = pedidos.filter((p) => p.tipo === 'encargo' && p.estado === 'por_confirmar')
+  const [conPendientes, setConPendientes] = useState(false)
+  const [generando, setGenerando] = useState(false)
+
+  const encargos = pedidos.filter((p) => p.tipo === 'encargo' && p.proveedor_estado !== 'pedido' && p.proveedor_estado !== 'recibido' && p.estado !== 'cancelado' && p.estado !== 'entregado')
+  const listos = encargos.filter((p) => p.estado === 'confirmado')
+  const pendientes = encargos.filter((p) => p.estado === 'por_confirmar')
   const enCamino = proveedor.filter((x) => x.estado === 'pedido')
 
-  const resumen = {}
-  porPedir.forEach((p) => p.items.forEach((i) => {
-    resumen[i.sku] = resumen[i.sku] || { sku: i.sku, nombre: i.nombre, cantidad: 0, clientes: [] }
-    resumen[i.sku].cantidad += i.cantidad
-    resumen[i.sku].clientes.push(p.nombre_cliente)
-  }))
-  const lista = Object.values(resumen).sort((a, b) => a.sku.localeCompare(b.sku))
+  const resumir = (lista) => {
+    const m = {}
+    lista.forEach((p) => p.items.forEach((i) => {
+      m[i.sku] = m[i.sku] || { sku: i.sku, nombre: i.nombre, cantidad: 0, clientes: [] }
+      m[i.sku].cantidad += i.cantidad
+      m[i.sku].clientes.push(p.nombre_cliente)
+    }))
+    return Object.values(m).sort((a, b) => a.sku.localeCompare(b.sku))
+  }
+  const resListos = resumir(listos)
+  const resPend = resumir(pendientes)
+  const paraPdf = resumir(conPendientes ? [...listos, ...pendientes] : listos)
 
+  const pdf = async (lista, titulo) => {
+    setGenerando(true)
+    try { await pdfPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
+  }
   const copiar = async () => {
-    const t = 'Pedido a proveedor Lessa\n' + lista.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
+    const t = 'Pedido a proveedor Lessa\n' + paraPdf.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
     try { await navigator.clipboard.writeText(t); alert('Lista copiada') } catch { alert(t) }
   }
+
+  const tabla = (lista, estado) => (
+    <div className="tabla-scroll">
+      <table className="admin-tabla">
+        <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Clientes</th><th>Reserva</th></tr></thead>
+        <tbody>{lista.map((i) => (
+          <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td><td>{i.clientes.join(', ')}</td>
+            <td><span className={`pill ${estado === 'ok' ? 'entregado' : 'pendiente'}`}>{estado === 'ok' ? 'pagada' : 'falta pagar'}</span></td></tr>
+        ))}</tbody>
+      </table>
+    </div>
+  )
 
   return (
     <div>
       {msg && <p className="admin-nota">{msg}</p>}
-      <h2>Lista por pedir al proveedor</h2>
-      <p className="admin-nota">Solo aparecen encargos con la reserva ya pagada.</p>
-      {lista.length === 0 ? <p>No hay nada por pedir.</p> : (
+      <h2>Lista de encargos por pedir al proveedor</h2>
+      <p className="admin-nota">Aquí se suman todos los encargos de clientes. Los de reserva pagada están listos para pedirse.</p>
+
+      <h3 className="sub-titulo">Listos para pedir (reserva pagada)</h3>
+      {resListos.length === 0 ? <p>Ninguno por ahora.</p> : tabla(resListos, 'ok')}
+      <h3 className="sub-titulo">Encargos que aún no pagan la reserva</h3>
+      {resPend.length === 0 ? <p>Ninguno.</p> : tabla(resPend, 'falta')}
+
+      {(resListos.length > 0 || resPend.length > 0) && (
         <>
-          <div className="tabla-scroll">
-            <table className="admin-tabla">
-              <thead><tr><th>Código</th><th>Producto</th><th>Cant.</th><th>Clientes</th></tr></thead>
-              <tbody>{lista.map((i) => (
-                <tr key={i.sku}><td>{i.sku}</td><td>{i.nombre}</td><td><strong>{i.cantidad}</strong></td><td>{i.clientes.join(', ')}</td></tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <label className="solo-disp" style={{ marginTop: '1rem' }}>
+            <input type="checkbox" checked={conPendientes} onChange={(e) => setConPendientes(e.target.checked)} />
+            Incluir en el PDF y la lista copiada los que aún no pagan reserva
+          </label>
           <div className="pedido-acciones">
-            <button onClick={copiar}>Copiar lista</button>
-            <button className="verde" onClick={() => llamar('admin_pedir_proveedor', {}, 'Pedido al proveedor registrado')}>
-              Ya hice el pedido al proveedor
+            <button disabled={generando || paraPdf.length === 0} onClick={() => pdf(paraPdf, 'Pedido a proveedor')}>
+              {generando ? 'Generando...' : 'Descargar PDF para enviar'}
+            </button>
+            <button disabled={paraPdf.length === 0} onClick={copiar}>Copiar lista</button>
+            <button className="verde" disabled={listos.length === 0}
+              onClick={() => llamar('admin_pedir_proveedor', {}, 'Pedido al proveedor registrado')}>
+              Ya hice el pedido al proveedor ({listos.length} encargo{listos.length === 1 ? '' : 's'})
             </button>
           </div>
         </>
@@ -219,20 +261,13 @@ function Proveedor({ pass }) {
           <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span></div>
           <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
           <div className="pedido-acciones">
+            <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
             <button className="verde" onClick={() => llamar('admin_recibir_proveedor', { p_id: x.id }, 'Marcado como recibido')}>
               Ya llegó este pedido
             </button>
           </div>
         </div>
       ))}
-
-      {enEspera.length > 0 && (
-        <>
-          <h2 style={{ marginTop: '2rem' }}>Encargos esperando pago de reserva</h2>
-          <p className="admin-nota">Aún no se piden al proveedor. Confírmalos en "Pendientes de entrega".</p>
-          <ul>{enEspera.map((p) => <li key={p.id}>{p.numero_pedido}: {p.nombre_cliente}, {p.items.map((i) => `${i.cantidad} x ${i.sku}`).join(', ')}</li>)}</ul>
-        </>
-      )}
     </div>
   )
 }
@@ -240,7 +275,7 @@ function Proveedor({ pass }) {
 const MOTIVOS = { vencido: 'Anulada: no se recogió en 15 días', sin_pago: 'Cancelada: no pagó la reserva', manual: 'Cancelada manualmente' }
 
 function Historial({ pass }) {
-  const { pedidos, proveedor, msg } = usePedidos(pass)
+  const { pedidos, proveedor, msg, llamar, borrar } = usePedidos(pass)
   const [ver, setVer] = useState('ventas')
 
   const vistas = {
@@ -271,11 +306,21 @@ function Historial({ pass }) {
               </span>
             </div>
             <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku})</li>)}</ul>
+            <div className="pedido-acciones">
+              <button onClick={() => pdfPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
+            </div>
           </div>
         ))
       ) : (
         <>
           {vistas[ver].length === 0 && <p>No hay registros.</p>}
+          {ver === 'cancelaciones' && vistas.cancelaciones.length > 0 && (
+            <div className="pedido-acciones" style={{ marginBottom: '1rem' }}>
+              <button className="rojo" onClick={() => { if (window.confirm(`¿Borrar definitivamente las ${vistas.cancelaciones.length} canceladas/anuladas?`)) llamar('admin_borrar_canceladas', {}, 'Canceladas borradas') }}>
+                Borrar todas las canceladas
+              </button>
+            </div>
+          )}
           {vistas[ver].map((p) => (
             <div className="pedido-card" key={p.id}>
               <div className="pedido-cab">
@@ -294,6 +339,9 @@ function Historial({ pass }) {
               {p.pagos?.length > 0 && (
                 <p className="pedido-notas">Pagos: {p.pagos.map((x) => `${money(x.monto)} (${fechaCorta(x.fecha)})`).join(', ')}</p>
               )}
+              <div className="pedido-acciones">
+                <button className="rojo" onClick={() => borrar(p)}>Borrar</button>
+              </div>
             </div>
           ))}
         </>

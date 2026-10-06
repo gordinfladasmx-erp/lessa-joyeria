@@ -53,3 +53,18 @@
   .pedido-acciones button { flex: 1 1 100%; padding: 0.7rem; }
   .admin-form { max-width: 100%; }
 }
+
+.sub-titulo { margin: 1rem 0 0.5rem; font-size: 1rem; color: var(--text); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.75rem; margin: 0.5rem 0 1rem; }
+.kpi { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.kpi-t { font-size: 0.78rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi strong { font-size: 1.35rem; color: var(--primary); }
+.kpi.verde strong { color: #2e7d4f; }
+.kpi.rojo strong { color: #b3261e; }
+.kpi small { color: var(--text-light); font-size: 0.8rem; }
+.graficas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.grafica { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 1rem; min-width: 0; }
+.grafica h3 { font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--text); }
+.sin-datos { color: var(--text-light); text-align: center; padding: 2rem 0; }
+.reportes h2 { margin: 1.5rem 0 0.5rem; font-size: 1.15rem; }
+@media (max-width: 768px) { .graficas { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpi strong { font-size: 1.1rem; } }

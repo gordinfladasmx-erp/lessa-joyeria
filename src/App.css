@@ -197,3 +197,6 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .error-msg { color: #b3261e; background: #fdecea; padding: 0.6rem 0.75rem; border-radius: 6px; margin: 0.5rem 0; font-size: 0.9rem; }
 
 .app > .navbar, .app > .barra-edicion, .app > .footer { flex: none; }
+
+.footer-ig { margin-top: 0.75rem; }
+.footer-ig a { display: inline-flex; align-items: center; gap: 0.5rem; color: white !important; font-weight: 600; }

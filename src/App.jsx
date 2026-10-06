@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
 import Carrito from './pages/Carrito'
-import Admin from './pages/Admin'
+const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
 import { WA_TIENDA, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
@@ -130,7 +130,7 @@ export default function App() {
               />
             }
           />
-          <Route path="/admin" element={<Admin adminPass={adminPass} onLogin={() => setLoginAbierto(true)} />} />
+          <Route path="/admin" element={<Suspense fallback={<p style={{ padding: '2rem' }}>Cargando...</p>}><Admin adminPass={adminPass} onLogin={() => setLoginAbierto(true)} /></Suspense>} />
         </Routes>
 
         {loginAbierto && (
@@ -154,6 +154,16 @@ export default function App() {
             Lessa Joyería | Contacto:{' '}
             <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a> | WhatsApp:{' '}
             <a href={`https://wa.me/${WA_TIENDA}`}>+52 449 387 6360</a>
+          </p>
+          <p className="footer-ig">
+            <a href="https://www.instagram.com/lessa_joyeria" target="_blank" rel="noreferrer" aria-label="Instagram de Lessa">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+              </svg>
+              @lessa_joyeria
+            </a>
           </p>
         </footer>
       </div>

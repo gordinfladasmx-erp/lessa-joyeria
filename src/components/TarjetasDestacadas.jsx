@@ -27,13 +27,13 @@ export default function TarjetasDestacadas({ prods, cart = [], onAddToCart, onRe
               {adminPass
                 ? <Estrella producto={p} pass={adminPass} onCambio={(id, v) => !v && onQuitar(id)} />
                 : <span className="badge-dest" title="Destacado">★</span>}
-              {agotado && <span className="badge-agotado">Agotado</span>}
+              {agotado && <span className="badge-agotado">Sobre pedido</span>}
               {n > 0 && <span className="badge-sel">✓ En tu carrito{n > 1 ? ` (${n})` : ''}</span>}
             </div>
             <h3>{p.nombre}</h3>
             <p className="dest-precio">{money(p.precio)}</p>
             {agotado ? (
-              <Link to="/catalogo" className="btn-dest ver">Ver en catálogo</Link>
+              <Link to="/catalogo" className="btn-dest ver">Pídelo: 15 días</Link>
             ) : (
               n > 0 ? (
                 <>

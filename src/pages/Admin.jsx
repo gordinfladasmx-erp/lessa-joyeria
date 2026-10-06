@@ -289,6 +289,12 @@ function InventarioActual({ pass }) {
     setTocados((t) => ({ ...t, [f.id]: true }))
     setProds((ps) => ps.map((x) => (x.id === f.id ? { ...x, stock: data } : x)))
   }
+  const ocultar = async (f) => {
+    if (!window.confirm(`¿Ocultar ${f.nombre} de la tienda? Dejará de verse para los clientes; puedes volver a mostrarlo desde el catálogo ("Ver productos ocultos").`)) return
+    const { error } = await sb.rpc('admin_set_activo', { p_pass: pass, p_id: f.id, p_valor: false })
+    if (error) return setAviso('No se pudo ocultar: ' + mensajeError(error))
+    setProds((ps) => ps.filter((x) => x.id !== f.id))
+  }
   const piezas = filas.reduce((s, f) => s + Number(f.stock), 0)
   const valorCosto = filas.reduce((s, f) => s + f.valor, 0)
   const valorVenta = filas.reduce((s, f) => s + f.precio * Number(f.stock), 0)
@@ -329,7 +335,7 @@ function InventarioActual({ pass }) {
       {filas.length === 0 ? <p>No hay productos con existencia.</p> : (
         <div className="tabla-scroll">
           <table className="admin-tabla">
-            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th><th>Destacado</th></tr></thead>
+            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th><th>Destacado</th><th>Ocultar</th></tr></thead>
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id}>
@@ -346,11 +352,12 @@ function InventarioActual({ pass }) {
                   </td>
                   <td className="der">{money(f.valor)}</td>
                   <td className="celda-estrella"><Estrella producto={f} pass={pass} onCambio={(id, v) => setProds((ps) => ps.map((x) => (x.id === id ? { ...x, destacado: v } : x)))} /></td>
+                  <td className="celda-estrella"><button className="btn-ocultar-fila" title="Ocultar de la tienda" onClick={() => ocultar(f)}>Ocultar</button></td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td><td></td></tr>
+              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td><td></td><td></td></tr>
             </tfoot>
           </table>
         </div>

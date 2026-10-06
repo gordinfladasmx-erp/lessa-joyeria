@@ -13,6 +13,7 @@ export const money = (n) =>
   '$' + (Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export const fotoUrl = (sku) => `/fotos/${encodeURIComponent(sku)}.jpg`
+export const fotoGrandeUrl = (sku) => `/fotos/grande/${encodeURIComponent(sku)}.jpg`
 
 export function waNumber(tel) {
   const d = (tel || '').replace(/\D/g, '')

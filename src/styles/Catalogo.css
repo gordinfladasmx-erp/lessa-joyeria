@@ -208,7 +208,20 @@
 .lightbox-cerrar:hover { background: #970B3E; color: #fff; }
 .lightbox-lienzo { max-width: 100%; max-height: calc(100vh - 8rem); overflow: auto; border-radius: 8px; background: #fff; -webkit-overflow-scrolling: touch; }
 .lightbox-lienzo img { display: block; max-width: min(96vw, 1100px); max-height: calc(100vh - 8rem); width: auto; height: auto; cursor: zoom-in; margin: 0 auto; }
-.lightbox-lienzo img.acercada { max-width: none; max-height: none; width: min(2200px, 220vw); cursor: zoom-out; }
+.lightbox-lienzo img.acercada { max-width: none; max-height: none; width: auto; min-width: 100%; cursor: zoom-out; }
 .lightbox-pie { color: #fff; margin-top: 0.75rem; text-align: center; font-size: 0.95rem; max-width: 96vw; }
 .lightbox-pie span { display: block; font-size: 0.8rem; color: #e8c4d6; margin-top: 0.15rem; }
 @media (max-width: 480px) { .btn-ampliar { width: 34px; height: 34px; right: 6px; bottom: 6px; } }
+
+.badge-agotado { background: #FFF3CD !important; color: #7a4f00 !important; border: 1px solid #f0c35a; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); }
+.producto-card.agotado .foto-wrap img, .dest-card.agotado .dest-foto img { filter: none !important; opacity: 1 !important; }
+
+.btn-ocultar { position: absolute; top: 52px; right: 8px; width: 36px; height: 36px; border-radius: 50%; border: 2px solid #777; background: rgba(255, 255, 255, 0.94); color: #555; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; padding: 0; }
+.btn-ocultar:hover { background: #555; color: #fff; }
+.btn-ocultar.mostrar { border-color: #2e7d4f; color: #2e7d4f; }
+.btn-ocultar.mostrar:hover { background: #2e7d4f; color: #fff; }
+.producto-card.oculto .foto-wrap img { opacity: 0.55; }
+.badge-oculto { position: absolute; left: 8px; top: 8px; background: #555; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 12px; z-index: 2; }
+.chip-ocultos { border: 1.5px dashed #777; background: #fff; color: #555; border-radius: 20px; padding: 0.4rem 0.9rem; cursor: pointer; font-size: 0.85rem; }
+.chip-ocultos.on { background: #555; color: #fff; border-style: solid; }
+.btn-mostrar { background: #2e7d4f !important; }

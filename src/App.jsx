@@ -44,13 +44,14 @@ export default function App() {
   }
 
   useEffect(() => {
-    const ids = cart.filter((i) => !i.preorden).map((i) => i.id)
+    const ids = cart.map((i) => i.id)
     if (!ids.length) return
-    sb.from('productos').select('id,stock').in('id', ids).then(({ data }) => {
-      if (!data) return
+    sb.from('productos').select('id,stock').in('id', ids).then(({ data, error }) => {
+      if (error || !data) return
       const st = Object.fromEntries(data.map((d) => [d.id, d.stock]))
       setCart((c) => c
-        .map((i) => (i.preorden || st[i.id] === undefined ? i : { ...i, stock: st[i.id], cantidad: Math.min(i.cantidad, st[i.id]) }))
+        .filter((i) => st[i.id] !== undefined)
+        .map((i) => (i.preorden ? i : { ...i, stock: st[i.id], cantidad: Math.min(i.cantidad, st[i.id]) }))
         .filter((i) => i.cantidad > 0))
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

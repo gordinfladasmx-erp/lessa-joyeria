@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { fotoUrl } from '../lib/store'
+import { fotoUrl, fotoGrandeUrl } from '../lib/store'
 
 function Lightbox({ sku, nombre, onCerrar }) {
   const [acercada, setAcercada] = useState(false)
+  const [src, setSrc] = useState(fotoGrandeUrl(sku))
 
   useEffect(() => {
     const tecla = (e) => e.key === 'Escape' && onCerrar()
@@ -23,9 +24,10 @@ function Lightbox({ sku, nombre, onCerrar }) {
       </button>
       <div className="lightbox-lienzo" onClick={(e) => e.stopPropagation()}>
         <img
-          src={fotoUrl(sku)}
+          src={src}
           alt={nombre}
           className={acercada ? 'acercada' : ''}
+          onError={() => setSrc(fotoUrl(sku))}
           onClick={() => setAcercada(!acercada)}
         />
       </div>

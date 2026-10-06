@@ -2,6 +2,9 @@ export const WA_TIENDA = '524493876360'
 export const WA_TIENDA_VISIBLE = '+52 449 387 6360'
 export const EMAIL_TIENDA = 'alessandra.reyes04@gmail.com'
 export const CLABE = '638180010154516719'
+export const WEB_TIENDA = 'https://lessa-joyeria.netlify.app'
+export const INSTAGRAM = '@lessa_joyeria'
+export const INSTAGRAM_URL = 'https://www.instagram.com/lessa_joyeria'
 export const DIAS_PREORDEN = 15
 export const DIAS_APARTADO = 15
 export const PCT_ANTICIPO = 30
@@ -79,6 +82,7 @@ export function mensajeConfirmacion(p) {
   if (f) t += `Fecha de entrega: ${fechaCorta(f)}\n`
   else if (p.tipo === 'apartado') t += `Tu pieza se aparta ${DIAS_APARTADO} días desde que confirmemos el pago.\n`
   t += `\nTransfiere la reserva a la CLABE *${CLABE}* y envíanos tu comprobante por WhatsApp indicando tu número de pedido.\n\nGracias por tu preferencia.`
+  t += `\n\n*Contacto Lessa Joyería*\nInstagram: ${INSTAGRAM} (${INSTAGRAM_URL})\nPágina web: ${WEB_TIENDA}\nWhatsApp: ${WA_TIENDA_VISIBLE}\nCorreo: ${EMAIL_TIENDA}`
   return t
 }
 

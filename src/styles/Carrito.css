@@ -312,3 +312,9 @@ form {
 .recibo-acciones .btn-grande { flex: 1 1 100%; text-align: center; font-size: 1.1rem; padding: 1rem; }
 
 @media (max-width: 768px) { .cart-foto { width: 56px; height: 56px; } }
+
+.sugerencias { margin-top: 1.5rem; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem; }
+.sugerencias h3 { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; color: #231F1C; margin-bottom: 0.15rem; }
+.sugerencias > p { color: #666; font-size: 0.88rem; margin-bottom: 0.9rem; }
+.sugerencias .grid-destacados { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+@media (max-width: 600px) { .sugerencias .grid-destacados { grid-template-columns: repeat(2, 1fr); } }

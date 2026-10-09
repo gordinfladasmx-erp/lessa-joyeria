@@ -234,3 +234,16 @@
 .btn-borrar:hover { background: #b3261e !important; color: #fff !important; }
 .barra-borrar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: #fdecea; border: 1px solid #f1b8b3; border-radius: 10px; padding: 0.7rem 1rem; margin-bottom: 1.25rem; font-size: 0.9rem; }
 .barra-borrar button { background: #b3261e; color: #fff; border: none; border-radius: 8px; padding: 0.55rem 1.1rem; font-weight: 700; cursor: pointer; }
+
+.modal { max-height: 92vh; overflow-y: auto; }
+.opcion-entrega { display: flex; gap: 0.7rem; align-items: flex-start; border: 1.5px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; margin-bottom: 0.6rem; cursor: pointer; line-height: 1.35; }
+.opcion-entrega.on { border-color: #970B3E; background: #fbf4f7; }
+.opcion-entrega input { margin-top: 0.3rem; accent-color: #970B3E; }
+.opcion-entrega strong, .servicios-urgentes strong { display: block; font-size: 0.95rem; }
+.opcion-entrega span, .servicios-urgentes span { font-size: 0.88rem; }
+.servicios-urgentes { margin: -0.2rem 0 0.7rem 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.servicios-urgentes label { display: flex; gap: 0.6rem; align-items: flex-start; border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.7rem; cursor: pointer; }
+.servicios-urgentes label.on { border-color: #970B3E; background: #fbf4f7; }
+.servicios-urgentes input { margin-top: 0.25rem; accent-color: #970B3E; }
+.servicios-urgentes small { color: #666; font-size: 0.8rem; line-height: 1.35; }
+.nota-anticipo { font-size: 0.88rem; color: #555; margin-top: 0.4rem; }

@@ -111,3 +111,6 @@
 
 .btn-ocultar-fila { border: 1px solid #777; background: #fff; color: #555; border-radius: 6px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.8rem; }
 .btn-ocultar-fila:hover { background: #555; color: #fff; }
+
+.admin-subtabs button.urgente { border-color: #b3261e; color: #b3261e; }
+.admin-subtabs button.urgente.on { background: #b3261e; color: #fff; }

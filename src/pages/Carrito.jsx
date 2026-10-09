@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { BotonAmpliar } from '../components/Foto'
+import TarjetasDestacadas from '../components/TarjetasDestacadas'
 import { sb } from '../lib/supabase'
 import {
   money, fotoUrl, waNumber, reciboTexto, pedidoParaLessa, fechaCorta, mensajeError,
-  WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, CLABE, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO,
+  WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, CLABE, DIAS_APARTADO, PCT_ANTICIPO,
+  DIAS_ENCARGO_NORMAL, DIAS_ENCARGO_URGENTE, servicioPorId,
 } from '../lib/store'
 import '../styles/Carrito.css'
 
@@ -38,7 +40,9 @@ function Recibo({ r, cliente, onNuevo }) {
           <div key={p.id} className="recibo-bloque">
             <h3>
               {p.tipo === 'encargo'
-                ? `Encargo ${p.numero_pedido}: llega en ~${DIAS_PREORDEN} días (aprox. ${fechaCorta(p.entrega_estimada)})`
+                ? (p.urgente
+                  ? `Encargo urgente ${p.numero_pedido}: máximo ${DIAS_ENCARGO_URGENTE} días desde que se confirme la reserva`
+                  : `Encargo ${p.numero_pedido}: aprox. ${DIAS_ENCARGO_NORMAL} días desde que se confirme la reserva, sin costo de envío`)
                 : `${p.mostrador ? 'Venta' : 'Apartado'} ${p.numero_pedido}`}
             </h3>
             <table>
@@ -55,6 +59,13 @@ function Recibo({ r, cliente, onNuevo }) {
                 </>
               )}
             </div>
+            {p.urgente && (
+              <p className="recibo-nota">
+                <strong>Envío urgente:</strong> {servicioPorId(p.servicio_envio)?.nombre || 'servicio por confirmar'}
+                {servicioPorId(p.servicio_envio) ? `, de ${servicioPorId(p.servicio_envio).rango} (${servicioPorId(p.servicio_envio).tiempo})` : ''}.
+                Lessa te confirmará el costo exacto antes de que pagues.
+              </p>
+            )}
             {!p.mostrador && (
               <p className="recibo-nota">
                 {p.tipo === 'apartado'
@@ -105,7 +116,37 @@ function Recibo({ r, cliente, onNuevo }) {
   )
 }
 
-export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, adminPass }) {
+function Sugerencias({ items, onAddToCart, onRemove }) {
+  const [lista, setLista] = useState([])
+
+  useEffect(() => {
+    let vivo = true
+    sb.from('productos').select('*').eq('activo', true).eq('destacado', true).gt('stock', 0).limit(80)
+      .then(({ data }) => {
+        if (!vivo || !data) return
+        const enCarrito = new Set(items.map((i) => i.id))
+        const catsCarrito = new Set(data.filter((p) => enCarrito.has(p.id)).map((p) => p.categoria_id))
+        const candidatos = data.filter((p) => !enCarrito.has(p.id))
+        const mezclados = [...candidatos].sort(() => Math.random() - 0.5)
+        const otras = mezclados.filter((p) => !catsCarrito.has(p.categoria_id))
+        const mismas = mezclados.filter((p) => catsCarrito.has(p.categoria_id))
+        setLista([...otras, ...mismas].slice(0, 5))
+      })
+    return () => { vivo = false }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibles = lista
+  if (visibles.length === 0) return null
+  return (
+    <section className="sugerencias">
+      <h3>Te puede interesar</h3>
+      <p>Piezas destacadas que combinan con tu pedido. Agrégalas antes de confirmar.</p>
+      <TarjetasDestacadas prods={visibles} cart={items} onAddToCart={onAddToCart} onRemove={onRemove} adminPass="" onQuitar={() => {}} />
+    </section>
+  )
+}
+
+export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, adminPass, onAddToCart }) {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -120,17 +161,13 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const [solicitud, setSolicitud] = useState('')
   const [entrega, setEntrega] = useState('recoger')
   const [direccion, setDireccion] = useState('')
-  const [verCodigo, setVerCodigo] = useState(false)
-  const [codigo, setCodigo] = useState('')
-  const [codigoOk, setCodigoOk] = useState(false)
-  const [codigoMsg, setCodigoMsg] = useState('')
 
   const normales = items.filter((i) => !i.preorden)
   const pre = items.filter((i) => i.preorden)
   const subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0)
   const subPre = pre.reduce((s, i) => s + i.precio * i.cantidad, 0)
   const valor = parseFloat(descuentoValor) || 0
-  const claveAut = adminPass || (codigoOk ? codigo : '')
+  const claveAut = adminPass || ''
   const autorizado = !!claveAut
   const descuento = !autorizado ? 0
     : descuentoTipo === 'monto' ? Math.min(valor, subtotal) : subtotal * Math.min(valor, 100) / 100
@@ -142,14 +179,6 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const anticipoNorm = mostrador ? 0 : Math.round(totNorm * frac * 100) / 100
   const anticipoPre = Math.round(totPre * frac * 100) / 100
 
-  const validarCodigo = async () => {
-    setCodigoMsg('')
-    const { data, error: err } = await sb.rpc('admin_check', { p_pass: codigo })
-    if (err) return setCodigoMsg(mensajeError(err))
-    setCodigoOk(!!data)
-    setCodigoMsg(data ? 'Código válido: ya puedes aplicar el descuento autorizado.' : 'Código incorrecto')
-  }
-
   const handleCheckout = async (e) => {
     e.preventDefault()
     setError('')
@@ -159,7 +188,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
       p_email: email.trim(),
       p_whatsapp: whatsapp.trim(),
       p_notas: notas,
-      p_items: items.map((i) => ({ id: i.id, sku: i.sku, cantidad: i.cantidad, preorden: i.preorden })),
+      p_items: items.map((i) => ({ id: i.id, sku: i.sku, cantidad: i.cantidad, preorden: i.preorden, urgente: !!i.urgente, servicio: i.servicio || null })),
       p_modo: modo,
       p_desc_tipo: descuentoTipo,
       p_desc_valor: autorizado ? valor : 0,
@@ -201,7 +230,13 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
       <div className="item-info">
         <h3>{item.nombre}</h3>
         <p className="precio">{money(item.precio)}</p>
-        {item.preorden && <p className="tag-encargo">Por encargo, llega en ~{DIAS_PREORDEN} días</p>}
+        {item.preorden && (
+          <p className="tag-encargo">
+            {item.urgente
+              ? `Urgente, máx. ${DIAS_ENCARGO_URGENTE} días${servicioPorId(item.servicio) ? `: ${servicioPorId(item.servicio).nombre}, envío de ${servicioPorId(item.servicio).rango}` : ''}`
+              : `Sobre pedido, ~${DIAS_ENCARGO_NORMAL} días, sin costo de envío`}
+          </p>
+        )}
       </div>
       <div className="item-quantity">
         <button type="button" onClick={() => onUpdateQuantity(item.key, item.cantidad - 1)}>−</button>
@@ -228,10 +263,11 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
           )}
           {pre.length > 0 && (
             <div className="carrito-items" style={{ marginTop: '1rem' }}>
-              <h3 className="grupo-titulo">Por encargo, llegan en ~{DIAS_PREORDEN} días</h3>
+              <h3 className="grupo-titulo">Sobre pedido</h3>
               {pre.map(renderItem)}
             </div>
           )}
+          {onAddToCart && <Sugerencias items={items} onAddToCart={onAddToCart} onRemove={onRemove} />}
         </div>
 
         <div className="carrito-checkout">
@@ -245,16 +281,6 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
                 <>
                   <textarea rows="2" value={solicitud} onChange={(e) => setSolicitud(e.target.value)}
                     placeholder="Escribe tu código promocional o solicita un descuento. Lessa lo revisa y te confirma el valor final." />
-                  {!verCodigo ? (
-                    <button type="button" className="link-btn" onClick={() => setVerCodigo(true)}>Tengo un código de autorización de Lessa</button>
-                  ) : (
-                    <div className="descuento-fila" style={{ marginTop: '0.5rem' }}>
-                      <input type="password" value={codigo} placeholder="Código de autorización"
-                        onChange={(e) => { setCodigo(e.target.value); setCodigoOk(false) }} />
-                      <button type="button" className="btn-validar" onClick={validarCodigo}>Validar</button>
-                    </div>
-                  )}
-                  {codigoMsg && <p className={codigoOk ? 'ok-msg' : 'error-msg'}>{codigoMsg}</p>}
                 </>
               ) : (
                 <>
@@ -299,7 +325,8 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
             )}
             {pre.length > 0 && (
               <div className="aviso-anticipo">
-                <strong>Encargo:</strong> reserva de {money(anticipoPre)}. Llega en ~{DIAS_PREORDEN} días desde que lo pedimos al proveedor.
+                <strong>Sobre pedido:</strong> reserva de {money(anticipoPre)}. Los plazos cuentan desde que se confirma el pago de la reserva.
+                {pre.some((i) => i.urgente) && ' En los encargos urgentes Lessa te confirmará el costo exacto del envío antes de que pagues.'}
               </div>
             )}
           </div>

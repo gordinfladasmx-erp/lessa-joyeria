@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
-import { money, fechaCorta, waNumber, mensajeError, mensajeConfirmacion, DIAS_APARTADO } from '../lib/store'
+import { money, fechaCorta, waNumber, mensajeError, mensajeConfirmacion, DIAS_APARTADO, servicioPorId } from '../lib/store'
 import Reportes from './Reportes'
 import Estrella from '../components/Estrella'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
@@ -194,6 +194,7 @@ function Pendientes({ pass }) {
                   {!p.validado_at && p.estado === 'por_confirmar' && <span className="pill cancelado">POR VALIDAR</span>}
                   {p.validado_at && p.estado === 'por_confirmar' && <span className="pill entregado">validado</span>}
                   <span className="pill encargo">{p.tipo}</span>
+                  {p.tipo === 'encargo' && <span className={`pill ${p.urgente ? 'cancelado' : 'entregado'}`}>{p.urgente ? 'URGENTE (15 días, con envío)' : 'normal (~30 días, sin envío)'}</span>}
                   {p.tipo === 'encargo' && p.estado === 'confirmado' && (
                     <span className="pill encargo">
                       {p.proveedor_estado === 'por_pedir' ? 'por pedir al proveedor' : p.proveedor_estado === 'pedido' ? 'pedido al proveedor' : 'ya llegó'}
@@ -206,6 +207,9 @@ function Pendientes({ pass }) {
                 <Dinero p={p} />
                 {p.descuento_solicitado && <p className="solicitud">Solicitud de descuento / código del cliente: <strong>{p.descuento_solicitado}</strong></p>}
                 {p.entrega_tipo === 'envio' && <p className="pedido-notas">Envío local a: {p.direccion}</p>}
+                {p.urgente && servicioPorId(p.servicio_envio) && (
+                  <p className="solicitud">El cliente eligió envío urgente: <strong>{servicioPorId(p.servicio_envio).nombre}</strong>, de {servicioPorId(p.servicio_envio).rango} ({servicioPorId(p.servicio_envio).tiempo}). Fija el costo exacto en "Envío local ($)" al validar.</p>
+                )}
                 {p.fecha_entrega && <p className="pedido-notas">Fecha de entrega: {fechaCorta(p.fecha_entrega)}</p>}
                 {p.estado === 'por_confirmar' && <Validar key={p.id + String(p.total) + String(p.validado_at)} p={p} onValidar={(id, a) => llamar('admin_validar_pedido', { p_id: id, ...a }, 'Pedido validado')} />}
                 {p.validado_at && (
@@ -462,11 +466,17 @@ function Cotejo({ lote, pass, onCerrar, recargar }) {
 function Proveedor({ pass }) {
   const { pedidos, proveedor, lineas, msg, llamar, cargar } = usePedidos(pass)
   const [cotejando, setCotejando] = useState(null)
+  const [vista, setVista] = useState('normal')
   const [conPendientes, setConPendientes] = useState(false)
   const [generando, setGenerando] = useState(false)
   const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
 
-  const encargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
+  const urgenteVista = vista === 'urgente'
+  const todosEncargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
+  const nUrgentes = todosEncargos.filter((p) => p.urgente).length
+  const nNormales = todosEncargos.filter((p) => !p.urgente).length + lineas.length
+  const encargos = todosEncargos.filter((p) => !!p.urgente === urgenteVista)
+  const lineasVista = urgenteVista ? [] : lineas
   const filasCli = []
   encargos.forEach((p) => p.items.forEach((i, idx) => filasCli.push({ p, idx, i, listo: p.estado === 'confirmado' })))
   const enCamino = proveedor.filter((x) => x.estado === 'pedido')
@@ -482,7 +492,7 @@ function Proveedor({ pass }) {
   }
   const paraPdf = resumir([
     ...filasCli.filter((f) => conPendientes || f.listo).map((f) => ({ sku: f.i.sku, nombre: f.i.nombre, cantidad: f.i.cantidad })),
-    ...lineas.map((l) => ({ sku: l.sku, nombre: l.nombre, cantidad: l.cantidad })),
+    ...lineasVista.map((l) => ({ sku: l.sku, nombre: l.nombre, cantidad: l.cantidad })),
   ])
 
   const pdf = async (lista, titulo) => {
@@ -498,12 +508,21 @@ function Proveedor({ pass }) {
     await llamar('admin_agregar_linea_proveedor', { p_sku: nuevo.sku.trim(), p_cantidad: parseInt(nuevo.cantidad) || 0, p_nota: nuevo.nota }, 'Pieza agregada a la lista')
     setNuevo({ sku: '', cantidad: '1', nota: '' })
   }
-  const hayAlgo = filasCli.length > 0 || lineas.length > 0
+  const hayAlgo = filasCli.length > 0 || lineasVista.length > 0
 
   return (
     <div>
       {msg && <p className="admin-nota">{msg}</p>}
       <h2>Pedidos a proveedor: lista por pedir</h2>
+      <div className="admin-subtabs">
+        <button className={vista === 'normal' ? 'on' : ''} onClick={() => setVista('normal')}>Siguiente pedido normal ({nNormales})</button>
+        <button className={vista === 'urgente' ? 'on urgente' : 'urgente'} onClick={() => setVista('urgente')}>Urgentes, pedir ya ({nUrgentes})</button>
+      </div>
+      <p className="admin-nota">
+        {urgenteVista
+          ? 'Encargos que el cliente quiere en máximo 15 días (con envío). Se piden de inmediato, aparte del pedido normal.'
+          : 'Encargos que esperan al siguiente pedido normal (~30 días, sin costo de envío) y piezas de reposición.'}
+      </p>
       <p className="admin-nota">
         Aquí se suman los encargos de clientes y las piezas que quieras reponer para el inventario. Cada línea se puede
         cambiar de cantidad o quitar. Al marcar "Ya llegó", las piezas de reposición se suman solas al inventario.
@@ -517,7 +536,7 @@ function Proveedor({ pass }) {
               {filasCli.map(({ p, idx, i, listo }) => (
                 <tr key={p.id + '-' + idx}>
                   <td>{i.sku}</td><td>{i.nombre}</td>
-                  <td>{p.nombre_cliente} <span className={`pill ${listo ? 'entregado' : 'pendiente'}`}>{listo ? 'reserva pagada' : 'falta reserva'}</span></td>
+                  <td>{p.nombre_cliente} <span className={`pill ${listo ? 'entregado' : 'pendiente'}`}>{listo ? 'reserva pagada' : 'falta reserva'}</span>{p.urgente && servicioPorId(p.servicio_envio) && <span className="pill cancelado">{servicioPorId(p.servicio_envio).nombre.split(' (')[0]}</span>}</td>
                   <td>
                     <LineaEditable cantidad={i.cantidad}
                       onGuardar={(n) => llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: n }, 'Cantidad actualizada y total del pedido recalculado')}
@@ -525,7 +544,7 @@ function Proveedor({ pass }) {
                   </td>
                 </tr>
               ))}
-              {lineas.map((l) => (
+              {lineasVista.map((l) => (
                 <tr key={'l' + l.id}>
                   <td>{l.sku}</td><td>{l.nombre}</td>
                   <td><span className="pill encargo">Reposición de inventario</span> {l.nota}</td>
@@ -562,19 +581,19 @@ function Proveedor({ pass }) {
               {generando ? 'Generando...' : 'Descargar PDF para enviar'}
             </button>
             <button disabled={paraPdf.length === 0} onClick={copiar}>Copiar lista</button>
-            <button className="verde" disabled={listos.length === 0 && lineas.length === 0}
-              onClick={() => llamar('admin_pedir_proveedor', {}, 'Pedido al proveedor registrado')}>
-              Ya hice el pedido al proveedor
+            <button className="verde" disabled={listos.length === 0 && lineasVista.length === 0}
+              onClick={() => llamar('admin_pedir_proveedor', { p_urgente: urgenteVista }, urgenteVista ? 'Pedido urgente registrado' : 'Pedido al proveedor registrado')}>
+              {urgenteVista ? 'Ya hice el pedido urgente' : 'Ya hice el pedido al proveedor'}
             </button>
           </div>
-          <p className="pedido-notas">El pedido incluye los encargos con reserva pagada ({listos.length}) y las piezas de reposición ({lineas.length}).</p>
+          <p className="pedido-notas">El pedido incluye los encargos con reserva pagada ({listos.length}){urgenteVista ? '' : ` y las piezas de reposición (${lineasVista.length})`}.</p>
         </>
       )}
 
       <h2 style={{ marginTop: '2rem' }}>Pedidos al proveedor en camino</h2>
       {enCamino.length === 0 ? <p>Nada en camino.</p> : enCamino.map((x) => (
         <div className="pedido-card" key={x.id}>
-          <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span></div>
+          <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span>{x.urgente && <span className="pill cancelado">URGENTE</span>}</div>
           <div className="tabla-scroll">
             <table className="admin-tabla">
               <thead><tr><th>Código</th><th>Producto</th><th>Detalle</th><th>Cantidad</th></tr></thead>

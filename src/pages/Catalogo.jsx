@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import Foto from '../components/Foto'
 import Estrella from '../components/Estrella'
-import { money, DIAS_PREORDEN, DIAS_APARTADO, PCT_ANTICIPO } from '../lib/store'
+import { money, DIAS_APARTADO, PCT_ANTICIPO, DIAS_ENCARGO_NORMAL, DIAS_ENCARGO_URGENTE, SERVICIOS_URGENTES } from '../lib/store'
 import '../styles/Catalogo.css'
 
 const PAGINA = 48
@@ -20,6 +20,8 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const [visibles, setVisibles] = useState(PAGINA)
   const [aviso, setAviso] = useState('')
   const [preorden, setPreorden] = useState(null)
+  const [modoEncargo, setModoEncargo] = useState('normal')
+  const [servicio, setServicio] = useState('guia')
   const [params] = useSearchParams()
   const [soloOcultos, setSoloOcultos] = useState(false)
   const [ocultos, setOcultos] = useState([])
@@ -137,7 +139,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   }
 
   const confirmarPreorden = () => {
-    onAddToCart(preorden, true)
+    onAddToCart(preorden, true, { urgente: modoEncargo === 'urgente', servicio })
     setAviso(`Encargo agregado: ${preorden.nombre}`)
     setPreorden(null)
     setTimeout(() => setAviso(''), 2500)
@@ -259,8 +261,8 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
                       <button className="quitar-sel" onClick={() => onRemove(`${prod.id}-pre`)}>Quitar</button>
                     </>
                   ) : (
-                    <button className="btn-carrito btn-encargo" onClick={() => setPreorden(prod)}>
-                      Pídelo: llega en {DIAS_PREORDEN} días
+                    <button className="btn-carrito btn-encargo" onClick={() => { setModoEncargo('normal'); setServicio('guia'); setPreorden(prod) }}>
+                      Pídelo sobre pedido
                     </button>
                   )
                 ) : (
@@ -291,11 +293,35 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Disponible sobre pedido</h2>
             <p><strong>{preorden.nombre}</strong> ({money(preorden.precio)}) no está en existencia por ahora, pero lo pedimos para ti.</p>
-            <p>
-              Lo pedimos a nuestro proveedor y llega en aproximadamente <strong>{DIAS_PREORDEN} días</strong>.
+            <p>Elige cómo prefieres recibirlo:</p>
+            <label className={`opcion-entrega ${modoEncargo === 'normal' ? 'on' : ''}`}>
+              <input type="radio" name="modo" checked={modoEncargo === 'normal'} onChange={() => setModoEncargo('normal')} />
+              <span>
+                <strong>Esperar al siguiente pedido normal</strong>
+                Llega en aproximadamente {DIAS_ENCARGO_NORMAL} días. <b>Sin costo de envío.</b>
+              </span>
+            </label>
+            <label className={`opcion-entrega ${modoEncargo === 'urgente' ? 'on' : ''}`}>
+              <input type="radio" name="modo" checked={modoEncargo === 'urgente'} onChange={() => setModoEncargo('urgente')} />
+              <span>
+                <strong>Lo quiero en máximo {DIAS_ENCARGO_URGENTE} días</strong>
+                Lo pedimos de forma urgente y tiene un costo de envío.
+              </span>
+            </label>
+            {modoEncargo === 'urgente' && (
+              <div className="servicios-urgentes">
+                {SERVICIOS_URGENTES.map((sv) => (
+                  <label key={sv.id} className={servicio === sv.id ? 'on' : ''}>
+                    <input type="radio" name="servicio" checked={servicio === sv.id} onChange={() => setServicio(sv.id)} />
+                    <span><strong>{sv.nombre}</strong>De {sv.rango}, {sv.tiempo}</span>
+                  </label>
+                ))}
+                <small>El costo exacto del envío te lo confirmamos antes de que pagues. Los plazos cuentan desde que se confirma el pago de la reserva.</small>
+              </div>
+            )}
+            <p className="nota-anticipo">
               Para reservarlo se pide un anticipo del {PCT_ANTICIPO}% y el resto al entregarlo. Tu pedido queda confirmado cuando se recibe ese pago, y te enviaremos tu recibo.
             </p>
-            <p>¿Quieres pedirlo?</p>
             <div className="modal-botones">
               <button className="btn-primary" onClick={confirmarPreorden}>Sí, pedirlo</button>
               <button className="btn-secundario" onClick={() => setPreorden(null)}>No, gracias</button>

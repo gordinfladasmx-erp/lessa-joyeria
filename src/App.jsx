@@ -63,7 +63,7 @@ export default function App() {
   const cartCount = cart.reduce((s, i) => s + i.cantidad, 0)
 
   // Devuelve null si se agregó, o un mensaje si no se puede.
-  const addToCart = (producto, preorden = false) => {
+  const addToCart = (producto, preorden = false, extra = {}) => {
     const key = preorden ? `${producto.id}-pre` : String(producto.id)
     const existing = cart.find((i) => i.key === key)
     if (!preorden) {
@@ -74,6 +74,7 @@ export default function App() {
     const item = {
       key, id: producto.id, sku: producto.sku, nombre: producto.nombre,
       precio: producto.precio, stock: producto.stock || 0, preorden,
+      ...(preorden ? { urgente: !!extra.urgente, servicio: extra.urgente ? (extra.servicio || 'guia') : null } : {}),
     }
     setCart(existing
       ? cart.map((i) => (i.key === key ? { ...i, cantidad: i.cantidad + 1 } : i))
@@ -141,6 +142,7 @@ export default function App() {
                 onRemove={removeFromCart}
                 onClear={clearCart}
                 adminPass={adminPass}
+                onAddToCart={addToCart}
               />
             }
           />

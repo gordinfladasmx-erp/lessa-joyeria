@@ -6,6 +6,14 @@ export const WEB_TIENDA = 'https://lessa-joyeria.netlify.app'
 export const INSTAGRAM = '@lessa_joyeria'
 export const INSTAGRAM_URL = 'https://www.instagram.com/lessa_joyeria'
 export const DIAS_PREORDEN = 15
+export const DIAS_ENCARGO_NORMAL = 30
+export const DIAS_ENCARGO_URGENTE = 15
+export const SERVICIOS_URGENTES = [
+  { id: 'guia', nombre: 'Guía prepagada (plataformas como EnviaYa)', rango: '$110 a $160', tiempo: '2 a 4 días hábiles' },
+  { id: 'terrestre', nombre: 'Terrestre estándar (Estafeta, DHL o FedEx)', rango: '$180 a $250', tiempo: '2 a 3 días hábiles' },
+  { id: 'express', nombre: 'Express, siguiente día (Estafeta, DHL o FedEx)', rango: '$280 a $350', tiempo: '1 día hábil' },
+]
+export const servicioPorId = (id) => SERVICIOS_URGENTES.find((x) => x.id === id)
 export const DIAS_APARTADO = 15
 export const PCT_ANTICIPO = 30
 
@@ -46,7 +54,10 @@ function bloque(p) {
   const lineas = p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')
   let t = ''
   if (p.tipo === 'encargo') {
-    t += `*Encargo ${p.numero_pedido}* (llega en ~${DIAS_PREORDEN} días)\n${lineas}\n`
+    const sv = servicioPorId(p.servicio_envio)
+    t += p.urgente
+      ? `*Encargo urgente ${p.numero_pedido}* (máximo ${DIAS_ENCARGO_URGENTE} días desde que se confirma la reserva, con envío${sv ? `: ${sv.nombre}, de ${sv.rango}` : ''})\n${lineas}\n`
+      : `*Encargo ${p.numero_pedido}* (aprox. ${DIAS_ENCARGO_NORMAL} días desde que se confirma la reserva, sin costo de envío)\n${lineas}\n`
   } else {
     t += `*${p.mostrador ? 'Venta' : 'Apartado'} ${p.numero_pedido}*\n${lineas}\n`
   }
@@ -77,7 +88,14 @@ export function mensajeConfirmacion(p) {
   let t = `*Lessa Joyería*\nHola ${p.nombre_cliente}, validamos tu pedido *${p.numero_pedido}*:\n\n${lineas}\n\nSubtotal: ${money(p.subtotal)}\n`
   if (Number(p.descuento) > 0) t += `Descuento: -${money(p.descuento)}\n`
   if (Number(p.envio) > 0) t += `Envío local: ${money(p.envio)}\n`
-  t += `*Valor neto: ${money(p.total)}*\n\n`
+  t += `*Valor neto: ${money(p.total)}*\n`
+  if (p.tipo === 'encargo') {
+    const sv = servicioPorId(p.servicio_envio)
+    t += p.urgente
+      ? `Modalidad: *urgente*, máximo ${DIAS_ENCARGO_URGENTE} días desde que confirmemos tu reserva${sv ? ` (envío ${sv.nombre.split(' (')[0].toLowerCase()})` : ''}\n`
+      : `Modalidad: siguiente pedido normal, aprox. ${DIAS_ENCARGO_NORMAL} días desde que confirmemos tu reserva, sin costo de envío\n`
+  }
+  t += `\n`
   t += `Reserva a pagar para confirmar: *${money(p.anticipo_requerido)}*\nSaldo a la entrega: ${money(Number(p.total) - Number(p.anticipo_requerido))}\n`
   const f = p.fecha_entrega || (p.tipo === 'encargo' ? p.entrega_estimada : null)
   if (f) t += `Fecha de entrega: ${fechaCorta(f)}\n`

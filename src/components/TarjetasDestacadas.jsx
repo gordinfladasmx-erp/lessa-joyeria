@@ -33,7 +33,7 @@ export default function TarjetasDestacadas({ prods, cart = [], onAddToCart, onRe
             <h3>{p.nombre}</h3>
             <p className="dest-precio">{money(p.precio)}</p>
             {agotado ? (
-              <Link to="/catalogo" className="btn-dest ver">Pídelo: 15 días</Link>
+              <Link to="/catalogo" className="btn-dest ver">Pídelo sobre pedido</Link>
             ) : (
               n > 0 ? (
                 <>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import Foto from '../components/Foto'
 import Estrella from '../components/Estrella'
@@ -19,6 +20,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const [visibles, setVisibles] = useState(PAGINA)
   const [aviso, setAviso] = useState('')
   const [preorden, setPreorden] = useState(null)
+  const [params] = useSearchParams()
   const [soloOcultos, setSoloOcultos] = useState(false)
   const [ocultos, setOcultos] = useState([])
 
@@ -45,6 +47,13 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
     }
     cargar()
   }, [])
+
+  const categoriaUrl = params.get('categoria')
+  useEffect(() => {
+    if (!categoriaUrl || categorias.length === 0) return
+    const c = categorias.find((x) => x.nombre.toLowerCase() === categoriaUrl.toLowerCase())
+    if (c) setSelectedCategory(c.id)
+  }, [categoriaUrl, categorias])
 
   useEffect(() => setVisibles(PAGINA), [selectedCategory, searchTerm, soloDisponibles, soloDestacados, soloOcultos])
 

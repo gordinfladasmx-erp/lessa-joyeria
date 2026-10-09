@@ -145,3 +145,46 @@
 .btn-dest.sel { background: #fff; color: #970B3E; border: 1.5px solid #970B3E; box-shadow: none; }
 .btn-dest.sel:disabled { background: #f3e6ea; border-color: #d8b9c4; color: #970B3E; cursor: default; }
 .quitar-sel { display: block; margin: -0.3rem auto 0.5rem; background: none; border: none; color: #777; font-size: 0.72rem; text-decoration: underline; cursor: pointer; }
+
+/* ===== Landing editorial (inspirada en la propuesta de diseno) ===== */
+.landing { background: #FAF7F2; font-family: 'Jost', system-ui, sans-serif; color: #231F1C; }
+.landing h1, .landing h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; }
+
+.hero2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 3rem; align-items: center; max-width: 1280px; margin: 0 auto; padding: 4rem 3rem 3.5rem; }
+.hero2-marca { display: flex; flex-direction: column; align-items: flex-start; line-height: 1; margin-bottom: 1.5rem; }
+.hero2-marca .marca-lessa { width: min(300px, 62vw); height: auto; display: block; }
+.hero2-marca .marca-joyeria { margin-top: 0.4rem; padding-left: 0.2rem; font-family: 'Bodoni Moda', 'Didot', Georgia, serif; font-size: 1.15rem; letter-spacing: 0.55em; color: #970B3E; }
+.hero2-lema { font-size: clamp(2rem, 4.2vw, 3.3rem); line-height: 1.1; margin: 0 0 1rem; color: #231F1C; max-width: 560px; }
+.hero2-sub { font-size: 1.05rem; line-height: 1.6; color: #5C554C; max-width: 460px; margin: 0 0 1.75rem; }
+.hero2-botones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn-hero { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 2rem; background: #970B3E; color: #fff; text-decoration: none; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; border: 1.5px solid #970B3E; transition: opacity 0.15s; }
+.btn-hero:hover { opacity: 0.88; }
+.btn-hero.claro { background: transparent; color: #970B3E; }
+.hero2-foto { display: flex; justify-content: center; }
+.hero2-marco { position: relative; display: block; width: 100%; max-width: 560px; aspect-ratio: 5 / 4; background: #F8D8D9; border-radius: 4px; overflow: hidden; text-decoration: none; }
+.hero2-marco img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
+.hero2-marco.vacio { display: flex; align-items: center; justify-content: center; }
+.hero2-marco.vacio img { width: 60%; height: auto; background: transparent; }
+.hero2-pie { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.7rem 1rem; background: rgba(35, 31, 28, 0.82); color: #FAF7F2; font-size: 0.85rem; letter-spacing: 0.03em; display: flex; justify-content: space-between; gap: 1rem; }
+.hero2-pie b { color: #F8D8D9; font-weight: 500; }
+
+.franja { display: flex; justify-content: space-around; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.6rem 3rem; background: #231F1C; color: #FAF7F2; }
+.franja-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; letter-spacing: 0.03em; }
+.franja-item svg { color: #F8D8D9; flex-shrink: 0; }
+.franja-item strong { display: block; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; color: #F8D8D9; }
+
+.destacados-editorial { padding-top: 3.5rem; padding-bottom: 3rem; }
+.destacados-editorial .destacados-cab h2 { font-size: 2.4rem; font-weight: 600; color: #231F1C; }
+.destacados-editorial .ver-todo { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: #231F1C; border-bottom: 1px solid #231F1C; padding-bottom: 2px; font-weight: 500; }
+.destacados-editorial .ver-todo:hover { text-decoration: none; opacity: 0.7; }
+.destacados-editorial .dest-card { border-color: #E7DFD3; border-radius: 4px; box-shadow: none; }
+.destacados-editorial .dest-card h3 { font-family: 'Jost', sans-serif; }
+.destacados-editorial .dest-foto { border-radius: 0; }
+
+@media (max-width: 860px) {
+  .hero2 { grid-template-columns: 1fr; gap: 1.75rem; padding: 2rem 1.25rem 2rem; }
+  .hero2-foto { order: -1; }
+  .hero2-marco { max-width: 100%; }
+  .hero2-lema { font-size: 2rem; }
+  .franja { flex-direction: column; align-items: flex-start; padding: 1.4rem 1.5rem; }
+}

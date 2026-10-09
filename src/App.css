@@ -224,3 +224,10 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .footer-iconos a:hover { transform: scale(1.12); }
 .footer-iconos .ic-wa { background: #25D366; color: #ffffff !important; }
 .footer-iconos .ic-mail { background: #ffffff; color: #970B3E !important; }
+
+.app { font-family: 'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif; background: #FAF7F2; }
+.catalogo h1, .carrito h1, .destacados-pagina h1 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; font-size: 2.4rem; }
+.navbar { background: #FAF7F2; border-bottom: 1px solid #E7DFD3; }
+.nav-links a { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; font-weight: 500; }
+.nav-links a.nav-dest { color: #970B3E; }
+@media (max-width: 900px) { .nav-links a.nav-cat { display: none; } }

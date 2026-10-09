@@ -104,6 +104,10 @@ export default function App() {
           <div className="nav-links">
             <Link to="/">Inicio</Link>
             <Link to="/catalogo">Catálogo</Link>
+            <Link to="/catalogo?categoria=Aretes" className="nav-cat">Aretes</Link>
+            <Link to="/catalogo?categoria=Collares" className="nav-cat">Collares</Link>
+            <Link to="/catalogo?categoria=Pulseras" className="nav-cat">Pulseras</Link>
+            <Link to="/catalogo?categoria=Anillos" className="nav-cat">Anillos</Link>
             <Link to="/destacados" className="nav-dest">★ Destacados</Link>
             <Link to="/carrito" className="cart-link" aria-label={`Carrito, ${cartCount} producto(s)`} title="Carrito">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

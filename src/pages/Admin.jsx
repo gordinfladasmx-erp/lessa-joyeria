@@ -625,29 +625,262 @@ function Proveedor({ pass }) {
 
 const MOTIVOS = { vencido: 'Anulada: no se recogió en 15 días', sin_pago: 'Cancelada: no pagó la reserva', manual: 'Cancelada manualmente' }
 
+const ESTADO_VENTA = { entregado: 'Cerrada', confirmado: 'Reserva pagada', por_confirmar: 'Por pagar reserva', cancelado: 'Cancelada' }
+
+function fechaVenta(p) { return new Date(p.entregado_at || p.created_at) }
+const ymd = (d) => new Date(d).toISOString().slice(0, 10)
+
+function FormVenta({ pass, onGuardada, onCancelar }) {
+  const hoy = ymd(new Date())
+  const [fecha, setFecha] = useState(hoy)
+  const [cliente, setCliente] = useState('')
+  const [telefono, setTelefono] = useState('')
+  const [lineas, setLineas] = useState([])
+  const [q, setQ] = useState('')
+  const [resultados, setResultados] = useState([])
+  const [tipo, setTipo] = useState('monto')
+  const [valor, setValor] = useState('')
+  const [notas, setNotas] = useState('')
+  const [forzar, setForzar] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    const t = q.trim().replace(/[,()]/g, ' ')
+    if (t.length < 2) { setResultados([]); return }
+    const h = setTimeout(async () => {
+      const { data } = await sb.from('productos').select('id,sku,nombre,precio,stock').eq('activo', true)
+        .or(`sku.ilike.%${t}%,nombre.ilike.%${t}%`).order('stock', { ascending: false }).limit(8)
+      setResultados(data || [])
+    }, 250)
+    return () => clearTimeout(h)
+  }, [q])
+
+  const agregar = (p) => {
+    setLineas((ls) => ls.find((l) => l.id === p.id)
+      ? ls.map((l) => (l.id === p.id ? { ...l, cantidad: l.cantidad + 1 } : l))
+      : [...ls, { id: p.id, sku: p.sku, nombre: p.nombre, precio: String(p.precio), cantidad: 1, stock: p.stock }])
+    setQ(''); setResultados([])
+  }
+  const cambiar = (id, campo, v) => setLineas((ls) => ls.map((l) => (l.id === id ? { ...l, [campo]: v } : l)))
+  const quitar = (id) => setLineas((ls) => ls.filter((l) => l.id !== id))
+
+  const subtotal = lineas.reduce((s, l) => s + (parseFloat(l.precio) || 0) * (parseInt(l.cantidad) || 0), 0)
+  const v = parseFloat(valor) || 0
+  const descuento = tipo === 'porcentaje' ? subtotal * Math.min(v, 100) / 100 : Math.min(v, subtotal)
+  const total = subtotal - descuento
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (lineas.length === 0) return setMsg('Agrega al menos un producto.')
+    setGuardando(true); setMsg('')
+    const { data, error } = await sb.rpc('admin_registrar_venta', {
+      p_pass: pass, p_fecha: fecha, p_cliente: cliente, p_telefono: telefono,
+      p_items: lineas.map((l) => ({ id: l.id, cantidad: parseInt(l.cantidad) || 1, precio: parseFloat(l.precio) || 0 })),
+      p_desc_tipo: tipo, p_desc_valor: v, p_notas: notas, p_forzar: forzar,
+    })
+    setGuardando(false)
+    if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_ventas_manuales.sql en Supabase.' : error.message)
+    onGuardada(data)
+  }
+
+  return (
+    <form className="form-venta" onSubmit={guardar}>
+      <h3>Registrar venta manual</h3>
+      <div className="form-venta-grid">
+        <label>Fecha<input type="date" required value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} /></label>
+        <label>Cliente<input placeholder="Nombre del cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
+        <label>Teléfono<input type="tel" placeholder="Opcional" value={telefono} onChange={(e) => setTelefono(e.target.value)} /></label>
+      </div>
+
+      <label className="form-venta-busca">Productos
+        <input placeholder="Busca por código o nombre y elige..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </label>
+      {resultados.length > 0 && (
+        <ul className="resultados-venta">
+          {resultados.map((p) => (
+            <li key={p.id}><button type="button" onClick={() => agregar(p)}>
+              <strong>{p.sku}</strong> {p.nombre} <span>{money(p.precio)} | existencia: {p.stock}</span>
+            </button></li>
+          ))}
+        </ul>
+      )}
+
+      {lineas.length > 0 && (
+        <div className="tabla-scroll">
+          <table className="admin-tabla">
+            <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio c/u</th><th className="der">Importe</th><th></th></tr></thead>
+            <tbody>
+              {lineas.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.nombre}<br /><small>{l.sku} | existencia: {l.stock}</small></td>
+                  <td><input type="number" min="1" value={l.cantidad} className="input-cotejo" onChange={(e) => cambiar(l.id, 'cantidad', e.target.value)} /></td>
+                  <td><input type="number" min="0" step="0.01" value={l.precio} className="input-cotejo ancho" onChange={(e) => cambiar(l.id, 'precio', e.target.value)} /></td>
+                  <td className="der">{money((parseFloat(l.precio) || 0) * (parseInt(l.cantidad) || 0))}</td>
+                  <td><button type="button" className="btn-ocultar-fila" onClick={() => quitar(l.id)}>Quitar</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="form-venta-grid">
+        <label>Descuento
+          <span className="descuento-fila">
+            <span className="segmento">
+              <button type="button" className={tipo === 'monto' ? 'on' : ''} onClick={() => setTipo('monto')}>$</button>
+              <button type="button" className={tipo === 'porcentaje' ? 'on' : ''} onClick={() => setTipo('porcentaje')}>%</button>
+            </span>
+            <input type="number" min="0" step="0.01" value={valor} placeholder="0" onChange={(e) => setValor(e.target.value)} />
+          </span>
+        </label>
+        <label>Notas<input placeholder="Opcional" value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
+      </div>
+
+      <div className="venta-totales">
+        <span>Subtotal: <strong>{money(subtotal)}</strong></span>
+        <span>Descuento: <strong>-{money(descuento)}</strong></span>
+        <span className="grande">Total: <strong>{money(total)}</strong></span>
+      </div>
+
+      <label className="solo-disp">
+        <input type="checkbox" checked={forzar} onChange={(e) => setForzar(e.target.checked)} />
+        Registrar aunque el sistema marque menos existencia (el inventario queda en 0)
+      </label>
+      <p className="admin-nota">Al guardar, las piezas se descuentan del inventario y la venta cuenta en los reportes con la fecha elegida.</p>
+      {msg && <p className="admin-error">{msg}</p>}
+      <div className="pedido-acciones">
+        <button type="submit" className="verde" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar venta'}</button>
+        <button type="button" onClick={onCancelar}>Cancelar</button>
+      </div>
+    </form>
+  )
+}
+
+function RegistroVentas({ pedidos, pass, cargar, borrar }) {
+  const [form, setForm] = useState(false)
+  const [origen, setOrigen] = useState('todas')
+  const [estado, setEstado] = useState('cerradas')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [aviso, setAviso] = useState('')
+
+  const filas = pedidos
+    .filter((p) => p.estado !== 'cancelado')
+    .filter((p) => (origen === 'todas' ? true : origen === 'manual' ? p.tipo === 'venta' : p.tipo !== 'venta'))
+    .filter((p) => (estado === 'cerradas' ? p.estado === 'entregado' : estado === 'proceso' ? p.estado !== 'entregado' : true))
+    .filter((p) => {
+      const d = ymd(fechaVenta(p))
+      return (!desde || d >= desde) && (!hasta || d <= hasta)
+    })
+    .sort((a, b) => fechaVenta(b) - fechaVenta(a))
+  const sum = (f) => filas.reduce((s, p) => s + f(p), 0)
+  const unidades = sum((p) => p.items.reduce((u, i) => u + i.cantidad, 0))
+
+  const anular = async (p) => {
+    if (!window.confirm(`¿Anular la venta ${p.numero_pedido}? Las piezas regresan al inventario.`)) return
+    const { error } = await sb.rpc('admin_anular_venta', { p_pass: pass, p_id: p.id })
+    if (error) return setAviso(mensajeError(error))
+    setAviso('Venta anulada, inventario restituido'); cargar()
+  }
+
+  const csv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const l = [['Fecha', 'Folio', 'Origen', 'Estado', 'Cliente', 'Teléfono', 'Productos', 'Subtotal', 'Descuento', 'Total'].join(',')]
+    filas.forEach((p) => l.push([ymd(fechaVenta(p)), p.numero_pedido, p.tipo === 'venta' ? 'Manual' : 'Página', ESTADO_VENTA[p.estado], p.nombre_cliente, p.whatsapp,
+      p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(' | '), Number(p.subtotal).toFixed(2), Number(p.descuento).toFixed(2), Number(p.total).toFixed(2)].map(esc).join(',')))
+    const blob = new Blob(['﻿' + l.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ventas-lessa-${ymd(new Date())}.csv`; a.click()
+  }
+
+  return (
+    <div>
+      <div className="kpis">
+        <div className="kpi"><span className="kpi-t">Registros</span><strong>{filas.length}</strong></div>
+        <div className="kpi"><span className="kpi-t">Unidades</span><strong>{unidades}</strong></div>
+        <div className="kpi"><span className="kpi-t">Subtotal</span><strong>{money(sum((p) => Number(p.subtotal)))}</strong></div>
+        <div className="kpi"><span className="kpi-t">Descuentos</span><strong>{money(sum((p) => Number(p.descuento)))}</strong></div>
+        <div className="kpi"><span className="kpi-t">Total</span><strong>{money(sum((p) => Number(p.total)))}</strong></div>
+      </div>
+
+      {!form && <div className="pedido-acciones" style={{ marginBottom: '1rem' }}>
+        <button className="verde" onClick={() => setForm(true)}>+ Registrar venta manual</button>
+        <button onClick={csv} disabled={filas.length === 0}>Descargar CSV</button>
+      </div>}
+      {aviso && <p className="admin-nota">{aviso}</p>}
+      {form && <FormVenta pass={pass} onCancelar={() => setForm(false)}
+        onGuardada={(r) => { setForm(false); setAviso(`Venta ${r.numero_pedido} registrada por ${money(r.total)}. Inventario actualizado.`); cargar() }} />}
+
+      <div className="filtros-venta">
+        <label>Origen
+          <select value={origen} onChange={(e) => setOrigen(e.target.value)}>
+            <option value="todas">Página y manuales</option><option value="pagina">Solo pedidos de la página</option><option value="manual">Solo ventas manuales</option>
+          </select></label>
+        <label>Estado
+          <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <option value="cerradas">Ventas cerradas (cobradas y entregadas)</option><option value="proceso">Pedidos en proceso</option><option value="todos">Todos</option>
+          </select></label>
+        <label>Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
+        <label>Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
+      </div>
+
+      {filas.length === 0 ? <p>No hay registros con ese filtro.</p> : (
+        <div className="tabla-scroll">
+          <table className="admin-tabla">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Productos</th><th className="der">Subtotal</th><th className="der">Descuento</th><th className="der">Total</th><th>Origen</th><th></th></tr></thead>
+            <tbody>
+              {filas.map((p) => (
+                <tr key={p.id}>
+                  <td>{fechaCorta(ymd(fechaVenta(p)))}<br /><small>{p.numero_pedido}</small></td>
+                  <td>{p.nombre_cliente}</td>
+                  <td>{p.whatsapp || ''}</td>
+                  <td>{p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(', ')}</td>
+                  <td className="der">{money(p.subtotal)}</td>
+                  <td className="der">{Number(p.descuento) > 0 ? `-${money(p.descuento)}` : ''}</td>
+                  <td className="der"><strong>{money(p.total)}</strong></td>
+                  <td>
+                    <span className={`pill ${p.tipo === 'venta' ? 'encargo' : 'entregado'}`}>{p.tipo === 'venta' ? 'Manual' : 'Página'}</span>
+                    {p.estado !== 'entregado' && <span className="pill pendiente">{ESTADO_VENTA[p.estado]}</span>}
+                  </td>
+                  <td>
+                    {p.tipo === 'venta'
+                      ? <button className="btn-ocultar-fila" onClick={() => anular(p)}>Anular</button>
+                      : <button className="btn-ocultar-fila" onClick={() => borrar(p)}>Borrar</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Historial({ pass }) {
-  const { pedidos, proveedor, msg, llamar, borrar } = usePedidos(pass)
+  const { pedidos, proveedor, msg, llamar, borrar, cargar } = usePedidos(pass)
   const [ver, setVer] = useState('ventas')
 
   const vistas = {
     ventas: pedidos.filter((p) => p.estado === 'entregado'),
-    reservas: pedidos.filter((p) => p.estado !== 'cancelado' && p.pagos?.[0]?.nota !== 'Venta en mostrador'),
+    reservas: pedidos.filter((p) => p.estado !== 'cancelado' && p.tipo !== 'venta' && p.pagos?.[0]?.nota !== 'Venta en mostrador'),
     cancelaciones: pedidos.filter((p) => p.estado === 'cancelado'),
   }
-  const totalVentas = vistas.ventas.reduce((s, p) => s + Number(p.total), 0)
 
   return (
     <div>
       {msg && <p className="admin-nota">{msg}</p>}
       <div className="admin-subtabs">
-        {[['ventas', 'Ventas'], ['reservas', 'Reservas y apartados'], ['cancelaciones', 'Cancelaciones y anuladas'], ['proveedor', 'Pedidos al proveedor']].map(([k, l]) => (
+        {[['ventas', 'Registro de ventas'], ['reservas', 'Reservas y apartados'], ['cancelaciones', 'Cancelaciones y anuladas'], ['proveedor', 'Pedidos al proveedor']].map(([k, l]) => (
           <button key={k} className={ver === k ? 'on' : ''} onClick={() => setVer(k)}>{l}</button>
         ))}
       </div>
 
-      {ver === 'ventas' && <p className="admin-nota">{vistas.ventas.length} venta(s) cerradas por {money(totalVentas)}</p>}
 
-      {ver === 'proveedor' ? (
+      {ver === 'ventas' ? (
+        <RegistroVentas pedidos={pedidos} pass={pass} cargar={cargar} borrar={borrar} />
+      ) : ver === 'proveedor' ? (
         proveedor.length === 0 ? <p>Aún no hay pedidos al proveedor.</p> : proveedor.map((x) => (
           <div className="pedido-card" key={x.id}>
             <div className="pedido-cab">

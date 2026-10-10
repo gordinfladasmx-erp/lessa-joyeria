@@ -46,6 +46,7 @@ export default function Reportes({ pass }) {
   const [productos, setProductos] = useState([])
   const [cats, setCats] = useState([])
   const [rango, setRango] = useState('30')
+  const [origen, setOrigen] = useState('todas')
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -69,7 +70,8 @@ export default function Reportes({ pass }) {
     const prod = Object.fromEntries(productos.map((p) => [p.id, p]))
     const fechaVenta = (p) => new Date(p.entregado_at || p.created_at)
 
-    const ventas = pedidos.filter((p) => p.estado === 'entregado' && fechaVenta(p) >= ini)
+    const ventas = pedidos.filter((p) => p.estado === 'entregado' && fechaVenta(p) >= ini &&
+      (origen === 'todas' || (origen === 'manual' ? p.tipo === 'venta' : p.tipo !== 'venta')))
     const ingresos = ventas.reduce((s, p) => s + Number(p.total) - Number(p.envio || 0), 0)
     const envios = ventas.reduce((s, p) => s + Number(p.envio || 0), 0)
     const costo = ventas.reduce((s, p) => s + Number(p.subtotal || p.total) * COSTO, 0)
@@ -104,7 +106,8 @@ export default function Reportes({ pass }) {
     const serie = {}
     ventas.forEach((p) => {
       const k = clave(fechaVenta(p))
-      serie[k] = serie[k] || { ing: 0, gan: 0 }
+      serie[k] = serie[k] || { ing: 0, gan: 0, uds: 0 }
+      serie[k].uds += unidades(p)
       serie[k].ing += Number(p.total) - Number(p.envio || 0)
       serie[k].gan += Number(p.total) - Number(p.envio || 0) - Number(p.subtotal || p.total) * COSTO
     })
@@ -145,7 +148,7 @@ export default function Reportes({ pass }) {
       invCat, piezas, valorVenta, agotados, estados,
       productosActivos: productos.filter((p) => p.activo).length,
     }
-  }, [pedidos, productos, cats, rango])
+  }, [pedidos, productos, cats, rango, origen])
 
   const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   const optsMoney = { ...opts, scales: { y: { ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') } } } }
@@ -158,6 +161,11 @@ export default function Reportes({ pass }) {
       {msg && <p className="admin-error">{msg}</p>}
       <div className="admin-subtabs">
         {RANGOS.map(([k, l]) => <button key={k} className={rango === k ? 'on' : ''} onClick={() => setRango(k)}>{l}</button>)}
+      </div>
+      <div className="admin-subtabs">
+        {[['todas', 'Todas las ventas'], ['pagina', 'Pedidos de la página'], ['manual', 'Ventas manuales']].map(([k, l]) => (
+          <button key={k} className={origen === k ? 'on' : ''} onClick={() => setOrigen(k)}>{l}</button>
+        ))}
       </div>
       <p className="admin-nota">El costo de cada producto se calcula como el 50% de su precio de venta. Ventas = pedidos entregados y pagados.</p>
 
@@ -173,6 +181,24 @@ export default function Reportes({ pass }) {
       </div>
 
       <div className="graficas">
+        <Grafica titulo={`Volumen (piezas) y ventas ($) por ${rango === 'todo' ? 'mes' : 'día'}`} alto={300}>
+          {d.claves.length === 0 ? sinDatos : (
+            <Bar options={{
+              responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+              plugins: { legend: { position: 'bottom' } },
+              scales: {
+                y: { position: 'left', title: { display: true, text: 'Piezas' }, beginAtZero: true, ticks: { precision: 0 } },
+                y2: { position: 'right', title: { display: true, text: 'Ventas ($)' }, beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') } },
+              },
+            }} data={{
+              labels: d.claves,
+              datasets: [
+                { type: 'bar', label: 'Piezas vendidas', data: d.claves.map((k) => d.serie[k].uds), backgroundColor: '#D9779B', yAxisID: 'y' },
+                { type: 'line', label: 'Ventas ($)', data: d.claves.map((k) => d.serie[k].ing), borderColor: ROSA, backgroundColor: ROSA, tension: 0.25, yAxisID: 'y2' },
+              ],
+            }} />
+          )}
+        </Grafica>
         <Grafica titulo={`Ingresos y ganancia por ${rango === 'todo' ? 'mes' : 'día'}`}>
           {d.claves.length === 0 ? sinDatos : (
             <Bar options={optsMoney} data={{

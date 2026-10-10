@@ -114,3 +114,19 @@
 
 .admin-subtabs button.urgente { border-color: #b3261e; color: #b3261e; }
 .admin-subtabs button.urgente.on { background: #b3261e; color: #fff; }
+
+.form-venta { background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 12px; padding: 1.1rem; margin-bottom: 1.25rem; }
+.form-venta h3 { color: var(--primary); margin-bottom: 0.75rem; }
+.form-venta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 0.9rem; }
+.form-venta label, .filtros-venta label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--primary); }
+.form-venta input, .filtros-venta input, .filtros-venta select { padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: #fff; width: 100%; }
+.form-venta .solo-disp input { width: auto; }
+.form-venta-busca { margin-bottom: 0.4rem; }
+.resultados-venta { list-style: none; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin: 0 0 0.9rem; padding: 0; max-height: 260px; overflow-y: auto; }
+.resultados-venta button { width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #f0f0f0; padding: 0.6rem 0.8rem; cursor: pointer; font-size: 0.9rem; }
+.resultados-venta button:hover { background: #fbeef3; }
+.resultados-venta span { display: block; font-size: 0.78rem; color: #666; }
+.input-cotejo.ancho { width: 110px; }
+.venta-totales { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: flex-end; margin: 0.5rem 0 0.9rem; }
+.venta-totales .grande { font-size: 1.2rem; color: var(--primary); }
+.filtros-venta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }

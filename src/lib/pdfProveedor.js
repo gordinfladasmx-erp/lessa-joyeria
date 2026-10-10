@@ -25,10 +25,20 @@ export async function pdfPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
   const hex = COLORES.primary.replace('#', '')
   const rosa = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
 
+  const dim = logo ? await new Promise((res) => {
+    const i = new Image()
+    i.onload = () => res({ w: i.naturalWidth || 1, h: i.naturalHeight || 1 })
+    i.onerror = () => res({ w: 1, h: 1 })
+    i.src = logo
+  }) : { w: 1, h: 1 }
+  const altoLogo = 22
+  const anchoLogo = Math.min(70, altoLogo * dim.w / dim.h)
+  const xTexto = 14 + (logo ? anchoLogo + 6 : 0)
+
   const encabezado = () => {
-    if (logo) doc.addImage(logo, MARCA.logo.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG', 14, 10, 22, 22)
-    doc.setTextColor(...rosa).setFont('helvetica', 'bold').setFontSize(18).text(titulo, 42, 20)
-    doc.setTextColor(90).setFont('helvetica', 'normal').setFontSize(10).text(`${MARCA.nombre} | ${fecha}`, 42, 27)
+    if (logo) doc.addImage(logo, MARCA.logo.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG', 14, 10, anchoLogo, altoLogo)
+    doc.setTextColor(...rosa).setFont('helvetica', 'bold').setFontSize(18).text(titulo, xTexto, 20)
+    doc.setTextColor(90).setFont('helvetica', 'normal').setFontSize(10).text(`${MARCA.nombre} | ${fecha}`, xTexto, 27)
     doc.setFillColor(...rosa).rect(14, 36, 182, 7, 'F')
     doc.setTextColor(255).setFont('helvetica', 'bold').setFontSize(9)
     doc.text('Foto', 16, 41); doc.text('Código', 46, 41); doc.text('Descripción', 72, 41); doc.text('Cantidad', 180, 41)

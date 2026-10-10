@@ -6,6 +6,7 @@ export const MARCA = {
   subtitulo: 'joyería',             // texto pequeño debajo del logo grande del inicio ('' para no mostrarlo)
   logo: '/logo.png',                // cuadrado, para el menu, el login y los recibos
   wordmark: '/lessa-wordmark.png',  // logo grande sin fondo para la portada
+  logoAncho: false,                 // true si el logo del menu es horizontal (no cuadrado)
   wordmarkMultiplicar: false,       // true si el logo tiene fondo blanco (se mezcla con el fondo de la portada)
   eslogan: 'El arte de lucir accesorios de calidad',
   descripcionPortada: 'Colecciones únicas e innovadoras para cada momento. Envíos locales y a toda la república.',

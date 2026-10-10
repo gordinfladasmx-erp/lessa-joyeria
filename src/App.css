@@ -240,3 +240,9 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .nav-links a { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; font-weight: 500; }
 .nav-links a.nav-dest { color: var(--marca); }
 @media (max-width: 900px) { .nav-links a.nav-cat { display: none; } }
+
+html[data-logo="ancho"] .navbar .logo img { width: auto; height: 44px; border-radius: 0; object-fit: contain; }
+html[data-logo="ancho"] .recibo-cabecera img { width: auto; height: 48px; border-radius: 0; object-fit: contain; }
+html[data-logo="ancho"] .login-modal img, html[data-logo="ancho"] .admin-login img { width: auto; max-width: 220px; height: auto; border-radius: 0; }
+html[data-logo="ancho"] .foto-placeholder img { width: 70%; height: auto; mix-blend-mode: multiply; }
+@media (max-width: 768px) { html[data-logo="ancho"] .navbar .logo img { height: 38px; } }

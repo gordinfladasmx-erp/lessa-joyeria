@@ -13,6 +13,7 @@ const variables = {
 }
 Object.entries(variables).forEach(([k, v]) => raiz.style.setProperty(k, v))
 document.title = MARCA.nombre
+if (MARCA.logoAncho) raiz.dataset.logo = 'ancho'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

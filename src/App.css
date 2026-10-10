@@ -241,7 +241,8 @@ button.admin-link.salir { background: var(--primary); color: white !important; }
 .nav-links a.nav-dest { color: var(--marca); }
 @media (max-width: 900px) { .nav-links a.nav-cat { display: none; } }
 
-html[data-logo="ancho"] .navbar .logo img { width: auto; height: 44px; border-radius: 0; object-fit: contain; }
+html[data-logo="ancho"] .navbar .logo { flex-shrink: 0; }
+html[data-logo="ancho"] .navbar .logo img { width: auto; max-width: none; height: 44px; border-radius: 0; object-fit: contain; mix-blend-mode: multiply; }
 html[data-logo="ancho"] .recibo-cabecera img { width: auto; height: 48px; border-radius: 0; object-fit: contain; }
 html[data-logo="ancho"] .login-modal img, html[data-logo="ancho"] .admin-login img { width: auto; max-width: 220px; height: auto; border-radius: 0; }
 html[data-logo="ancho"] .foto-placeholder img { width: 70%; height: auto; mix-blend-mode: multiply; }

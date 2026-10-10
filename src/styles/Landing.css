@@ -190,3 +190,8 @@
 }
 
 .marca-lessa.multiplicar { mix-blend-mode: multiply; }
+
+.hero2.una-col { grid-template-columns: 1fr; text-align: center; max-width: 760px; }
+.hero2.una-col .hero2-marca { align-items: center; }
+.hero2.una-col .hero2-lema, .hero2.una-col .hero2-sub { margin-left: auto; margin-right: auto; }
+.hero2.una-col .hero2-botones { justify-content: center; }

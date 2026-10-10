@@ -53,7 +53,7 @@ export default function Landing({ cart, onAddToCart, onRemove, adminPass }) {
 
   return (
     <div className="landing">
-      <section className="hero2">
+      <section className={`hero2 ${cargado && !(hero && !heroError) ? 'una-col' : ''}`}>
         <div className="hero2-texto">
           <div className="hero2-marca" role="img" aria-label={MARCA.nombre}>
             <img src={MARCA.wordmark} alt="" className={`marca-lessa ${MARCA.wordmarkMultiplicar ? 'multiplicar' : ''}`} />
@@ -66,17 +66,15 @@ export default function Landing({ cart, onAddToCart, onRemove, adminPass }) {
             <Link to="/destacados" className="btn-hero claro">★ Destacados</Link>
           </div>
         </div>
-        <div className="hero2-foto">
-          {hero && !heroError ? (
+        {hero && !heroError && (
+          <div className="hero2-foto">
             <Link to="/destacados" className="hero2-marco" aria-label={`Ver destacados, por ejemplo ${hero.nombre}`}>
               <img src={fotoGrandeUrl(hero.sku)} alt={hero.nombre}
                 onError={(e) => { if (e.currentTarget.src.includes('/grande/')) e.currentTarget.src = fotoUrl(hero.sku); else setHeroError(true) }} />
               <span className="hero2-pie">{hero.nombre} <b>{money(hero.precio)}</b></span>
             </Link>
-          ) : (
-            <div className="hero2-marco vacio"><img src={MARCA.wordmark} alt="" /></div>
-          )}
-        </div>
+          </div>
+        )}
       </section>
 
       <Beneficios />

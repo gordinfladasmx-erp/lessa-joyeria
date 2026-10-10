@@ -35,7 +35,7 @@ function Recibo({ r, cliente, onNuevo }) {
             <p>{fechaCorta(new Date().toISOString())}</p>
           </div>
         </div>
-        <p><strong>Cliente:</strong> {cliente.nombre} | {cliente.email}{cliente.whatsapp ? ` | ${cliente.whatsapp}` : ''}</p>
+        <p><strong>Cliente:</strong> {[cliente.nombre, cliente.email, cliente.whatsapp].filter(Boolean).join(' | ')}</p>
 
         {r.pedidos.map((p) => (
           <div key={p.id} className="recibo-bloque">
@@ -173,6 +173,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const descuento = !autorizado ? 0
     : descuentoTipo === 'monto' ? Math.min(valor, subtotal) : subtotal * Math.min(valor, 100) / 100
   const total = Math.max(0, subtotal - descuento)
+  const contactoOpcional = autorizado && mostrador && pre.length === 0
   const factor = subtotal ? total / subtotal : 1
   const totNorm = (subtotal - subPre) * factor
   const totPre = subPre * factor
@@ -338,12 +339,12 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
               <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
             </div>
             <div className="form-group">
-              <label>Email *</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <label>Email {contactoOpcional ? '(opcional)' : '*'}</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={!contactoOpcional} />
             </div>
             <div className="form-group">
-              <label>WhatsApp * (10 dígitos)</label>
-              <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} required />
+              <label>WhatsApp {contactoOpcional ? '(opcional)' : '* (10 dígitos)'}</label>
+              <input type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} required={!contactoOpcional} />
             </div>
             <div className="form-group">
               <label>Entrega</label>

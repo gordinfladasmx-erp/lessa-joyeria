@@ -1,16 +1,5 @@
--- Lessa: encargos con dos modalidades.
---   Normal: espera al siguiente pedido al proveedor, ~30 dias desde que se confirma la reserva, sin costo de envio.
---   Urgente: maximo 15 dias desde que se confirma la reserva, con costo de envio (servicio elegido por el cliente).
--- Pegar en Supabase > SQL Editor > Run. Se puede correr varias veces.
--- Requiere haber corrido antes los SQL anteriores (pedidos, proveedor, recepcion, destacados).
-
-alter table pedidos
-  add column if not exists urgente boolean default false,
-  add column if not exists servicio_envio text;                       -- guia | terrestre | express
-alter table pedidos_proveedor add column if not exists urgente boolean default false;
-
-drop function if exists crear_pedido(text,text,text,text,jsonb,text,text,numeric,text,boolean,text,text,text);
-drop function if exists admin_pedir_proveedor(text);
+-- Lessa: en una venta de mostrador (con tu sesion) el correo y el telefono del cliente son opcionales.
+-- En pedidos en linea siguen siendo obligatorios. Pegar en Supabase > SQL Editor > Run.
 
 create or replace function crear_pedido(
   p_nombre text, p_email text, p_whatsapp text, p_notas text, p_items jsonb,
@@ -137,58 +126,5 @@ begin
   return json_build_object('pedidos', res, 'total', t_norm + t_pn + t_pu);
 end $$;
 
--- Al confirmar la reserva de un encargo empieza a correr su plazo: 15 dias (urgente) o 30 dias (normal).
-create or replace function admin_registrar_pago(p_pass text, p_id bigint, p_monto numeric, p_nota text default '')
-returns void language plpgsql security definer set search_path = public as $$
-declare p pedidos%rowtype;
-begin
-  if not lessa_admin_ok(p_pass) then raise exception 'No autorizado'; end if;
-  if coalesce(p_monto,0) <= 0 then raise exception 'Monto inválido'; end if;
-  select * into p from pedidos where id = p_id for update;
-  if not found then raise exception 'Pedido no existe'; end if;
-  if p.estado in ('cancelado','entregado') then raise exception 'El pedido ya está %', p.estado; end if;
-  update pedidos set pagado = pagado + p_monto,
-      pagos = pagos || jsonb_build_object('fecha', now(), 'monto', p_monto, 'nota', coalesce(p_nota,'')),
-      updated_at = now()
-   where id = p_id;
-  if p.estado = 'por_confirmar' and p.pagado + p_monto >= p.anticipo_requerido then
-    update pedidos set estado = 'confirmado', confirmado_at = now(),
-        limite_apartado = case when tipo = 'apartado' then now() + interval '15 days' else null end,
-        proveedor_estado = case when tipo = 'encargo' then 'por_pedir' else 'na' end,
-        entrega_estimada = case when tipo = 'encargo' then current_date + (case when coalesce(urgente,false) then 15 else 30 end) else entrega_estimada end
-     where id = p_id;
-  end if;
-end $$;
-
--- p_urgente = true: pide ya los encargos urgentes. false: arma el siguiente pedido normal
--- (encargos normales + piezas de reposicion).
-create or replace function admin_pedir_proveedor(p_pass text, p_urgente boolean default false) returns bigint
-language plpgsql security definer set search_path = public as $$
-declare ids bigint[]; agg jsonb; nid bigint;
-begin
-  if not lessa_admin_ok(p_pass) then raise exception 'No autorizado'; end if;
-  select array_agg(id) into ids from pedidos
-   where tipo = 'encargo' and estado = 'confirmado' and proveedor_estado = 'por_pedir'
-     and coalesce(urgente,false) = coalesce(p_urgente,false);
-  if ids is null and (p_urgente or not exists (select 1 from proveedor_lineas)) then
-    raise exception 'No hay nada por pedir en esta lista';
-  end if;
-  select jsonb_agg(jsonb_build_object('sku', sku, 'nombre', nombre, 'cantidad', cli + man, 'manual', man) order by sku) into agg from (
-    select sku, max(nombre) as nombre, sum(cli) as cli, sum(man) as man from (
-      select i->>'sku' as sku, i->>'nombre' as nombre,
-             greatest((i->>'cantidad')::int - coalesce((i->>'recibido')::int, 0), 0) as cli, 0 as man
-        from pedidos p, jsonb_array_elements(p.items) i where p.id = any(coalesce(ids, '{}'))
-      union all
-      select sku, nombre, 0, cantidad from proveedor_lineas where not coalesce(p_urgente,false)) u
-     group by sku having sum(cli) + sum(man) > 0) x;
-  insert into pedidos_proveedor(items, pedido_ids, urgente) values (agg, coalesce(ids, '{}'), coalesce(p_urgente,false)) returning id into nid;
-  update pedidos set proveedor_estado = 'pedido', proveedor_pedido_id = nid, updated_at = now()
-   where id = any(coalesce(ids, '{}'));
-  if not coalesce(p_urgente,false) then delete from proveedor_lineas; end if;
-  return nid;
-end $$;
-
 grant execute on function crear_pedido(text,text,text,text,jsonb,text,text,numeric,text,boolean,text,text,text) to anon, authenticated;
-grant execute on function admin_registrar_pago(text,bigint,numeric,text) to anon, authenticated;
-grant execute on function admin_pedir_proveedor(text,boolean) to anon, authenticated;
 notify pgrst, 'reload schema';

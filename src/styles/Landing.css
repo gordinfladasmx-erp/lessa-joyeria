@@ -3,7 +3,7 @@
 }
 
 .hero {
-  background: #F8D8D9;
+  background: var(--hero-fondo);
   padding: 4rem 2rem 4.5rem;
   text-align: center;
   color: var(--primary);
@@ -99,7 +99,7 @@
 .grid-destacados { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.75rem; }
 .dest-card { background: white; border: 1px solid #f3dca0; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 4px rgba(255, 180, 0, 0.18); transition: transform 0.15s, box-shadow 0.15s; }
 .dest-card:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(255, 120, 0, 0.22); }
-.dest-foto { position: relative; aspect-ratio: 1 / 1; background: #fbf4f7; overflow: hidden; }
+.dest-foto { position: relative; aspect-ratio: 1 / 1; background: var(--marca-suave); overflow: hidden; }
 .dest-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .dest-foto .foto-placeholder { height: 100%; }
 .dest-foto .foto-placeholder img { width: 60%; height: auto; }
@@ -107,9 +107,9 @@
 .dest-foto .badge-agotado { top: 6px; left: 6px; font-size: 0.65rem; padding: 0.1rem 0.45rem; }
 .dest-card h3 { font-size: 0.78rem; font-weight: 600; padding: 0.45rem 0.5rem 0; line-height: 1.2; min-height: 2.1rem; color: var(--text); }
 .dest-precio { padding: 0 0.5rem; font-weight: 700; font-size: 0.95rem; color: var(--primary); }
-.btn-dest { margin: 0.4rem 0.5rem 0.55rem; padding: 0.45rem 0.3rem; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; color: #fff; background: linear-gradient(135deg, #FF7A00, #FF2E63); box-shadow: 0 2px 6px rgba(255, 70, 70, 0.35); }
+.btn-dest { margin: 0.4rem 0.5rem 0.55rem; padding: 0.45rem 0.3rem; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; color: #fff; background: linear-gradient(135deg, var(--cta-a), var(--cta-b)); box-shadow: 0 2px 6px rgba(255, 70, 70, 0.35); }
 .btn-dest:hover { filter: brightness(1.08); }
-.btn-dest.ver { background: #fff; color: #FF2E63; border: 1.5px solid #FF2E63; box-shadow: none; }
+.btn-dest.ver { background: #fff; color: var(--cta-b); border: 1.5px solid var(--cta-b); box-shadow: none; }
 @media (max-width: 600px) {
   .destacados { padding: 1.5rem 0.75rem 0; }
   .destacados-cab h2 { font-size: 1.3rem; }
@@ -121,15 +121,15 @@
 
 .marca { margin: 0 0 1.25rem; display: flex; flex-direction: column; align-items: center; line-height: 1; font-size: inherit; }
 .marca-lessa { width: min(420px, 78vw); height: auto; display: block; }
-.marca-joyeria { margin-top: 0.35rem; font-family: 'Bodoni Moda', 'Didot', 'Playfair Display', Georgia, serif; font-weight: 500; font-size: clamp(1.1rem, 3.2vw, 1.7rem); letter-spacing: 0.55em; padding-left: 0.55em; color: #970B3E; text-transform: lowercase; }
+.marca-joyeria { margin-top: 0.35rem; font-family: 'Bodoni Moda', 'Didot', 'Playfair Display', Georgia, serif; font-weight: 500; font-size: clamp(1.1rem, 3.2vw, 1.7rem); letter-spacing: 0.55em; padding-left: 0.55em; color: var(--marca); text-transform: lowercase; }
 .hero-content p { font-family: 'Bodoni Moda', Georgia, serif; font-size: 1.15rem; color: #5a2a3a; opacity: 1; }
-.hero .btn-primary { background: #970B3E; color: #fff; }
-.hero .btn-primary:hover { background: #7d0933; }
+.hero .btn-primary { background: var(--marca); color: #fff; }
+.hero .btn-primary:hover { background: var(--marca-oscura); }
 .contact-section .btn-email { background: transparent; color: #ffffff; border: 2px solid #ffffff; }
 .contact-section .btn-whatsapp { color: #ffffff; }
 
 .ver-mas-dest { text-align: center; margin: 1.5rem 0 0.5rem; }
-.btn-dest-grande { display: inline-block; padding: 0.85rem 2rem; border: none; border-radius: 999px; font-size: 1rem; font-weight: 700; cursor: pointer; text-decoration: none; color: #fff; background: linear-gradient(135deg, #FF7A00, #FF2E63); box-shadow: 0 4px 12px rgba(255, 70, 70, 0.35); }
+.btn-dest-grande { display: inline-block; padding: 0.85rem 2rem; border: none; border-radius: 999px; font-size: 1rem; font-weight: 700; cursor: pointer; text-decoration: none; color: #fff; background: linear-gradient(135deg, var(--cta-a), var(--cta-b)); box-shadow: 0 4px 12px rgba(255, 70, 70, 0.35); }
 .btn-dest-grande:hover { filter: brightness(1.08); }
 .destacados-pagina { padding-bottom: 2rem; }
 .destacados-pagina h1 { color: var(--primary); font-size: 1.8rem; }
@@ -139,39 +139,39 @@
 .icono-contacto { width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: transform 0.15s; }
 .icono-contacto:hover { transform: scale(1.1); }
 .icono-contacto.wa { background: #25D366; color: #fff; }
-.icono-contacto.mail { background: #fff; color: #970B3E; }
-.dest-card.seleccionado { border: 2px solid #970B3E; box-shadow: 0 0 0 3px rgba(151, 11, 62, 0.12); }
-.badge-sel { position: absolute; left: 6px; bottom: 6px; background: #970B3E; color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 10px; }
-.btn-dest.sel { background: #fff; color: #970B3E; border: 1.5px solid #970B3E; box-shadow: none; }
-.btn-dest.sel:disabled { background: #f3e6ea; border-color: #d8b9c4; color: #970B3E; cursor: default; }
+.icono-contacto.mail { background: #fff; color: var(--marca); }
+.dest-card.seleccionado { border: 2px solid var(--marca); box-shadow: 0 0 0 3px rgba(151, 11, 62, 0.12); }
+.badge-sel { position: absolute; left: 6px; bottom: 6px; background: var(--marca); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 10px; }
+.btn-dest.sel { background: #fff; color: var(--marca); border: 1.5px solid var(--marca); box-shadow: none; }
+.btn-dest.sel:disabled { background: #f3e6ea; border-color: #d8b9c4; color: var(--marca); cursor: default; }
 .quitar-sel { display: block; margin: -0.3rem auto 0.5rem; background: none; border: none; color: #777; font-size: 0.72rem; text-decoration: underline; cursor: pointer; }
 
 /* ===== Landing editorial (inspirada en la propuesta de diseno) ===== */
-.landing { background: #FAF7F2; font-family: 'Jost', system-ui, sans-serif; color: #231F1C; }
+.landing { background: var(--fondo); font-family: 'Jost', system-ui, sans-serif; color: #231F1C; }
 .landing h1, .landing h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; }
 
 .hero2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 3rem; align-items: center; max-width: 1280px; margin: 0 auto; padding: 4rem 3rem 3.5rem; }
 .hero2-marca { display: flex; flex-direction: column; align-items: flex-start; line-height: 1; margin-bottom: 1.5rem; }
 .hero2-marca .marca-lessa { width: min(300px, 62vw); height: auto; display: block; }
-.hero2-marca .marca-joyeria { margin-top: 0.4rem; padding-left: 0.2rem; font-family: 'Bodoni Moda', 'Didot', Georgia, serif; font-size: 1.15rem; letter-spacing: 0.55em; color: #970B3E; }
+.hero2-marca .marca-joyeria { margin-top: 0.4rem; padding-left: 0.2rem; font-family: 'Bodoni Moda', 'Didot', Georgia, serif; font-size: 1.15rem; letter-spacing: 0.55em; color: var(--marca); }
 .hero2-lema { font-size: clamp(2rem, 4.2vw, 3.3rem); line-height: 1.1; margin: 0 0 1rem; color: #231F1C; max-width: 560px; }
 .hero2-sub { font-size: 1.05rem; line-height: 1.6; color: #5C554C; max-width: 460px; margin: 0 0 1.75rem; }
 .hero2-botones { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.btn-hero { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 2rem; background: #970B3E; color: #fff; text-decoration: none; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; border: 1.5px solid #970B3E; transition: opacity 0.15s; }
+.btn-hero { display: inline-flex; align-items: center; justify-content: center; padding: 0.95rem 2rem; background: var(--marca); color: #fff; text-decoration: none; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; border: 1.5px solid var(--marca); transition: opacity 0.15s; }
 .btn-hero:hover { opacity: 0.88; }
-.btn-hero.claro { background: transparent; color: #970B3E; }
+.btn-hero.claro { background: transparent; color: var(--marca); }
 .hero2-foto { display: flex; justify-content: center; }
-.hero2-marco { position: relative; display: block; width: 100%; max-width: 560px; aspect-ratio: 5 / 4; background: #F8D8D9; border-radius: 4px; overflow: hidden; text-decoration: none; }
+.hero2-marco { position: relative; display: block; width: 100%; max-width: 560px; aspect-ratio: 5 / 4; background: var(--hero-fondo); border-radius: 4px; overflow: hidden; text-decoration: none; }
 .hero2-marco img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
 .hero2-marco.vacio { display: flex; align-items: center; justify-content: center; }
 .hero2-marco.vacio img { width: 60%; height: auto; background: transparent; }
 .hero2-pie { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.7rem 1rem; background: rgba(35, 31, 28, 0.82); color: #FAF7F2; font-size: 0.85rem; letter-spacing: 0.03em; display: flex; justify-content: space-between; gap: 1rem; }
-.hero2-pie b { color: #F8D8D9; font-weight: 500; }
+.hero2-pie b { color: var(--hero-fondo); font-weight: 500; }
 
-.franja { display: flex; justify-content: space-around; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.6rem 3rem; background: #231F1C; color: #FAF7F2; }
+.franja { display: flex; justify-content: space-around; gap: 1rem 2rem; flex-wrap: wrap; padding: 1.6rem 3rem; background: var(--franja); color: #FAF7F2; }
 .franja-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; letter-spacing: 0.03em; }
-.franja-item svg { color: #F8D8D9; flex-shrink: 0; }
-.franja-item strong { display: block; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; color: #F8D8D9; }
+.franja-item svg { color: var(--hero-fondo); flex-shrink: 0; }
+.franja-item strong { display: block; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.78rem; color: var(--hero-fondo); }
 
 .destacados-editorial { padding-top: 3.5rem; padding-bottom: 3rem; }
 .destacados-editorial .destacados-cab h2 { font-size: 2.4rem; font-weight: 600; color: #231F1C; }
@@ -188,3 +188,5 @@
   .hero2-lema { font-size: 2rem; }
   .franja { flex-direction: column; align-items: flex-start; padding: 1.4rem 1.5rem; }
 }
+
+.marca-lessa.multiplicar { mix-blend-mode: multiply; }

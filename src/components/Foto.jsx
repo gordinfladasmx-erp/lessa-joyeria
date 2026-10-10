@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { fotoUrl, fotoGrandeUrl } from '../lib/store'
+import { MARCA } from '../config'
 
 function Lightbox({ sku, nombre, onCerrar }) {
   const [acercada, setAcercada] = useState(false)
@@ -66,7 +67,7 @@ export default function Foto({ sku, nombre }) {
   if (error) {
     return (
       <div className="foto-placeholder">
-        <img src="/logo.png" alt="" />
+        <img src={MARCA.logo} alt="" />
       </div>
     )
   }

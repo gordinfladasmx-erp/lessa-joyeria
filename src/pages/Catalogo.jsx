@@ -62,7 +62,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   useEffect(() => {
     if (!adminPass) { setSoloOcultos(false); setOcultos([]); return }
     sb.rpc('admin_listar_ocultos', { p_pass: adminPass }).then(({ data, error }) => {
-      if (error) { setAviso('Para ver los ocultos falta ejecutar supabase_lessa_ocultar.sql en Supabase.'); return setTimeout(() => setAviso(''), 5000) }
+      if (error) { setAviso('Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.'); return setTimeout(() => setAviso(''), 5000) }
       setOcultos(data || [])
     })
   }, [adminPass])
@@ -85,7 +85,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const borrarProducto = async (p) => {
     if (!window.confirm(`¿Borrar DEFINITIVAMENTE ${p.nombre}? No se puede deshacer. El historial de ventas no se afecta.`)) return
     const { error } = await sb.rpc('admin_borrar_producto', { p_pass: adminPass, p_id: p.id })
-    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_borrar_productos.sql en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
+    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
     setOcultos((os) => os.filter((x) => x.id !== p.id))
     setAviso(`${p.nombre} se borró definitivamente`)
     setTimeout(() => setAviso(''), 3000)
@@ -94,7 +94,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
   const borrarTodosOcultos = async () => {
     if (!window.confirm(`¿Borrar DEFINITIVAMENTE los ${ocultos.length} productos ocultos? No se puede deshacer. Revisa la lista antes de confirmar.`)) return
     const { data, error } = await sb.rpc('admin_borrar_ocultos', { p_pass: adminPass })
-    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_borrar_productos.sql en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
+    if (error) { setAviso(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : 'No se pudo borrar: ' + error.message); return setTimeout(() => setAviso(''), 5000) }
     setOcultos([])
     setSoloOcultos(false)
     setAviso(`${data} producto(s) borrados definitivamente`)

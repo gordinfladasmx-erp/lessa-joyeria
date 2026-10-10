@@ -1,4 +1,5 @@
 import { fotoUrl } from './store'
+import { MARCA, COLORES } from '../config'
 
 async function aDataUrl(url) {
   try {
@@ -19,14 +20,15 @@ async function aDataUrl(url) {
 export async function pdfPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-  const logo = await aDataUrl('/logo.png')
+  const logo = await aDataUrl(MARCA.logo)
   const fecha = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
-  const rosa = [160, 24, 72]
+  const hex = COLORES.primary.replace('#', '')
+  const rosa = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16))
 
   const encabezado = () => {
-    if (logo) doc.addImage(logo, 'PNG', 14, 10, 22, 22)
+    if (logo) doc.addImage(logo, MARCA.logo.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG', 14, 10, 22, 22)
     doc.setTextColor(...rosa).setFont('helvetica', 'bold').setFontSize(18).text(titulo, 42, 20)
-    doc.setTextColor(90).setFont('helvetica', 'normal').setFontSize(10).text(`Lessa Joyería | ${fecha}`, 42, 27)
+    doc.setTextColor(90).setFont('helvetica', 'normal').setFontSize(10).text(`${MARCA.nombre} | ${fecha}`, 42, 27)
     doc.setFillColor(...rosa).rect(14, 36, 182, 7, 'F')
     doc.setTextColor(255).setFont('helvetica', 'bold').setFontSize(9)
     doc.text('Foto', 16, 41); doc.text('Código', 46, 41); doc.text('Descripción', 72, 41); doc.text('Cantidad', 180, 41)

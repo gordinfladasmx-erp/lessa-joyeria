@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import TarjetasDestacadas from '../components/TarjetasDestacadas'
 import { fotoGrandeUrl, fotoUrl, money } from '../lib/store'
+import { MARCA } from '../config'
 import '../styles/Landing.css'
 
 const EN_INICIO = 20
@@ -54,12 +55,12 @@ export default function Landing({ cart, onAddToCart, onRemove, adminPass }) {
     <div className="landing">
       <section className="hero2">
         <div className="hero2-texto">
-          <div className="hero2-marca" role="img" aria-label="Lessa Joyería">
-            <img src="/lessa-wordmark.png" alt="" className="marca-lessa" />
-            <span className="marca-joyeria">joyería</span>
+          <div className="hero2-marca" role="img" aria-label={MARCA.nombre}>
+            <img src={MARCA.wordmark} alt="" className={`marca-lessa ${MARCA.wordmarkMultiplicar ? 'multiplicar' : ''}`} />
+            {MARCA.subtitulo && <span className="marca-joyeria">{MARCA.subtitulo}</span>}
           </div>
-          <h1 className="hero2-lema">El arte de lucir accesorios de calidad</h1>
-          <p className="hero2-sub">Colecciones únicas e innovadoras para cada momento. Envíos locales y a toda la república.</p>
+          <h1 className="hero2-lema">{MARCA.eslogan}</h1>
+          <p className="hero2-sub">{MARCA.descripcionPortada}</p>
           <div className="hero2-botones">
             <Link to="/catalogo" className="btn-hero">Ver catálogo</Link>
             <Link to="/destacados" className="btn-hero claro">★ Destacados</Link>
@@ -73,7 +74,7 @@ export default function Landing({ cart, onAddToCart, onRemove, adminPass }) {
               <span className="hero2-pie">{hero.nombre} <b>{money(hero.precio)}</b></span>
             </Link>
           ) : (
-            <div className="hero2-marco vacio"><img src="/lessa-wordmark.png" alt="" /></div>
+            <div className="hero2-marco vacio"><img src={MARCA.wordmark} alt="" /></div>
           )}
         </div>
       </section>

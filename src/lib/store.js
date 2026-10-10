@@ -1,10 +1,12 @@
-export const WA_TIENDA = '524493876360'
-export const WA_TIENDA_VISIBLE = '+52 449 387 6360'
-export const EMAIL_TIENDA = 'lessa.joyeria07@gmail.com'
-export const CLABE = '638180010154516719'
-export const WEB_TIENDA = 'https://lessa-joyeria.netlify.app'
-export const INSTAGRAM = '@lessa_joyeria'
-export const INSTAGRAM_URL = 'https://www.instagram.com/lessa_joyeria'
+import { MARCA, CONTACTO } from '../config'
+
+export const WA_TIENDA = CONTACTO.whatsapp
+export const WA_TIENDA_VISIBLE = CONTACTO.whatsappVisible
+export const EMAIL_TIENDA = CONTACTO.email
+export const CLABE = CONTACTO.clabe
+export const WEB_TIENDA = CONTACTO.web
+export const INSTAGRAM = CONTACTO.instagram
+export const INSTAGRAM_URL = CONTACTO.instagramUrl
 export const DIAS_PREORDEN = 15
 export const DIAS_ENCARGO_NORMAL = 30
 export const DIAS_ENCARGO_URGENTE = 15
@@ -32,10 +34,10 @@ export function waNumber(tel) {
 }
 
 export const getAdminPass = () => {
-  try { return sessionStorage.getItem('lessa_admin_pass') || '' } catch { return '' }
+  try { return sessionStorage.getItem(`${MARCA.claveCarrito}_admin_pass`) || '' } catch { return '' }
 }
 export const setAdminPass = (p) => {
-  try { p ? sessionStorage.setItem('lessa_admin_pass', p) : sessionStorage.removeItem('lessa_admin_pass') } catch { /* sin storage */ }
+  try { p ? sessionStorage.setItem(`${MARCA.claveCarrito}_admin_pass`, p) : sessionStorage.removeItem(`${MARCA.claveCarrito}_admin_pass`) } catch { /* sin storage */ }
 }
 
 export const fechaCorta = (d) => {
@@ -47,7 +49,7 @@ export const fechaCorta = (d) => {
 
 export const mensajeError = (err) =>
   /Could not find the function|schema cache/i.test(err?.message || '')
-    ? 'Falta ejecutar el SQL de configuración en Supabase (archivo supabase_lessa_inventario_pedidos.sql).'
+    ? 'Falta ejecutar el SQL de instalación en Supabase (archivo instalar.sql).'
     : err?.message || 'Error desconocido'
 
 function bloque(p) {
@@ -68,13 +70,13 @@ function bloque(p) {
 }
 
 export function reciboTexto(r, cliente) {
-  let t = `*Lessa Joyería*\nCliente: ${cliente.nombre}\n\n`
+  let t = `*${MARCA.nombre}*\nCliente: ${cliente.nombre}\n\n`
   t += r.pedidos.map(bloque).join('\n')
   t += `\n*Total general: ${money(r.total)}*\n`
   if (cliente.solicitud) t += `\nSolicitud de descuento / código: ${cliente.solicitud}\n`
   if (cliente.entrega === 'envio') t += `\nEnvío local a: ${cliente.direccion}\n`
   if (r.pedidos.some((p) => !p.validado && !p.mostrador)) {
-    t += `\nLessa validará tu pedido (descuento, envío y fecha de entrega) y te confirmará el valor final y cómo pagar la reserva. No hagas transferencias hasta recibir esa confirmación.\n`
+    t += `\n${MARCA.nombreCorto} validará tu pedido (descuento, envío y fecha de entrega) y te confirmará el valor final y cómo pagar la reserva. No hagas transferencias hasta recibir esa confirmación.\n`
   } else if (!r.pedidos.every((p) => p.mostrador)) {
     t += `\nPara confirmar, transfiere la reserva a la CLABE *${CLABE}* y envía tu comprobante por WhatsApp indicando tu número de recibo.\n`
   }
@@ -82,10 +84,10 @@ export function reciboTexto(r, cliente) {
   return t
 }
 
-// Mensaje que Lessa manda al cliente cuando valida el pedido (valor neto, envío y fecha).
+// Mensaje que la tienda manda al cliente cuando valida el pedido (valor neto, envío y fecha).
 export function mensajeConfirmacion(p) {
   const lineas = p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')
-  let t = `*Lessa Joyería*\nHola ${p.nombre_cliente}, validamos tu pedido *${p.numero_pedido}*:\n\n${lineas}\n\nSubtotal: ${money(p.subtotal)}\n`
+  let t = `*${MARCA.nombre}*\nHola ${p.nombre_cliente}, validamos tu pedido *${p.numero_pedido}*:\n\n${lineas}\n\nSubtotal: ${money(p.subtotal)}\n`
   if (Number(p.descuento) > 0) t += `Descuento: -${money(p.descuento)}\n`
   if (Number(p.envio) > 0) t += `Envío local: ${money(p.envio)}\n`
   t += `*Valor neto: ${money(p.total)}*\n`
@@ -101,13 +103,13 @@ export function mensajeConfirmacion(p) {
   if (f) t += `Fecha de entrega: ${fechaCorta(f)}\n`
   else if (p.tipo === 'apartado') t += `Tu pieza se aparta ${DIAS_APARTADO} días desde que confirmemos el pago.\n`
   t += `\nTransfiere la reserva a la CLABE *${CLABE}* y envíanos tu comprobante por WhatsApp indicando tu número de pedido.\n\nGracias por tu preferencia.`
-  t += `\n\n*Contacto Lessa Joyería*\nInstagram: ${INSTAGRAM} (${INSTAGRAM_URL})\nPágina web: ${WEB_TIENDA}\nWhatsApp: ${WA_TIENDA_VISIBLE}\nCorreo: ${EMAIL_TIENDA}`
+  t += `\n\n*Contacto ${MARCA.nombre}*\nInstagram: ${INSTAGRAM} (${INSTAGRAM_URL})\nPágina web: ${WEB_TIENDA}\nWhatsApp: ${WA_TIENDA_VISIBLE}\nCorreo: ${EMAIL_TIENDA}`
   return t
 }
 
-// Mensaje que el cliente envia a Lessa por WhatsApp para que Lessa revise el pedido en el panel.
-export function pedidoParaLessa(r, cliente) {
-  let t = `*NUEVO PEDIDO LESSA*\n`
+// Mensaje que el cliente envia a la tienda por WhatsApp para que la tienda revise el pedido en el panel.
+export function pedidoParaTienda(r, cliente) {
+  let t = `*NUEVO PEDIDO ${MARCA.nombreCorto.toUpperCase()}*\n`
   t += r.pedidos.map((p) => `Pedido ${p.numero_pedido} (${p.tipo === 'encargo' ? 'encargo' : 'apartado'})`).join('\n')
   t += `\n\n*Cliente:* ${cliente.nombre}\n*WhatsApp:* ${cliente.whatsapp}\n*Correo:* ${cliente.email}\n\n`
   t += r.pedidos.map((p) => p.items.map((i) => `- ${i.nombre} x${i.cantidad}  ${money(i.precio * i.cantidad)}`).join('\n')).join('\n')

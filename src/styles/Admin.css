@@ -2,7 +2,7 @@
 .admin-top { display: flex; justify-content: space-between; align-items: center; }
 .admin h1, .admin h2 { color: var(--primary); }
 .admin-salir { background: #888; color: white; border: none; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; }
-.admin-nota { background: #fbf4f7; border: 1px solid var(--primary-light); padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.75rem 0; font-size: 0.9rem; }
+.admin-nota { background: var(--marca-suave); border: 1px solid var(--primary-light); padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.75rem 0; font-size: 0.9rem; }
 .admin-error { color: #b3261e; background: #fdecea; padding: 0.6rem 0.8rem; border-radius: 8px; margin: 0.75rem 0; }
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 1.5rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.75rem; }
 .admin-tabs button, .admin-subtabs button { background: white; border: 1px solid var(--primary-light); color: var(--primary); padding: 0.6rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.95rem; }
@@ -17,7 +17,7 @@
 .admin-busqueda input { flex: 1; padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
 .admin-busqueda button, .admin-form button { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 0.7rem 1.4rem; cursor: pointer; font-size: 1rem; }
 .admin-tabla { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
-.admin-tabla th { text-align: left; background: #fbeef3; color: var(--primary); padding: 0.7rem; font-size: 0.85rem; }
+.admin-tabla th { text-align: left; background: var(--marca-suave2); color: var(--primary); padding: 0.7rem; font-size: 0.85rem; }
 .admin-tabla td { padding: 0.6rem 0.7rem; border-bottom: 1px solid #f0f0f0; }
 .admin-form { display: grid; gap: 0.75rem; max-width: 460px; }
 .admin-form input, .admin-form select { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
@@ -69,7 +69,7 @@
 .reportes h2 { margin: 1.5rem 0 0.5rem; font-size: 1.15rem; }
 @media (max-width: 768px) { .graficas { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpi strong { font-size: 1.1rem; } }
 
-.validar-box { background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; margin-top: 0.75rem; }
+.validar-box { background: var(--marca-suave); border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; margin-top: 0.75rem; }
 .validar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-top: 0.6rem; }
 .validar-grid label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--primary); }
 .validar-grid input { padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; width: 100%; }
@@ -86,7 +86,7 @@
 .linea-edit button.verde { background: #2e7d4f; border-color: #2e7d4f; color: white; }
 .linea-edit button.rojo { color: #b3261e; border-color: #b3261e; }
 .linea-edit button:disabled { opacity: 0.35; cursor: not-allowed; }
-.linea-nueva { max-width: none; margin-top: 1.25rem; background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; }
+.linea-nueva { max-width: none; margin-top: 1.25rem; background: var(--marca-suave); border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; }
 .linea-nueva-fila { display: grid; grid-template-columns: 1.2fr 0.7fr 1.6fr auto; gap: 0.5rem; margin-top: 0.5rem; }
 @media (max-width: 768px) { .linea-nueva-fila { grid-template-columns: 1fr 1fr; } }
 
@@ -97,12 +97,12 @@
 .ok-msg { color: #2e7d4f; background: #e6f4ec; padding: 0.5rem 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
 
 .admin-tabla .der { text-align: right; }
-.admin-tabla tfoot td { background: #fbeef3; padding: 0.7rem; border-top: 2px solid var(--primary-light); }
+.admin-tabla tfoot td { background: var(--marca-suave2); padding: 0.7rem; border-top: 2px solid var(--primary-light); }
 .select-cat { padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; background: white; }
 @media (max-width: 768px) { .admin-busqueda { flex-wrap: wrap; } .admin-busqueda input { flex: 1 1 100%; } }
 
 .admin-tabla .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: white; }
-.admin-tabla .stepper button { width: 36px; height: 36px; border: none; background: #fbeef3; color: var(--primary); font-size: 1.3rem; cursor: pointer; }
+.admin-tabla .stepper button { width: 36px; height: 36px; border: none; background: var(--marca-suave2); color: var(--primary); font-size: 1.3rem; cursor: pointer; }
 .admin-tabla .stepper button:disabled { color: #ccc; cursor: not-allowed; }
 .admin-tabla .stepper input { width: 56px; height: 36px; border: none; text-align: center; font-size: 1rem; }
 
@@ -115,7 +115,7 @@
 .admin-subtabs button.urgente { border-color: #b3261e; color: #b3261e; }
 .admin-subtabs button.urgente.on { background: #b3261e; color: #fff; }
 
-.form-venta { background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 12px; padding: 1.1rem; margin-bottom: 1.25rem; }
+.form-venta { background: var(--marca-suave); border: 1px solid var(--primary-light); border-radius: 12px; padding: 1.1rem; margin-bottom: 1.25rem; }
 .form-venta h3 { color: var(--primary); margin-bottom: 0.75rem; }
 .form-venta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 0.9rem; }
 .form-venta label, .filtros-venta label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--primary); }
@@ -124,7 +124,7 @@
 .form-venta-busca { margin-bottom: 0.4rem; }
 .resultados-venta { list-style: none; background: #fff; border: 1px solid var(--border); border-radius: 8px; margin: 0 0 0.9rem; padding: 0; max-height: 260px; overflow-y: auto; }
 .resultados-venta button { width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #f0f0f0; padding: 0.6rem 0.8rem; cursor: pointer; font-size: 0.9rem; }
-.resultados-venta button:hover { background: #fbeef3; }
+.resultados-venta button:hover { background: var(--marca-suave2); }
 .resultados-venta span { display: block; font-size: 0.78rem; color: #666; }
 .input-cotejo.ancho { width: 110px; }
 .venta-totales { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; justify-content: flex-end; margin: 0.5rem 0 0.9rem; }

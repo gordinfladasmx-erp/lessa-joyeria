@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { sb } from '../lib/supabase'
 import { money, fechaCorta, waNumber, mensajeError, mensajeConfirmacion, DIAS_APARTADO, servicioPorId } from '../lib/store'
 import Reportes from './Reportes'
+import { MARCA } from '../config'
 import Estrella from '../components/Estrella'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
 import '../styles/Admin.css'
@@ -22,7 +23,7 @@ export default function Admin({ adminPass, onLogin }) {
   if (!adminPass) {
     return (
       <div className="admin-login">
-        <img src="/logo.png" alt="Lessa" />
+        <img src={MARCA.logo} alt={MARCA.nombreCorto} />
         <h1>Panel del personal</h1>
         <button onClick={onLogin}>Ingresar</button>
       </div>
@@ -65,7 +66,7 @@ function usePedidos(pass) {
     if (a.error) return setMsg(mensajeError(a.error))
     if (b.error) return setMsg(mensajeError(b.error))
     setPedidos(a.data || []); setProveedor(b.data || []); setLineas(c.data || [])
-    setMsg(c.error ? 'Para editar líneas del proveedor falta ejecutar supabase_lessa_proveedor_lineas.sql en Supabase.' : '')
+    setMsg(c.error ? 'Para editar líneas del proveedor falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : '')
   }, [pass])
   useEffect(() => { cargar() }, [cargar])
   const llamar = async (fn, args, ok) => {
@@ -311,7 +312,7 @@ function InventarioActual({ pass }) {
     const blob = new Blob(['\ufeff' + lineas.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `inventario-lessa-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `inventario-${MARCA.archivoPrefijo}-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
   }
 
@@ -500,7 +501,7 @@ function Proveedor({ pass }) {
     try { await pdfPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
   }
   const copiar = async () => {
-    const t = 'Pedido a proveedor Lessa\n' + paraPdf.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
+    const t = `Pedido a proveedor ${MARCA.nombreCorto}\n` + paraPdf.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
     try { await navigator.clipboard.writeText(t); alert('Lista copiada') } catch { alert(t) }
   }
   const agregar = async (e) => {
@@ -680,7 +681,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
       p_desc_tipo: tipo, p_desc_valor: v, p_notas: notas, p_forzar: forzar,
     })
     setGuardando(false)
-    if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_ventas_manuales.sql en Supabase.' : error.message)
+    if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : error.message)
     onGuardada(data)
   }
 
@@ -791,7 +792,7 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
     filas.forEach((p) => l.push([ymd(fechaVenta(p)), p.numero_pedido, p.tipo === 'venta' ? 'Manual' : 'Página', ESTADO_VENTA[p.estado], p.nombre_cliente, p.whatsapp,
       p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(' | '), Number(p.subtotal).toFixed(2), Number(p.descuento).toFixed(2), Number(p.total).toFixed(2)].map(esc).join(',')))
     const blob = new Blob(['﻿' + l.join('\n')], { type: 'text/csv;charset=utf-8' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ventas-lessa-${ymd(new Date())}.csv`; a.click()
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ventas-${MARCA.archivoPrefijo}-${ymd(new Date())}.csv`; a.click()
   }
 
   return (

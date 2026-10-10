@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { BotonAmpliar } from '../components/Foto'
+import { MARCA } from '../config'
 import TarjetasDestacadas from '../components/TarjetasDestacadas'
 import { sb } from '../lib/supabase'
 import {
-  money, fotoUrl, waNumber, reciboTexto, pedidoParaLessa, fechaCorta, mensajeError,
+  money, fotoUrl, waNumber, reciboTexto, pedidoParaTienda, fechaCorta, mensajeError,
   WA_TIENDA, WA_TIENDA_VISIBLE, EMAIL_TIENDA, CLABE, DIAS_APARTADO, PCT_ANTICIPO,
   DIAS_ENCARGO_NORMAL, DIAS_ENCARGO_URGENTE, servicioPorId,
 } from '../lib/store'
@@ -12,7 +13,7 @@ import '../styles/Carrito.css'
 
 function Recibo({ r, cliente, onNuevo }) {
   const texto = reciboTexto(r, cliente)
-  const textoLessa = pedidoParaLessa(r, cliente)
+  const textoTienda = pedidoParaTienda(r, cliente)
   const todoMostrador = r.pedidos.every((p) => p.mostrador)
   const waCliente = waNumber(cliente.whatsapp)
   const fila = (i) => (
@@ -28,7 +29,7 @@ function Recibo({ r, cliente, onNuevo }) {
     <div className="carrito recibo-pagina">
       <div className="recibo" id="recibo">
         <div className="recibo-cabecera">
-          <img src="/logo.png" alt="Lessa" />
+          <img src={MARCA.logo} alt={MARCA.nombreCorto} />
           <div>
             <h2>{r.pedidos.some((p) => p.mostrador) ? 'Recibo de venta' : r.pedidos.every((p) => p.validado) ? 'Recibo de reserva' : 'Pedido recibido'}</h2>
             <p>{fechaCorta(new Date().toISOString())}</p>
@@ -63,7 +64,7 @@ function Recibo({ r, cliente, onNuevo }) {
               <p className="recibo-nota">
                 <strong>Envío urgente:</strong> {servicioPorId(p.servicio_envio)?.nombre || 'servicio por confirmar'}
                 {servicioPorId(p.servicio_envio) ? `, de ${servicioPorId(p.servicio_envio).rango} (${servicioPorId(p.servicio_envio).tiempo})` : ''}.
-                Lessa te confirmará el costo exacto antes de que pagues.
+                {MARCA.nombreCorto} te confirmará el costo exacto antes de que pagues.
               </p>
             )}
             {!p.mostrador && (
@@ -77,10 +78,10 @@ function Recibo({ r, cliente, onNuevo }) {
         ))}
         <div className="recibo-totales"><div className="grande"><span>Total general</span><span>{money(r.total)}</span></div></div>
         {cliente.solicitud && <p className="recibo-nota"><strong>Tu solicitud de descuento / código:</strong> {cliente.solicitud}</p>}
-        {cliente.entrega === 'envio' && <p className="recibo-nota"><strong>Envío local a:</strong> {cliente.direccion}. Lessa confirmará el costo.</p>}
+        {cliente.entrega === 'envio' && <p className="recibo-nota"><strong>Envío local a:</strong> {cliente.direccion}. {MARCA.nombreCorto} confirmará el costo.</p>}
         {r.pedidos.some((p) => !p.validado && !p.mostrador) ? (
           <p className="recibo-nota">
-            Lessa revisará tu pedido (descuento, envío y fecha de entrega) y te confirmará por WhatsApp el valor final
+            {MARCA.nombreCorto} revisará tu pedido (descuento, envío y fecha de entrega) y te confirmará por WhatsApp el valor final
             y cómo pagar la reserva. Por favor no hagas ninguna transferencia hasta recibir esa confirmación.
           </p>
         ) : !r.pedidos.every((p) => p.mostrador) && (
@@ -93,15 +94,15 @@ function Recibo({ r, cliente, onNuevo }) {
 
       {!todoMostrador && (
         <div className="aviso-enviar">
-          <strong>Paso final:</strong> pulsa el botón verde para enviar tu pedido a Lessa por WhatsApp
-          (<strong>{WA_TIENDA_VISIBLE}</strong>). Sin ese envío, Lessa no lo recibe.
+          <strong>Paso final:</strong> pulsa el botón verde para enviar tu pedido a {MARCA.nombreCorto} por WhatsApp
+          (<strong>{WA_TIENDA_VISIBLE}</strong>). Sin ese envío, {MARCA.nombreCorto} no lo recibe.
         </div>
       )}
       <div className="recibo-acciones">
         {!todoMostrador ? (
           <a className="btn-wa btn-grande" target="_blank" rel="noreferrer"
-            href={`https://wa.me/${WA_TIENDA}?text=${encodeURIComponent(textoLessa)}`}>
-            Enviar mi pedido a Lessa por WhatsApp
+            href={`https://wa.me/${WA_TIENDA}?text=${encodeURIComponent(textoTienda)}`}>
+            Enviar mi pedido a {MARCA.nombreCorto} por WhatsApp
           </a>
         ) : waCliente && (
           <a className="btn-wa" target="_blank" rel="noreferrer"
@@ -224,7 +225,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
   const renderItem = (item) => (
     <div key={item.key} className="carrito-item">
       <div className="cart-foto">
-        <img src={fotoUrl(item.sku)} alt={item.nombre} onError={(e) => { e.currentTarget.src = '/logo.png' }} />
+        <img src={fotoUrl(item.sku)} alt={item.nombre} onError={(e) => { e.currentTarget.src = MARCA.logo }} />
         <BotonAmpliar sku={item.sku} nombre={item.nombre} chico />
       </div>
       <div className="item-info">
@@ -280,7 +281,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
               {!autorizado ? (
                 <>
                   <textarea rows="2" value={solicitud} onChange={(e) => setSolicitud(e.target.value)}
-                    placeholder="Escribe tu código promocional o solicita un descuento. Lessa lo revisa y te confirma el valor final." />
+                    placeholder="Escribe tu código promocional o solicita un descuento. {MARCA.nombreCorto} lo revisa y te confirma el valor final." />
                 </>
               ) : (
                 <>
@@ -306,9 +307,9 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
             {descuento > 0 && (
               <div className="subtotal" style={{ color: '#2e7d4f' }}><span>Descuento:</span><span>-{money(descuento)}</span></div>
             )}
-            {entrega === 'envio' && <div className="subtotal"><span>Envío local:</span><span>lo confirma Lessa</span></div>}
+            {entrega === 'envio' && <div className="subtotal"><span>Envío local:</span><span>lo confirma {MARCA.nombreCorto}</span></div>}
             <div className="total"><span>{autorizado ? 'Total:' : 'Total estimado:'}</span><span>{money(total)}</span></div>
-            {!autorizado && <p className="legal" style={{ textAlign: 'left', marginTop: '0.4rem' }}>Lessa valida tu pedido y confirma el valor final y la fecha de entrega.</p>}
+            {!autorizado && <p className="legal" style={{ textAlign: 'left', marginTop: '0.4rem' }}>{MARCA.nombreCorto} valida tu pedido y confirma el valor final y la fecha de entrega.</p>}
             {!mostrador && (
               <div className="modo-pago">
                 <label><input type="radio" checked={modo === 'apartado'} onChange={() => setModo('apartado')} />
@@ -326,7 +327,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
             {pre.length > 0 && (
               <div className="aviso-anticipo">
                 <strong>Sobre pedido:</strong> reserva de {money(anticipoPre)}. Los plazos cuentan desde que se confirma el pago de la reserva.
-                {pre.some((i) => i.urgente) && ' En los encargos urgentes Lessa te confirmará el costo exacto del envío antes de que pagues.'}
+                {pre.some((i) => i.urgente) && ' En los encargos urgentes ${MARCA.nombreCorto} te confirmará el costo exacto del envío antes de que pagues.'}
               </div>
             )}
           </div>
@@ -348,7 +349,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
               <label>Entrega</label>
               <div className="modo-pago" style={{ marginTop: 0 }}>
                 <label><input type="radio" checked={entrega === 'recoger'} onChange={() => setEntrega('recoger')} /> Recoger</label>
-                <label><input type="radio" checked={entrega === 'envio'} onChange={() => setEntrega('envio')} /> Envío local (el costo lo confirma Lessa)</label>
+                <label><input type="radio" checked={entrega === 'envio'} onChange={() => setEntrega('envio')} /> Envío local (el costo lo confirma {MARCA.nombreCorto})</label>
               </div>
               {entrega === 'envio' && (
                 <textarea rows="2" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Dirección de entrega" style={{ marginTop: '0.5rem' }} />
@@ -360,7 +361,7 @@ export default function Carrito({ items, onUpdateQuantity, onRemove, onClear, ad
             </div>
             {error && <p className="error-msg">{error}</p>}
             <button type="submit" className="btn-submit" disabled={enviando}>
-              {enviando ? 'Procesando...' : autorizado && mostrador ? 'Registrar venta' : 'Enviar pedido a Lessa'}
+              {enviando ? 'Procesando...' : autorizado && mostrador ? 'Registrar venta' : `Enviar pedido a ${MARCA.nombreCorto}`}
             </button>
             <p className="legal">Contacto: <a href={`mailto:${EMAIL_TIENDA}`}>{EMAIL_TIENDA}</a></p>
           </form>

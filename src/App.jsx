@@ -6,13 +6,14 @@ import DestacadosPage from './pages/DestacadosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 import { sb } from './lib/supabase'
+import { MARCA, CONTACTO } from './config'
 import { IconoWhatsApp, IconoCorreo, IconoInstagram } from './components/Iconos'
 import { WA_TIENDA, EMAIL_TIENDA, getAdminPass, setAdminPass, mensajeError } from './lib/store'
 import './App.css'
 
 const leerCarrito = () => {
   try {
-    const items = JSON.parse(localStorage.getItem('lessa_cart') || '[]')
+    const items = JSON.parse(localStorage.getItem(MARCA.claveCarrito) || '[]')
     return items.map((i) => ({ ...i, key: i.key || String(i.id), preorden: !!i.preorden }))
   } catch {
     return []
@@ -57,7 +58,7 @@ export default function App() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    try { localStorage.setItem('lessa_cart', JSON.stringify(cart)) } catch { /* sin storage */ }
+    try { localStorage.setItem(MARCA.claveCarrito, JSON.stringify(cart)) } catch { /* sin storage */ }
   }, [cart])
 
   const cartCount = cart.reduce((s, i) => s + i.cantidad, 0)
@@ -100,7 +101,7 @@ export default function App() {
         {adminPass && <div className="barra-edicion">Modo edición activo: ajusta el inventario con + y − en el catálogo. Pulsa Salir al terminar.</div>}
         <nav className="navbar">
           <Link to="/" className="logo">
-            <img src="/logo.png" alt="Lessa Joyería" />
+            <img src={MARCA.logo} alt={MARCA.nombre} />
           </Link>
           <div className="nav-links">
             <Link to="/">Inicio</Link>
@@ -152,7 +153,7 @@ export default function App() {
         {loginAbierto && (
           <div className="modal-fondo" onClick={() => setLoginAbierto(false)}>
             <form className="modal login-modal" onClick={(e) => e.stopPropagation()} onSubmit={login}>
-              <img src="/logo.png" alt="Lessa" />
+              <img src={MARCA.logo} alt={MARCA.nombreCorto} />
               <h2>Acceso del personal</h2>
               <input type="password" placeholder="Contraseña" value={loginInput} autoFocus
                 onChange={(e) => setLoginInput(e.target.value)} />
@@ -168,11 +169,11 @@ export default function App() {
         <footer className="footer">
           <p className="footer-contactanos">Contáctanos</p>
           <div className="footer-marca">
-            <span>Lessa Joyería</span>
+            <span>{MARCA.nombre}</span>
             <span className="sep-v" aria-hidden="true"></span>
-            <a href="https://www.instagram.com/lessa_joyeria" target="_blank" rel="noreferrer" aria-label="Instagram de Lessa">
+            <a href={CONTACTO.instagramUrl} target="_blank" rel="noreferrer" aria-label={`Instagram de ${MARCA.nombreCorto}`}>
               <IconoInstagram size={22} />
-              @lessa_joyeria
+              {CONTACTO.instagram}
             </a>
             <span className="sep-v" aria-hidden="true"></span>
             <span className="footer-iconos">
@@ -181,8 +182,8 @@ export default function App() {
             </span>
           </div>
           <div className="footer-legal">
-            <span>® 2026 Lessa Joyería. Todos los derechos reservados.</span>
-            <span>Powered by Aria by BP&amp;S - Anthropic IA</span>
+            <span>® {MARCA.anio} {MARCA.nombre}. Todos los derechos reservados.</span>
+            <span>{MARCA.creditos}</span>
           </div>
         </footer>
       </div>

@@ -3,12 +3,13 @@ import { Bar, Doughnut } from 'react-chartjs-2'
 import { Chart, registerables } from 'chart.js'
 import { sb } from '../lib/supabase'
 import { money, mensajeError } from '../lib/store'
+import { COLORES } from '../config'
 
 Chart.register(...registerables)
 
 const COSTO = 0.5
-const ROSA = '#A01848'
-const PALETA = ['#A01848', '#D9779B', '#E8C4D6', '#6B6B65', '#C9A227', '#2E7D4F', '#378ADD', '#7F77DD', '#EF9F27', '#1D9E75', '#B3261E', '#9C9A92', '#5B2A86', '#00897B']
+const ROSA = COLORES.primary
+const PALETA = [COLORES.primary, '#D9779B', '#E8C4D6', '#6B6B65', '#C9A227', '#2E7D4F', '#378ADD', '#7F77DD', '#EF9F27', '#1D9E75', '#B3261E', '#9C9A92', '#5B2A86', '#00897B']
 
 const RANGOS = [['hoy', 'Hoy'], ['7', '7 días'], ['30', '30 días'], ['mes', 'Este mes'], ['todo', 'Todo']]
 

@@ -246,10 +246,10 @@ form {
   }
 }
 
-.grupo-titulo { padding: 0.9rem 1rem; background: #fbeef3; color: var(--primary); font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+.grupo-titulo { padding: 0.9rem 1rem; background: var(--marca-suave2); color: var(--primary); font-size: 0.95rem; border-bottom: 1px solid var(--border); }
 .tag-encargo { font-size: 0.8rem; color: #8a5a00; background: #fff3cd; display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; margin-top: 0.25rem; }
 .item-quantity button:disabled { color: #ccc; cursor: not-allowed; }
-.descuento-box { background: #fbf4f7; border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; margin: 0.75rem 0; }
+.descuento-box { background: var(--marca-suave); border: 1px solid var(--primary-light); border-radius: 10px; padding: 0.9rem; margin: 0.75rem 0; }
 .descuento-box label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .descuento-fila { display: flex; gap: 0.5rem; }
 .descuento-fila input { flex: 1; padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }

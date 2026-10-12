@@ -643,6 +643,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
   const [valor, setValor] = useState('')
   const [notas, setNotas] = useState('')
   const [forzar, setForzar] = useState(false)
+  const [consigna, setConsigna] = useState(false)
   const [msg, setMsg] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -678,7 +679,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
     const { data, error } = await sb.rpc('admin_registrar_venta', {
       p_pass: pass, p_fecha: fecha, p_cliente: cliente, p_telefono: telefono,
       p_items: lineas.map((l) => ({ id: l.id, cantidad: parseInt(l.cantidad) || 1, precio: parseFloat(l.precio) || 0 })),
-      p_desc_tipo: tipo, p_desc_valor: v, p_notas: notas, p_forzar: forzar,
+      p_desc_tipo: tipo, p_desc_valor: consigna ? 0 : v, p_notas: notas, p_forzar: forzar, p_consignacion: consigna,
     })
     setGuardando(false)
     if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : error.message)
@@ -687,10 +688,15 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
 
   return (
     <form className="form-venta" onSubmit={guardar}>
-      <h3>Registrar venta manual</h3>
+      <h3>{consigna ? 'Registrar consignación' : 'Registrar venta manual'}</h3>
+      <div className="segmento tipo-registro">
+        <button type="button" className={!consigna ? 'on' : ''} onClick={() => setConsigna(false)}>Venta cobrada</button>
+        <button type="button" className={consigna ? 'on' : ''} onClick={() => setConsigna(true)}>Consignación (sin cobrar)</button>
+      </div>
+      {consigna && <p className="admin-nota">Los productos salen del inventario y se quedan con la persona, pero no cuentan como venta ni como ingreso hasta que se liquida: lo que venda se cobra y lo que no se devuelve al inventario.</p>}
       <div className="form-venta-grid">
         <label>Fecha<input type="date" required value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} /></label>
-        <label>Cliente<input placeholder="Nombre del cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
+        <label>{consigna ? 'Persona que los tiene *' : 'Cliente'}<input placeholder={consigna ? 'Nombre de quien los recibe' : 'Nombre del cliente'} value={cliente} required={consigna} onChange={(e) => setCliente(e.target.value)} /></label>
         <label>Teléfono<input type="tel" placeholder="Opcional" value={telefono} onChange={(e) => setTelefono(e.target.value)} /></label>
       </div>
 
@@ -727,7 +733,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
       )}
 
       <div className="form-venta-grid">
-        <label>Descuento
+        {!consigna && <label>Descuento
           <span className="descuento-fila">
             <span className="segmento">
               <button type="button" className={tipo === 'monto' ? 'on' : ''} onClick={() => setTipo('monto')}>$</button>
@@ -735,24 +741,28 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
             </span>
             <input type="number" min="0" step="0.01" value={valor} placeholder="0" onChange={(e) => setValor(e.target.value)} />
           </span>
-        </label>
+        </label>}
         <label>Notas<input placeholder="Opcional" value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
       </div>
 
       <div className="venta-totales">
-        <span>Subtotal: <strong>{money(subtotal)}</strong></span>
-        <span>Descuento: <strong>-{money(descuento)}</strong></span>
-        <span className="grande">Total: <strong>{money(total)}</strong></span>
+        {consigna ? <span className="grande">Valor en consignación: <strong>{money(subtotal)}</strong></span> : (
+          <>
+            <span>Subtotal: <strong>{money(subtotal)}</strong></span>
+            <span>Descuento: <strong>-{money(descuento)}</strong></span>
+            <span className="grande">Total: <strong>{money(total)}</strong></span>
+          </>
+        )}
       </div>
 
       <label className="solo-disp">
         <input type="checkbox" checked={forzar} onChange={(e) => setForzar(e.target.checked)} />
         Registrar aunque el sistema marque menos existencia (el inventario queda en 0)
       </label>
-      <p className="admin-nota">Al guardar, las piezas se descuentan del inventario y la venta cuenta en los reportes con la fecha elegida.</p>
+      <p className="admin-nota">{consigna ? 'Al guardar, las piezas se descuentan del inventario y quedan registradas en la pestaña Consignación.' : 'Al guardar, las piezas se descuentan del inventario y la venta cuenta en los reportes con la fecha elegida.'}</p>
       {msg && <p className="admin-error">{msg}</p>}
       <div className="pedido-acciones">
-        <button type="submit" className="verde" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar venta'}</button>
+        <button type="submit" className="verde" disabled={guardando}>{guardando ? 'Guardando...' : consigna ? 'Guardar consignación' : 'Guardar venta'}</button>
         <button type="button" onClick={onCancelar}>Cancelar</button>
       </div>
     </form>
@@ -768,8 +778,8 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
   const [aviso, setAviso] = useState('')
 
   const filas = pedidos
-    .filter((p) => p.estado !== 'cancelado')
-    .filter((p) => (origen === 'todas' ? true : origen === 'manual' ? p.tipo === 'venta' : p.tipo !== 'venta'))
+    .filter((p) => p.estado !== 'cancelado' && p.tipo !== 'consignacion')
+    .filter((p) => (origen === 'todas' ? true : origen === 'manual' ? p.tipo === 'venta' && !p.consignacion_id : origen === 'consignacion' ? !!p.consignacion_id : p.tipo !== 'venta'))
     .filter((p) => (estado === 'cerradas' ? p.estado === 'entregado' : estado === 'proceso' ? p.estado !== 'entregado' : true))
     .filter((p) => {
       const d = ymd(fechaVenta(p))
@@ -789,7 +799,7 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
   const csv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const l = [['Fecha', 'Folio', 'Origen', 'Estado', 'Cliente', 'Teléfono', 'Productos', 'Subtotal', 'Descuento', 'Total'].join(',')]
-    filas.forEach((p) => l.push([ymd(fechaVenta(p)), p.numero_pedido, p.tipo === 'venta' ? 'Manual' : 'Página', ESTADO_VENTA[p.estado], p.nombre_cliente, p.whatsapp,
+    filas.forEach((p) => l.push([ymd(fechaVenta(p)), p.numero_pedido, p.consignacion_id ? 'Consignación' : p.tipo === 'venta' ? 'Manual' : 'Página', ESTADO_VENTA[p.estado], p.nombre_cliente, p.whatsapp,
       p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(' | '), Number(p.subtotal).toFixed(2), Number(p.descuento).toFixed(2), Number(p.total).toFixed(2)].map(esc).join(',')))
     const blob = new Blob(['﻿' + l.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ventas-${MARCA.archivoPrefijo}-${ymd(new Date())}.csv`; a.click()
@@ -811,12 +821,12 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
       </div>}
       {aviso && <p className="admin-nota">{aviso}</p>}
       {form && <FormVenta pass={pass} onCancelar={() => setForm(false)}
-        onGuardada={(r) => { setForm(false); setAviso(`Venta ${r.numero_pedido} registrada por ${money(r.total)}. Inventario actualizado.`); cargar() }} />}
+        onGuardada={(r) => { setForm(false); setAviso(r.consignacion ? `Consignación ${r.numero_pedido} registrada por ${money(r.total)}. Inventario actualizado; la encuentras en la pestaña Consignación.` : `Venta ${r.numero_pedido} registrada por ${money(r.total)}. Inventario actualizado.`); cargar() }} />}
 
       <div className="filtros-venta">
         <label>Origen
           <select value={origen} onChange={(e) => setOrigen(e.target.value)}>
-            <option value="todas">Página y manuales</option><option value="pagina">Solo pedidos de la página</option><option value="manual">Solo ventas manuales</option>
+            <option value="todas">Página y manuales</option><option value="pagina">Solo pedidos de la página</option><option value="manual">Solo ventas manuales</option><option value="consignacion">Solo ventas de consignaciones</option>
           </select></label>
         <label>Estado
           <select value={estado} onChange={(e) => setEstado(e.target.value)}>
@@ -841,11 +851,11 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
                   <td className="der">{Number(p.descuento) > 0 ? `-${money(p.descuento)}` : ''}</td>
                   <td className="der"><strong>{money(p.total)}</strong></td>
                   <td>
-                    <span className={`pill ${p.tipo === 'venta' ? 'encargo' : 'entregado'}`}>{p.tipo === 'venta' ? 'Manual' : 'Página'}</span>
+                    <span className={`pill ${p.tipo === 'venta' ? 'encargo' : 'entregado'}`}>{p.consignacion_id ? 'Consignación' : p.tipo === 'venta' ? 'Manual' : 'Página'}</span>
                     {p.estado !== 'entregado' && <span className="pill pendiente">{ESTADO_VENTA[p.estado]}</span>}
                   </td>
                   <td>
-                    {p.tipo === 'venta'
+                    {p.consignacion_id ? null : p.tipo === 'venta'
                       ? <button className="btn-ocultar-fila" onClick={() => anular(p)}>Anular</button>
                       : <button className="btn-ocultar-fila" onClick={() => borrar(p)}>Borrar</button>}
                   </td>
@@ -859,13 +869,181 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
   )
 }
 
+const pendiente = (i) => Number(i.cantidad) - Number(i.vendido || 0) - Number(i.devuelto || 0)
+
+function Liquidar({ c, pass, onListo, onCancelar }) {
+  const hoy = ymd(new Date())
+  const [fecha, setFecha] = useState(hoy)
+  const [filas, setFilas] = useState(() => Object.fromEntries(c.items.filter((i) => pendiente(i) > 0).map((i) => [i.id, { vendidas: '0', devueltas: '0', precio: String(i.precio) }])))
+  const [descuento, setDescuento] = useState('')
+  const [notas, setNotas] = useState('')
+  const [msg, setMsg] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  const cambiar = (id, campo, v) => setFilas((f) => ({ ...f, [id]: { ...f[id], [campo]: v } }))
+  const todoVendido = () => setFilas((f) => Object.fromEntries(c.items.filter((i) => pendiente(i) > 0).map((i) => [i.id, { ...f[i.id], vendidas: String(pendiente(i)), devueltas: '0' }])))
+  const todoDevuelto = () => setFilas((f) => Object.fromEntries(c.items.filter((i) => pendiente(i) > 0).map((i) => [i.id, { ...f[i.id], vendidas: '0', devueltas: String(pendiente(i)) }])))
+
+  const lineas = c.items.filter((i) => pendiente(i) > 0).map((i) => ({
+    id: i.id, vendidas: parseInt(filas[i.id]?.vendidas) || 0, devueltas: parseInt(filas[i.id]?.devueltas) || 0, precio: parseFloat(filas[i.id]?.precio) || Number(i.precio),
+  }))
+  const importe = lineas.reduce((s, l) => s + l.vendidas * l.precio, 0)
+  const desc = Math.min(parseFloat(descuento) || 0, importe)
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setGuardando(true); setMsg('')
+    const { data, error } = await sb.rpc('admin_liquidar_consignacion', { p_pass: pass, p_id: c.id, p_lineas: lineas, p_fecha: fecha, p_descuento: parseFloat(descuento) || 0, p_notas: notas })
+    setGuardando(false)
+    if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar supabase_lessa_consignacion.sql en Supabase.' : error.message)
+    onListo(data)
+  }
+
+  return (
+    <form className="form-venta" onSubmit={guardar}>
+      <h3>Registrar venta o devolución de {c.numero_pedido}</h3>
+      <p className="admin-nota">Captura cuántas piezas se vendieron (se cobran y pasan a ventas) y cuántas se devuelven (regresan al inventario). Lo que no captures sigue en consignación.</p>
+      <div className="pedido-acciones" style={{ marginTop: 0 }}>
+        <button type="button" onClick={todoVendido}>Todo vendido</button>
+        <button type="button" onClick={todoDevuelto}>Todo devuelto</button>
+      </div>
+      <div className="tabla-scroll">
+        <table className="admin-tabla">
+          <thead><tr><th>Producto</th><th>Pendientes</th><th>Vendidas</th><th>Devueltas</th><th>Precio c/u</th><th className="der">Importe</th></tr></thead>
+          <tbody>
+            {c.items.filter((i) => pendiente(i) > 0).map((i) => (
+              <tr key={i.id}>
+                <td>{i.nombre}<br /><small>{i.sku}</small></td>
+                <td><strong>{pendiente(i)}</strong></td>
+                <td><input type="number" min="0" max={pendiente(i)} className="input-cotejo" value={filas[i.id]?.vendidas} onChange={(e) => cambiar(i.id, 'vendidas', e.target.value)} /></td>
+                <td><input type="number" min="0" max={pendiente(i)} className="input-cotejo" value={filas[i.id]?.devueltas} onChange={(e) => cambiar(i.id, 'devueltas', e.target.value)} /></td>
+                <td><input type="number" min="0" step="0.01" className="input-cotejo ancho" value={filas[i.id]?.precio} onChange={(e) => cambiar(i.id, 'precio', e.target.value)} /></td>
+                <td className="der">{money((parseInt(filas[i.id]?.vendidas) || 0) * (parseFloat(filas[i.id]?.precio) || 0))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="form-venta-grid" style={{ marginTop: '0.9rem' }}>
+        <label>Fecha del cobro<input type="date" value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} /></label>
+        <label>Descuento ($)<input type="number" min="0" step="0.01" value={descuento} placeholder="0" onChange={(e) => setDescuento(e.target.value)} /></label>
+        <label>Notas<input placeholder="Opcional" value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
+      </div>
+      <div className="venta-totales">
+        <span>Vendido: <strong>{money(importe)}</strong></span>
+        <span>Descuento: <strong>-{money(desc)}</strong></span>
+        <span className="grande">A cobrar: <strong>{money(importe - desc)}</strong></span>
+      </div>
+      {msg && <p className="admin-error">{msg}</p>}
+      <div className="pedido-acciones">
+        <button type="submit" className="verde" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar'}</button>
+        <button type="button" onClick={onCancelar}>Cancelar</button>
+      </div>
+    </form>
+  )
+}
+
+function Consignaciones({ pedidos, pass, cargar }) {
+  const [abierta, setAbierta] = useState(null)
+  const [aviso, setAviso] = useState('')
+  const [verCerradas, setVerCerradas] = useState(false)
+
+  const todas = pedidos.filter((p) => p.tipo === 'consignacion').sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  const abiertas = todas.filter((c) => c.estado === 'consignado')
+  const cerradas = todas.filter((c) => c.estado === 'liquidado')
+  const pzPend = (c) => c.items.reduce((s, i) => s + pendiente(i), 0)
+  const valPend = (c) => c.items.reduce((s, i) => s + pendiente(i) * Number(i.precio), 0)
+  const totPzPend = abiertas.reduce((s, c) => s + pzPend(c), 0)
+  const totValPend = abiertas.reduce((s, c) => s + valPend(c), 0)
+  const vendidas = todas.reduce((s, c) => s + c.items.reduce((u, i) => u + Number(i.vendido || 0), 0), 0)
+  const valVendido = pedidos.filter((p) => p.tipo === 'venta' && p.consignacion_id).reduce((s, p) => s + Number(p.total), 0)
+  const devueltas = todas.reduce((s, c) => s + c.items.reduce((u, i) => u + Number(i.devuelto || 0), 0), 0)
+
+  const porPersona = Object.values(abiertas.reduce((m, c) => {
+    const k = c.nombre_cliente + '|' + c.whatsapp
+    m[k] = m[k] || { nombre: c.nombre_cliente, tel: c.whatsapp, piezas: 0, valor: 0, n: 0 }
+    m[k].piezas += pzPend(c); m[k].valor += valPend(c); m[k].n += 1
+    return m
+  }, {})).sort((a, b) => b.valor - a.valor)
+
+  const anular = async (c) => {
+    if (!window.confirm(`¿Anular la consignación ${c.numero_pedido}? Las ${pzPend(c)} pieza(s) pendientes regresan al inventario. Lo que ya se vendió se conserva.`)) return
+    const { error } = await sb.rpc('admin_anular_consignacion', { p_pass: pass, p_id: c.id })
+    if (error) return setAviso(mensajeError(error))
+    setAviso('Consignación anulada, inventario restituido'); cargar()
+  }
+
+  const tarjeta = (c, cerrada) => (
+    <div className="pedido-card" key={c.id}>
+      <div className="pedido-cab">
+        <strong>{c.numero_pedido}</strong><span>{fechaCorta(c.created_at)}</span>
+        <span className={`pill ${cerrada ? 'entregado' : 'pendiente'}`}>{cerrada ? 'Liquidada' : 'En consignación'}</span>
+      </div>
+      <p className="pedido-cliente"><strong>{c.nombre_cliente}</strong>{c.whatsapp ? ` | Tel: ${c.whatsapp}` : ''}{c.whatsapp && <> | <a target="_blank" rel="noreferrer" href={`https://wa.me/${waNumber(c.whatsapp)}`}>WhatsApp</a></>}</p>
+      <div className="tabla-scroll">
+        <table className="admin-tabla">
+          <thead><tr><th>Producto</th><th>Dejadas</th><th>Vendidas</th><th>Devueltas</th><th>Pendientes</th><th className="der">Valor pendiente</th></tr></thead>
+          <tbody>{c.items.map((i) => (
+            <tr key={i.id}><td>{i.nombre}<br /><small>{i.sku} | {money(i.precio)} c/u</small></td><td>{i.cantidad}</td><td>{i.vendido || 0}</td><td>{i.devuelto || 0}</td><td><strong>{pendiente(i)}</strong></td><td className="der">{money(pendiente(i) * Number(i.precio))}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+      {c.notas && <p className="pedido-notas">Notas: {c.notas}</p>}
+      {!cerrada && (abierta === c.id ? (
+        <Liquidar c={c} pass={pass} onCancelar={() => setAbierta(null)}
+          onListo={(r) => { setAbierta(null); setAviso(`Registrado: ${r.vendidas} vendida(s)${r.total_venta > 0 ? ` por ${money(r.total_venta)} (venta ${r.venta})` : ''}, ${r.devueltas} devuelta(s).${r.liquidada ? ' Consignación liquidada.' : ''}`); cargar() }} />
+      ) : (
+        <div className="pedido-acciones">
+          <button className="verde" onClick={() => setAbierta(c.id)}>Registrar venta o devolución</button>
+          <button className="rojo" onClick={() => anular(c)}>Anular consignación</button>
+        </div>
+      ))}
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="kpis">
+        <div className="kpi"><span className="kpi-t">En consignación ahora</span><strong>{totPzPend} pza</strong><small>{money(totValPend)} por cobrar</small></div>
+        <div className="kpi"><span className="kpi-t">Vendido por consignación</span><strong>{money(valVendido)}</strong><small>{vendidas} pieza(s) cobradas</small></div>
+        <div className="kpi"><span className="kpi-t">Devuelto al inventario</span><strong>{devueltas} pza</strong></div>
+        <div className="kpi"><span className="kpi-t">Personas con piezas</span><strong>{porPersona.length}</strong></div>
+      </div>
+      {aviso && <p className="admin-nota">{aviso}</p>}
+
+      {porPersona.length > 0 && (
+        <>
+          <h2>Quién tiene piezas</h2>
+          <div className="tabla-scroll">
+            <table className="admin-tabla">
+              <thead><tr><th>Persona</th><th>Teléfono</th><th>Consignaciones</th><th>Piezas</th><th className="der">Valor por cobrar</th></tr></thead>
+              <tbody>{porPersona.map((x, k) => <tr key={k}><td>{x.nombre}</td><td>{x.tel}</td><td>{x.n}</td><td>{x.piezas}</td><td className="der por-cobrar">{money(x.valor)}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <h2>Consignaciones abiertas ({abiertas.length})</h2>
+      {abiertas.length === 0 ? <p>No hay productos en consignación. Para registrar una, ve a "Registro de ventas" y elige "Consignación (sin cobrar)".</p> : abiertas.map((c) => tarjeta(c, false))}
+
+      <h2>Ya liquidadas ({cerradas.length})</h2>
+      {cerradas.length === 0 ? <p>Aún no hay consignaciones liquidadas.</p> : (
+        <>
+          <button className="btn-ocultar-fila" onClick={() => setVerCerradas(!verCerradas)}>{verCerradas ? 'Ocultar' : 'Mostrar'} liquidadas</button>
+          {verCerradas && cerradas.map((c) => tarjeta(c, true))}
+        </>
+      )}
+    </div>
+  )
+}
+
 function Historial({ pass }) {
   const { pedidos, proveedor, msg, llamar, borrar, cargar } = usePedidos(pass)
   const [ver, setVer] = useState('ventas')
 
   const vistas = {
     ventas: pedidos.filter((p) => p.estado === 'entregado'),
-    reservas: pedidos.filter((p) => p.estado !== 'cancelado' && p.tipo !== 'venta' && p.pagos?.[0]?.nota !== 'Venta en mostrador'),
+    reservas: pedidos.filter((p) => p.estado !== 'cancelado' && p.tipo !== 'venta' && p.tipo !== 'consignacion' && p.pagos?.[0]?.nota !== 'Venta en mostrador'),
     cancelaciones: pedidos.filter((p) => p.estado === 'cancelado'),
   }
 
@@ -873,7 +1051,7 @@ function Historial({ pass }) {
     <div>
       {msg && <p className="admin-nota">{msg}</p>}
       <div className="admin-subtabs">
-        {[['ventas', 'Registro de ventas'], ['reservas', 'Reservas y apartados'], ['cancelaciones', 'Cancelaciones y anuladas'], ['proveedor', 'Pedidos al proveedor']].map(([k, l]) => (
+        {[['ventas', 'Registro de ventas'], ['consignacion', 'Consignación'], ['reservas', 'Reservas y apartados'], ['cancelaciones', 'Cancelaciones y anuladas'], ['proveedor', 'Pedidos al proveedor']].map(([k, l]) => (
           <button key={k} className={ver === k ? 'on' : ''} onClick={() => setVer(k)}>{l}</button>
         ))}
       </div>
@@ -881,6 +1059,8 @@ function Historial({ pass }) {
 
       {ver === 'ventas' ? (
         <RegistroVentas pedidos={pedidos} pass={pass} cargar={cargar} borrar={borrar} />
+      ) : ver === 'consignacion' ? (
+        <Consignaciones pedidos={pedidos} pass={pass} cargar={cargar} />
       ) : ver === 'proveedor' ? (
         proveedor.length === 0 ? <p>Aún no hay pedidos al proveedor.</p> : proveedor.map((x) => (
           <div className="pedido-card" key={x.id}>

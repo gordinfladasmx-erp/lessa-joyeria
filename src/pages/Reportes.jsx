@@ -72,7 +72,7 @@ export default function Reportes({ pass }) {
     const fechaVenta = (p) => new Date(p.entregado_at || p.created_at)
 
     const ventas = pedidos.filter((p) => p.estado === 'entregado' && fechaVenta(p) >= ini &&
-      (origen === 'todas' || (origen === 'manual' ? p.tipo === 'venta' : p.tipo !== 'venta')))
+      (origen === 'todas' || (origen === 'manual' ? p.tipo === 'venta' && !p.consignacion_id : origen === 'consignacion' ? !!p.consignacion_id : p.tipo !== 'venta')))
     const ingresos = ventas.reduce((s, p) => s + Number(p.total) - Number(p.envio || 0), 0)
     const envios = ventas.reduce((s, p) => s + Number(p.envio || 0), 0)
     const costo = ventas.reduce((s, p) => s + Number(p.subtotal || p.total) * COSTO, 0)
@@ -84,6 +84,20 @@ export default function Reportes({ pass }) {
       if (new Date(x.fecha) >= ini) cobrado += Number(x.monto)
     }))
 
+    const pend = (i) => Number(i.cantidad) - Number(i.vendido || 0) - Number(i.devuelto || 0)
+    const consig = pedidos.filter((p) => p.tipo === 'consignacion')
+    const consAbiertas = consig.filter((c) => c.estado === 'consignado')
+    const consPiezas = consAbiertas.reduce((s, c) => s + c.items.reduce((u, i) => u + pend(i), 0), 0)
+    const consValor = consAbiertas.reduce((s, c) => s + c.items.reduce((u, i) => u + pend(i) * Number(i.precio), 0), 0)
+    const consVendidas = consig.reduce((s, c) => s + c.items.reduce((u, i) => u + Number(i.vendido || 0), 0), 0)
+    const consDevueltas = consig.reduce((s, c) => s + c.items.reduce((u, i) => u + Number(i.devuelto || 0), 0), 0)
+    const consVendidoValor = pedidos.filter((p) => p.tipo === 'venta' && p.consignacion_id).reduce((s, p) => s + Number(p.total), 0)
+    const consPersonas = Object.values(consAbiertas.reduce((m, c) => {
+      const k = c.nombre_cliente + '|' + c.whatsapp
+      m[k] = m[k] || { nombre: c.nombre_cliente, tel: c.whatsapp, piezas: 0, valor: 0 }
+      c.items.forEach((i) => { m[k].piezas += pend(i); m[k].valor += pend(i) * Number(i.precio) })
+      return m
+    }, {})).sort((a, b) => b.valor - a.valor)
     const abiertos = pedidos.filter((p) => ['por_confirmar', 'confirmado'].includes(p.estado))
     const porCobrar = abiertos.reduce((s, p) => s + (Number(p.total) - Number(p.pagado)), 0)
     const deudores = Object.values(abiertos.reduce((m, p) => {
@@ -148,6 +162,7 @@ export default function Reportes({ pass }) {
       apartados, encargos, porConfirmar, anticipos, canc, cancPor, serie, claves, udsCat, topArr,
       invCat, piezas, valorVenta, agotados, estados,
       productosActivos: productos.filter((p) => p.activo).length,
+      consPiezas, consValor, consVendidas, consDevueltas, consVendidoValor, consPersonas,
     }
   }, [pedidos, productos, cats, rango, origen])
 
@@ -164,7 +179,7 @@ export default function Reportes({ pass }) {
         {RANGOS.map(([k, l]) => <button key={k} className={rango === k ? 'on' : ''} onClick={() => setRango(k)}>{l}</button>)}
       </div>
       <div className="admin-subtabs">
-        {[['todas', 'Todas las ventas'], ['pagina', 'Pedidos de la página'], ['manual', 'Ventas manuales']].map(([k, l]) => (
+        {[['todas', 'Todas las ventas'], ['pagina', 'Pedidos de la página'], ['manual', 'Ventas manuales'], ['consignacion', 'Ventas de consignación']].map(([k, l]) => (
           <button key={k} className={origen === k ? 'on' : ''} onClick={() => setOrigen(k)}>{l}</button>
         ))}
       </div>
@@ -248,6 +263,32 @@ export default function Reportes({ pass }) {
               <table className="admin-tabla">
                 <thead><tr><th>Cliente</th><th>Teléfono</th><th>Pedidos</th><th>Saldo</th></tr></thead>
                 <tbody>{d.deudores.map((x, k) => <tr key={k}><td>{x.nombre}</td><td>{x.tel}</td><td>{x.pedidos}</td><td className="por-cobrar">{money(x.saldo)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <h2>Consignación (hoy)</h2>
+      <div className="kpis">
+        <Kpi titulo="En consignación ahora" valor={`${d.consPiezas} pza`} sub={`${money(d.consValor)} por cobrar`} tono={d.consPiezas ? 'rojo' : ''} />
+        <Kpi titulo="Ya vendido por consignación" valor={money(d.consVendidoValor)} sub={`${d.consVendidas} pieza(s) cobradas`} tono="verde" />
+        <Kpi titulo="Devuelto al inventario" valor={`${d.consDevueltas} pza`} />
+        <Kpi titulo="Personas con piezas" valor={d.consPersonas.length} />
+      </div>
+      <div className="graficas">
+        <Grafica titulo="Consignación: piezas en manos, vendidas y devueltas">
+          {d.consPiezas + d.consVendidas + d.consDevueltas === 0 ? sinDatos : (
+            <Doughnut options={opts} data={{ labels: ['En consignación', 'Vendidas', 'Devueltas'], datasets: [{ data: [d.consPiezas, d.consVendidas, d.consDevueltas], backgroundColor: ['#EF9F27', '#2E7D4F', '#9C9A92'] }] }} />
+          )}
+        </Grafica>
+        <div className="grafica">
+          <h3>Quién tiene piezas en consignación</h3>
+          {d.consPersonas.length === 0 ? sinDatos : (
+            <div className="tabla-scroll">
+              <table className="admin-tabla">
+                <thead><tr><th>Persona</th><th>Teléfono</th><th>Piezas</th><th>Por cobrar</th></tr></thead>
+                <tbody>{d.consPersonas.map((x, k) => <tr key={k}><td>{x.nombre}</td><td>{x.tel}</td><td>{x.piezas}</td><td className="por-cobrar">{money(x.valor)}</td></tr>)}</tbody>
               </table>
             </div>
           )}

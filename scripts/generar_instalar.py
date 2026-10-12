@@ -17,6 +17,7 @@ ORDEN = [
     'supabase_lessa_borrar_productos.sql',
     'supabase_lessa_pedido_urgente.sql',
     'supabase_lessa_ventas_manuales.sql',
+    'supabase_lessa_consignacion.sql',
 ]
 
 def main():

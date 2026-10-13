@@ -5,6 +5,7 @@ import Catalogo from './pages/Catalogo'
 import DestacadosPage from './pages/DestacadosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
+const Guia = lazy(() => import('./pages/Guia'))
 import { sb } from './lib/supabase'
 import { MARCA, CONTACTO } from './config'
 import { IconoWhatsApp, IconoCorreo, IconoInstagram } from './components/Iconos'
@@ -122,6 +123,7 @@ export default function App() {
             {adminPass ? (
               <>
                 <Link to="/admin" className="admin-link">Panel</Link>
+                <Link to="/guia" className="admin-link">Guía</Link>
                 <button className="admin-link salir" onClick={logout}>Salir</button>
               </>
             ) : (
@@ -148,6 +150,18 @@ export default function App() {
             }
           />
           <Route path="/admin" element={<Suspense fallback={<p style={{ padding: '2rem' }}>Cargando...</p>}><Admin adminPass={adminPass} onLogin={() => setLoginAbierto(true)} /></Suspense>} />
+          <Route
+            path="/guia"
+            element={adminPass ? (
+              <Suspense fallback={<p style={{ padding: '2rem' }}>Cargando...</p>}><Guia /></Suspense>
+            ) : (
+              <div className="admin-login">
+                <h1>Guía de uso</h1>
+                <p style={{ margin: '0.5rem 0 1rem' }}>Esta guía es solo para el personal. Ingresa con la contraseña del panel para verla.</p>
+                <button onClick={() => setLoginAbierto(true)}>Ingresar</button>
+              </div>
+            )}
+          />
         </Routes>
 
         {loginAbierto && (

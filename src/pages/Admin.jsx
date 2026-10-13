@@ -35,7 +35,7 @@ export default function Admin({ adminPass, onLogin }) {
       <h1>Panel</h1>
       <p className="admin-nota">
         El inventario se ajusta directamente en el <Link to="/catalogo">catálogo</Link> con + y −.
-        Al salir, esos botones desaparecen.
+        Al salir, esos botones desaparecen. ¿Dudas? Consulta la <Link to="/guia">Guía de uso</Link>.
       </p>
       <div className="admin-tabs">
         {TABS.map(([k, label]) => (

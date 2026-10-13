@@ -4,7 +4,7 @@
   --ok: #2E7D4F; --ok-soft: #E6F4EC; --warn-soft: #FFF3CD; --warn-ink: #6B4E00; --red: #B3261E; --red-soft: #FDECEA;
   --display: 'Cormorant Garamond', Georgia, serif; --body: 'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
-  max-width: 1040px; margin-inline: auto; padding: 0 16px 56px;
+  width: 100%; min-width: 0; box-sizing: border-box; max-width: 1040px; margin-inline: auto; padding: 0 16px 56px;
 }
 .guia .b, .guia .steps > li::before { color: #fff; }
 .guia, .guia * { box-sizing: border-box; }
@@ -77,3 +77,5 @@
 .guia .cover-in, .guia .two, .guia .versus { grid-template-columns: minmax(0, 1fr); }
 .guia .cover img { max-width: 220px; }
 }
+
+@media (max-width: 520px) { .guia .b { white-space: normal; } }

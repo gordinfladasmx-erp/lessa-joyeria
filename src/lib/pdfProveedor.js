@@ -1,4 +1,5 @@
-import { fotoUrl } from './store'
+import { fotoUrl, money } from './store'
+import { preciosPorSku, conCostos, totales } from './costosProveedor'
 import { MARCA, COLORES } from '../config'
 
 async function aDataUrl(url) {
@@ -17,7 +18,8 @@ async function aDataUrl(url) {
   }
 }
 
-export async function pdfPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
+export async function pdfPedidoProveedor(listaBase, titulo = 'Pedido a proveedor') {
+  const lista = conCostos(listaBase, await preciosPorSku(listaBase.map((i) => i.sku)))
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const logo = await aDataUrl(MARCA.logo)
@@ -41,7 +43,9 @@ export async function pdfPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
     doc.setTextColor(90).setFont('helvetica', 'normal').setFontSize(10).text(`${MARCA.nombre} | ${fecha}`, xTexto, 27)
     doc.setFillColor(...rosa).rect(14, 36, 182, 7, 'F')
     doc.setTextColor(255).setFont('helvetica', 'bold').setFontSize(9)
-    doc.text('Foto', 16, 41); doc.text('Código', 46, 41); doc.text('Descripción', 72, 41); doc.text('Cantidad', 180, 41)
+    doc.setFontSize(8)
+    doc.text('Foto', 16, 41); doc.text('Código', 40, 41); doc.text('Descripción', 62, 41); doc.text('Cant.', 108, 41)
+    doc.text('P. unit.', 122, 41); doc.text('P. total', 140, 41); doc.text('Costo u.', 160, 41); doc.text('Costo tot.', 178, 41)
     return 46
   }
 
@@ -52,15 +56,21 @@ export async function pdfPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
     if (foto) {
       try { doc.addImage(foto, 'JPEG', 15, y, 22, 16.5) } catch { /* sin foto */ }
     }
-    doc.setTextColor(30).setFont('helvetica', 'bold').setFontSize(11).text(String(it.sku), 46, y + 8)
-    doc.setFont('helvetica', 'normal').setFontSize(10).text(String(it.nombre), 72, y + 8, { maxWidth: 100 })
-    doc.setFont('helvetica', 'bold').setFontSize(13).text(String(it.cantidad), 186, y + 9, { align: 'center' })
+    doc.setTextColor(30).setFont('helvetica', 'bold').setFontSize(9).text(String(it.sku), 40, y + 8, { maxWidth: 21 })
+    doc.setFont('helvetica', 'normal').setFontSize(8).text(String(it.nombre), 62, y + 8, { maxWidth: 44 })
+    doc.setFont('helvetica', 'bold').setFontSize(11).text(String(it.cantidad), 110, y + 9, { align: 'center' })
+    doc.setFont('helvetica', 'normal').setFontSize(8)
+    doc.text(money(it.precio), 122, y + 9); doc.text(money(it.precioTotal), 140, y + 9)
+    doc.text(money(it.costo), 160, y + 9); doc.text(money(it.costoTotal), 178, y + 9)
     doc.setDrawColor(220).line(14, y + 19, 196, y + 19)
     y += 20
   }
-  const piezas = lista.reduce((s, i) => s + i.cantidad, 0)
-  if (y + 12 > 285) { doc.addPage(); y = 20 }
+  const t = totales(lista)
+  if (y + 24 > 285) { doc.addPage(); y = 20 }
   doc.setTextColor(...rosa).setFont('helvetica', 'bold').setFontSize(12)
-  doc.text(`Total: ${lista.length} modelo(s), ${piezas} pieza(s)`, 14, y + 8)
+  doc.text(`Total: ${t.modelos} modelo(s), ${t.piezas} pieza(s)`, 14, y + 8)
+  doc.setFontSize(10)
+  doc.text(`Precio total: ${money(t.precioTotal)}`, 14, y + 15)
+  doc.text(`Costo total (50% del precio): ${money(t.costoTotal)}`, 14, y + 21)
   doc.save(`pedido-proveedor-${new Date().toISOString().slice(0, 10)}.pdf`)
 }

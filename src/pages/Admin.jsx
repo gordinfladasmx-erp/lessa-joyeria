@@ -6,6 +6,7 @@ import Reportes from './Reportes'
 import { MARCA } from '../config'
 import Estrella from '../components/Estrella'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
+import { excelPedidoProveedor, preciosPorSku, conCostos, totales } from '../lib/costosProveedor'
 import '../styles/Admin.css'
 
 const TABS = [
@@ -464,6 +465,11 @@ function Cotejo({ lote, pass, onCerrar, recargar }) {
   )
 }
 
+function CeldasCosto({ precio, cantidad }) {
+  const costo = Math.round(precio * 50) / 100
+  return (<><td>{money(precio)}</td><td>{money(precio * cantidad)}</td><td>{money(costo)}</td><td>{money(costo * cantidad)}</td></>)
+}
+
 function Proveedor({ pass }) {
   const { pedidos, proveedor, lineas, msg, llamar, cargar } = usePedidos(pass)
   const [cotejando, setCotejando] = useState(null)
@@ -471,6 +477,7 @@ function Proveedor({ pass }) {
   const [conPendientes, setConPendientes] = useState(false)
   const [generando, setGenerando] = useState(false)
   const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
+  const [precios, setPrecios] = useState({})
 
   const urgenteVista = vista === 'urgente'
   const todosEncargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
@@ -496,6 +503,15 @@ function Proveedor({ pass }) {
     ...lineasVista.map((l) => ({ sku: l.sku, nombre: l.nombre, cantidad: l.cantidad })),
   ])
 
+  const claveSkus = [...new Set([...pedidos.flatMap((p) => p.items.map((i) => i.sku)), ...lineas.map((l) => l.sku), ...proveedor.flatMap((x) => x.items.map((i) => i.sku))])].sort().join(',')
+  useEffect(() => { if (claveSkus) preciosPorSku(claveSkus.split(',')).then(setPrecios) }, [claveSkus])
+  const pre = (sku, fallback) => Number(precios[sku] ?? fallback) || 0
+  const totPdf = totales(conCostos(paraPdf, precios))
+
+  const excel = async (lista, titulo) => {
+    setGenerando(true)
+    try { await excelPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
+  }
   const pdf = async (lista, titulo) => {
     setGenerando(true)
     try { await pdfPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
@@ -532,7 +548,7 @@ function Proveedor({ pass }) {
       {!hayAlgo ? <p>No hay nada por pedir.</p> : (
         <div className="tabla-scroll">
           <table className="admin-tabla">
-            <thead><tr><th>Código</th><th>Producto</th><th>Para</th><th>Cantidad</th></tr></thead>
+            <thead><tr><th>Código</th><th>Producto</th><th>Para</th><th>Cantidad</th><th>Precio unit.</th><th>Precio total</th><th>Costo unit.</th><th>Costo total</th></tr></thead>
             <tbody>
               {filasCli.map(({ p, idx, i, listo }) => (
                 <tr key={p.id + '-' + idx}>
@@ -543,6 +559,7 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: n }, 'Cantidad actualizada y total del pedido recalculado')}
                       onQuitar={() => { if (window.confirm(`¿Quitar ${i.nombre} del pedido de ${p.nombre_cliente}? Se recalcula el total de su pedido.`)) llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
+                  <CeldasCosto precio={pre(i.sku, i.precio)} cantidad={i.cantidad} />
                 </tr>
               ))}
               {lineasVista.map((l) => (
@@ -554,6 +571,7 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: n }, 'Cantidad actualizada')}
                       onQuitar={() => { if (window.confirm('¿Quitar esta pieza de la lista?')) llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
+                  <CeldasCosto precio={pre(l.sku, 0)} cantidad={l.cantidad} />
                 </tr>
               ))}
             </tbody>
@@ -581,12 +599,14 @@ function Proveedor({ pass }) {
             <button disabled={generando || paraPdf.length === 0} onClick={() => pdf(paraPdf, 'Pedido a proveedor')}>
               {generando ? 'Generando...' : 'Descargar PDF para enviar'}
             </button>
+            <button disabled={generando || paraPdf.length === 0} onClick={() => excel(paraPdf, 'Pedido a proveedor')}>Descargar Excel</button>
             <button disabled={paraPdf.length === 0} onClick={copiar}>Copiar lista</button>
             <button className="verde" disabled={listos.length === 0 && lineasVista.length === 0}
               onClick={() => llamar('admin_pedir_proveedor', { p_urgente: urgenteVista }, urgenteVista ? 'Pedido urgente registrado' : 'Pedido al proveedor registrado')}>
               {urgenteVista ? 'Ya hice el pedido urgente' : 'Ya hice el pedido al proveedor'}
             </button>
           </div>
+          <p className="pedido-notas"><strong>En el PDF/Excel:</strong> {totPdf.piezas} pieza(s) | Precio total {money(totPdf.precioTotal)} | Costo total (50%) {money(totPdf.costoTotal)}</p>
           <p className="pedido-notas">El pedido incluye los encargos con reserva pagada ({listos.length}){urgenteVista ? '' : ` y las piezas de reposición (${lineasVista.length})`}.</p>
         </>
       )}
@@ -597,7 +617,7 @@ function Proveedor({ pass }) {
           <div className="pedido-cab"><strong>Pedido #{x.id}</strong><span>{fechaCorta(x.created_at)}</span>{x.urgente && <span className="pill cancelado">URGENTE</span>}</div>
           <div className="tabla-scroll">
             <table className="admin-tabla">
-              <thead><tr><th>Código</th><th>Producto</th><th>Detalle</th><th>Cantidad</th></tr></thead>
+              <thead><tr><th>Código</th><th>Producto</th><th>Detalle</th><th>Cantidad</th><th>Precio unit.</th><th>Precio total</th><th>Costo unit.</th><th>Costo total</th></tr></thead>
               <tbody>{x.items.map((i) => (
                 <tr key={i.sku}>
                   <td>{i.sku}</td><td>{i.nombre}</td>
@@ -607,12 +627,14 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: n }, 'Cantidad actualizada')}
                       onQuitar={() => { if (window.confirm(`¿Quitar ${i.sku} de este pedido al proveedor?`)) llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
+                  <CeldasCosto precio={pre(i.sku, 0)} cantidad={i.cantidad} />
                 </tr>
               ))}</tbody>
             </table>
           </div>
           <div className="pedido-acciones">
             <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
+            <button onClick={() => excel(x.items, `Pedido a proveedor #${x.id}`)}>Descargar Excel</button>
             <button className="verde" onClick={() => setCotejando(x.id)}>Ya llegó: cotejar y recibir</button>
           </div>
         </div>
@@ -1073,6 +1095,7 @@ function Historial({ pass }) {
             <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku}){i.confirmado ? ` | recibido: ${i.recibido}` : ''}</li>)}</ul>
             <div className="pedido-acciones">
               <button onClick={() => pdfPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
+              <button onClick={() => excelPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar Excel</button>
             </div>
           </div>
         ))

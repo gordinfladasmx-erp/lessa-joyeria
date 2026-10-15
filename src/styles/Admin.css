@@ -138,3 +138,4 @@
 .costo-vigente label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
 .costo-vigente input { max-width: 8rem; }
 .costo-vigente small, .validar-grid small { color: #6b6b65; }
+.capa { font-size: 0.8rem; white-space: nowrap; }

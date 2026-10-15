@@ -54,6 +54,14 @@ export default function Reportes({ pass }) {
   const [costoInv, setCostoInv] = useState(50)
   useEffect(() => { costoVigente(pass).then(setCostoInv) }, [pass])
   const COSTO = costoInv / 100
+  const [lotes, setLotes] = useState({})
+  useEffect(() => {
+    sb.rpc('admin_listar_lotes', { p_pass: pass }).then(({ data }) => {
+      const m = {}
+      ;(data || []).forEach((c) => { (m[c.producto_id] = m[c.producto_id] || []).push(c) })
+      setLotes(m)
+    })
+  }, [pass])
 
   useEffect(() => {
     (async () => {
@@ -145,14 +153,17 @@ export default function Reportes({ pass }) {
 
     // inventario
     const invCat = {}
-    let piezas = 0, valorVenta = 0, agotados = 0
+    let piezas = 0, valorVenta = 0, agotados = 0, valorCosto = 0
     productos.filter((p) => p.activo).forEach((p) => {
       const s = Number(p.stock) || 0
       piezas += s; valorVenta += s * p.precio
       if (s === 0) agotados += 1
       const c = nomCat[p.categoria_id] || 'Otros'
       invCat[c] = invCat[c] || { piezas: 0, valor: 0 }
-      invCat[c].piezas += s; invCat[c].valor += s * p.precio * COSTO
+      // cada pedido que entró al inventario tiene su propio % de costo; el ajuste manual usa el vigente
+      const costoP = lotes[p.id] ? lotes[p.id].reduce((u, l) => u + l.cantidad * p.precio * (l.costo_pct == null ? costoInv : Number(l.costo_pct)) / 100, 0) : s * p.precio * COSTO
+      valorCosto += costoP
+      invCat[c].piezas += s; invCat[c].valor += costoP
     })
 
     const estados = {
@@ -165,11 +176,11 @@ export default function Reportes({ pass }) {
     return {
       ventas, ingresos, envios, costo, ganancia: ingresos - costo, descuentos, uds, cobrado, porCobrar, deudores,
       apartados, encargos, porConfirmar, anticipos, canc, cancPor, serie, claves, udsCat, topArr,
-      invCat, piezas, valorVenta, agotados, estados,
+      invCat, piezas, valorVenta, valorCosto, agotados, estados,
       productosActivos: productos.filter((p) => p.activo).length,
       consPiezas, consValor, consVendidas, consDevueltas, consVendidoValor, consPersonas,
     }
-  }, [pedidos, productos, cats, rango, origen, COSTO])
+  }, [pedidos, productos, cats, rango, origen, COSTO, lotes, costoInv])
 
   const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   const optsMoney = { ...opts, scales: { y: { ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') } } } }
@@ -304,7 +315,7 @@ export default function Reportes({ pass }) {
       <div className="kpis">
         <Kpi titulo="Piezas en existencia" valor={d.piezas} />
         <Kpi titulo="Valor a precio de venta" valor={money(d.valorVenta)} />
-        <Kpi titulo="Valor a costo" valor={money(d.valorVenta * COSTO)} />
+        <Kpi titulo="Valor a costo" valor={money(d.valorCosto)} />
         <Kpi titulo="Productos agotados" valor={d.agotados} sub={`de ${d.productosActivos}`} tono={d.agotados ? 'rojo' : ''} />
       </div>
       <div className="graficas">

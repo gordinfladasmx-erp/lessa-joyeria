@@ -301,7 +301,8 @@ function LineaEditable({ cantidad, onGuardar, onQuitar, etiquetaQuitar = 'Quitar
   )
 }
 
-const COSTO_PCT = 0.5
+// Capas de inventario: de qué pedido entró cada pieza y con qué % de costo.
+const nombreCapa = (c) => (c.origen === 'inicial' ? 'Inventario inicial' : c.origen === 'pedido' ? `Pedido #${c.pedido_proveedor_id}` : 'Ajuste manual')
 
 function InventarioActual({ pass }) {
   const [prods, setProds] = useState([])
@@ -312,6 +313,18 @@ function InventarioActual({ pass }) {
   const [conAgotados, setConAgotados] = useState(false)
   const [tocados, setTocados] = useState({})
   const [aviso, setAviso] = useState('')
+  const [capas, setCapas] = useState({})
+  const [costoDef] = useCostoVigente(pass)
+  const cargarCapas = useCallback(async () => {
+    const { data } = await sb.rpc('admin_listar_lotes', { p_pass: pass })
+    const m = {}
+    ;(data || []).forEach((c) => { (m[c.producto_id] = m[c.producto_id] || []).push(c) })
+    Object.values(m).forEach((l) => l.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)))
+    setCapas(m)
+  }, [pass])
+  useEffect(() => { cargarCapas() }, [cargarCapas])
+  // Costo por pieza de una capa; el ajuste manual no tiene pedido y usa el costo vigente.
+  const pctCapa = (c) => Number(c.costo_pct ?? costoDef ?? 50)
 
   useEffect(() => {
     (async () => {
@@ -328,7 +341,12 @@ function InventarioActual({ pass }) {
   const filas = prods
     .filter((p) => (conAgotados || Number(p.stock) > 0 || tocados[p.id]) && (!cat || String(p.categoria_id) === cat) &&
       (!term || p.sku.toLowerCase().includes(term) || p.nombre.toLowerCase().includes(term)))
-    .map((p) => ({ ...p, categoria: nomCat[p.categoria_id] || 'Sin categoría', costo: p.precio * COSTO_PCT, valor: p.precio * COSTO_PCT * Number(p.stock) }))
+    .map((p) => {
+      const cs = capas[p.id] || []
+      const valor = cs.reduce((s, c) => s + p.precio * pctCapa(c) / 100 * c.cantidad, 0)
+      const n = cs.reduce((s, c) => s + c.cantidad, 0)
+      return { ...p, categoria: nomCat[p.categoria_id] || 'Sin categoría', capas: cs, costo: n ? valor / n : 0, valor }
+    })
     .sort((a, b) => a.categoria.localeCompare(b.categoria) || a.sku.localeCompare(b.sku))
   const ajustar = async (f, delta, fijo = null) => {
     const { data, error } = await sb.rpc('admin_adjust_stock', { p_pass: pass, p_id: f.id, p_delta: delta, p_set: fijo })
@@ -336,6 +354,7 @@ function InventarioActual({ pass }) {
     setAviso('')
     setTocados((t) => ({ ...t, [f.id]: true }))
     setProds((ps) => ps.map((x) => (x.id === f.id ? { ...x, stock: data } : x)))
+    cargarCapas()
   }
   const ocultar = async (f) => {
     if (!window.confirm(`¿Ocultar ${f.nombre} de la tienda? Dejará de verse para los clientes; puedes volver a mostrarlo desde el catálogo ("Ver productos ocultos").`)) return
@@ -349,9 +368,9 @@ function InventarioActual({ pass }) {
 
   const csv = () => {
     const esc = (v) => `"${String(v).replace(/"/g, '""')}"`
-    const lineas = [['Categoría', 'Producto', 'Código', 'Precio', 'Costo', 'Cantidad', 'Valor del inventario'].join(',')]
-    filas.forEach((f) => lineas.push([f.categoria, f.nombre, f.sku, f.precio.toFixed(2), f.costo.toFixed(2), f.stock, f.valor.toFixed(2)].map(esc).join(',')))
-    lineas.push(['TOTAL', '', '', '', '', piezas, valorCosto.toFixed(2)].map(esc).join(','))
+    const lineas = [['Categoría', 'Producto', 'Código', 'Precio', 'Costo promedio', 'Cantidad', 'Pedido y costo', 'Valor del inventario'].join(',')]
+    filas.forEach((f) => lineas.push([f.categoria, f.nombre, f.sku, f.precio.toFixed(2), f.costo.toFixed(2), f.stock, f.capas.map((c) => `${nombreCapa(c)} ${pctCapa(c)}% x${c.cantidad}`).join(' | '), f.valor.toFixed(2)].map(esc).join(',')))
+    lineas.push(['TOTAL', '', '', '', '', piezas, '', valorCosto.toFixed(2)].map(esc).join(','))
     const blob = new Blob(['\ufeff' + lineas.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -367,7 +386,7 @@ function InventarioActual({ pass }) {
         <div className="kpi"><span className="kpi-t">Valor del inventario (a costo)</span><strong>{money(valorCosto)}</strong></div>
         <div className="kpi"><span className="kpi-t">Valor a precio de venta</span><strong>{money(valorVenta)}</strong></div>
       </div>
-      <p className="admin-nota">Costo = 50% del precio de venta. Valor del inventario = costo x cantidad. Ajusta la cantidad de cada línea con + y −, o escribe el número. Para sumar un producto agotado activa "Incluir productos agotados".</p>
+      <p className="admin-nota">Cada pieza tiene el costo (% del precio de venta) del pedido con el que entró; un mismo código puede tener piezas de pedidos con costos distintos. Al vender salen primero las piezas más antiguas. Valor del inventario = suma de precio x costo % x cantidad de cada pedido. Ajusta la cantidad de cada línea con + y −, o escribe el número. Para sumar un producto agotado activa "Incluir productos agotados".</p>
       {aviso && <p className="admin-error">{aviso}</p>}
       <div className="admin-busqueda">
         <input placeholder="Buscar por código o producto..." value={q} onChange={(e) => setQ(e.target.value)} />
@@ -383,7 +402,7 @@ function InventarioActual({ pass }) {
       {filas.length === 0 ? <p>No hay productos con existencia.</p> : (
         <div className="tabla-scroll">
           <table className="admin-tabla">
-            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo</th><th className="der">Cantidad</th><th className="der">Valor del inventario</th><th>Destacado</th><th>Ocultar</th></tr></thead>
+            <thead><tr><th>Categoría</th><th>Producto</th><th>Código</th><th className="der">Precio</th><th className="der">Costo prom.</th><th className="der">Cantidad</th><th>Pedido y costo</th><th className="der">Valor del inventario</th><th>Destacado</th><th>Ocultar</th></tr></thead>
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id}>
@@ -398,6 +417,11 @@ function InventarioActual({ pass }) {
                       <button onClick={() => ajustar(f, 1)}>+</button>
                     </div>
                   </td>
+                  <td>
+                    {f.capas.length === 0 ? '' : f.capas.map((c, k) => (
+                      <div key={k} className="capa"><strong>{nombreCapa(c)}</strong> | costo {pctCapa(c)}%{c.origen === 'ajuste' ? ' (vigente)' : ''} | {c.cantidad} pza</div>
+                    ))}
+                  </td>
                   <td className="der">{money(f.valor)}</td>
                   <td className="celda-estrella"><Estrella producto={f} pass={pass} onCambio={(id, v) => setProds((ps) => ps.map((x) => (x.id === id ? { ...x, destacado: v } : x)))} /></td>
                   <td className="celda-estrella"><button className="btn-ocultar-fila" title="Ocultar de la tienda" onClick={() => ocultar(f)}>Ocultar</button></td>
@@ -405,7 +429,7 @@ function InventarioActual({ pass }) {
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td className="der"><strong>{money(valorCosto)}</strong></td><td></td><td></td></tr>
+              <tr><td colSpan="5"><strong>TOTAL</strong></td><td className="der"><strong>{piezas}</strong></td><td></td><td className="der"><strong>{money(valorCosto)}</strong></td><td></td><td></td></tr>
             </tfoot>
           </table>
         </div>
@@ -522,10 +546,9 @@ function Proveedor({ pass }) {
   const [precios, setPrecios] = useState({})
   const [costoDef] = useCostoVigente(pass)
   const [costoSel, setCostoSel] = useState('')
-  const [costosLote, setCostosLote] = useState({})
   useEffect(() => { if (costoDef != null) setCostoSel((c) => c || String(costoDef)) }, [costoDef])
   const pctSel = parseFloat(costoSel) > 0 ? parseFloat(costoSel) : (costoDef ?? COSTO_ANTERIOR)
-  const pctLote = (x) => parseFloat(costosLote[x.id]) > 0 ? parseFloat(costosLote[x.id]) : Number(x.costo_pct ?? COSTO_ANTERIOR)
+  const pctLote = (x) => Number(x.costo_pct ?? COSTO_ANTERIOR)
 
   const urgenteVista = vista === 'urgente'
   const todosEncargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
@@ -577,10 +600,6 @@ function Proveedor({ pass }) {
     const { data, error } = await sb.rpc('admin_pedir_proveedor', { p_pass: pass, p_urgente: urgente })
     if (error) return alert(mensajeError(error))
     if (data) await sb.rpc('admin_set_costo_lote', { p_pass: pass, p_id: data, p_pct: pctSel })
-    cargar()
-  }
-  const guardarCostoLote = async (x) => {
-    await sb.rpc('admin_set_costo_lote', { p_pass: pass, p_id: x.id, p_pct: pctLote(x) })
     cargar()
   }
   const hayAlgo = filasCli.length > 0 || lineasVista.length > 0
@@ -693,10 +712,7 @@ function Proveedor({ pass }) {
               ))}</tbody>
             </table>
           </div>
-          <div className="costo-vigente">
-            <CostoPct valor={costosLote[x.id] ?? String(x.costo_pct ?? COSTO_ANTERIOR)} onChange={(v) => setCostosLote({ ...costosLote, [x.id]: v })} etiqueta="Costo de este pedido (% del precio de venta)" />
-            <button type="button" onClick={() => guardarCostoLote(x)}>Guardar costo</button>
-          </div>
+          <p className="admin-nota">Costo de este pedido: <strong>{pctLote(x)}%</strong> del precio de venta (descuento del proveedor {Math.round((100 - pctLote(x)) * 100) / 100}%). Quedó fijo al hacer el pedido.</p>
           <div className="pedido-acciones">
             <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`, pctLote(x))}>Descargar PDF</button>
             <button onClick={() => excel(x.items, `Pedido a proveedor #${x.id}`, pctLote(x))}>Descargar Excel</button>
@@ -879,6 +895,8 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
     })
     .sort((a, b) => fechaVenta(b) - fechaVenta(a))
   const sum = (f) => filas.reduce((s, p) => s + f(p), 0)
+  const costoVenta = (p) => Number(p.subtotal || p.total) * (Number(p.costo_pct) || 50) / 100
+  const gananciaVenta = (p) => Number(p.total) - Number(p.envio || 0) - costoVenta(p)
   const unidades = sum((p) => p.items.reduce((u, i) => u + i.cantidad, 0))
 
   const anular = async (p) => {
@@ -890,9 +908,9 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
 
   const csv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const l = [['Fecha', 'Folio', 'Origen', 'Estado', 'Cliente', 'Teléfono', 'Productos', 'Subtotal', 'Descuento', 'Total'].join(',')]
+    const l = [['Fecha', 'Folio', 'Origen', 'Estado', 'Cliente', 'Teléfono', 'Productos', 'Subtotal', 'Descuento', 'Total', 'Costo %', 'Costo del pedido', 'Ganancia'].join(',')]
     filas.forEach((p) => l.push([ymd(fechaVenta(p)), p.numero_pedido, p.consignacion_id ? 'Consignación' : p.tipo === 'venta' ? 'Manual' : 'Página', ESTADO_VENTA[p.estado], p.nombre_cliente, p.whatsapp,
-      p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(' | '), Number(p.subtotal).toFixed(2), Number(p.descuento).toFixed(2), Number(p.total).toFixed(2)].map(esc).join(',')))
+      p.items.map((i) => `${i.cantidad} x ${i.nombre}`).join(' | '), Number(p.subtotal).toFixed(2), Number(p.descuento).toFixed(2), Number(p.total).toFixed(2), Number(p.costo_pct) || 50, costoVenta(p).toFixed(2), gananciaVenta(p).toFixed(2)].map(esc).join(',')))
     const blob = new Blob(['﻿' + l.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ventas-${MARCA.archivoPrefijo}-${ymd(new Date())}.csv`; a.click()
   }
@@ -931,7 +949,7 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
       {filas.length === 0 ? <p>No hay registros con ese filtro.</p> : (
         <div className="tabla-scroll">
           <table className="admin-tabla">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Productos</th><th className="der">Subtotal</th><th className="der">Descuento</th><th className="der">Total</th><th>Origen</th><th></th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Productos</th><th className="der">Subtotal</th><th className="der">Descuento</th><th className="der">Total</th><th className="der">Costo del pedido</th><th className="der">Ganancia</th><th>Origen</th><th></th></tr></thead>
             <tbody>
               {filas.map((p) => (
                 <tr key={p.id}>
@@ -942,6 +960,8 @@ function RegistroVentas({ pedidos, pass, cargar, borrar }) {
                   <td className="der">{money(p.subtotal)}</td>
                   <td className="der">{Number(p.descuento) > 0 ? `-${money(p.descuento)}` : ''}</td>
                   <td className="der"><strong>{money(p.total)}</strong></td>
+                  <td className="der">{money(costoVenta(p))}<br /><small>{Number(p.costo_pct) || 50}% del precio</small></td>
+                  <td className="der"><strong>{money(gananciaVenta(p))}</strong></td>
                   <td>
                     <span className={`pill ${p.tipo === 'venta' ? 'encargo' : 'entregado'}`}>{p.consignacion_id ? 'Consignación' : p.tipo === 'venta' ? 'Manual' : 'Página'}</span>
                     {p.estado !== 'entregado' && <span className="pill pendiente">{ESTADO_VENTA[p.estado]}</span>}

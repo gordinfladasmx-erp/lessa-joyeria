@@ -6,7 +6,7 @@ import Reportes from './Reportes'
 import { MARCA } from '../config'
 import Estrella from '../components/Estrella'
 import { pdfPedidoProveedor } from '../lib/pdfProveedor'
-import { excelPedidoProveedor, preciosPorSku, conCostos, totales } from '../lib/costosProveedor'
+import { excelPedidoProveedor, preciosPorSku, conCostos, totales, costoVigente, COSTO_ANTERIOR } from '../lib/costosProveedor'
 import '../styles/Admin.css'
 
 const TABS = [
@@ -38,6 +38,7 @@ export default function Admin({ adminPass, onLogin }) {
         El inventario se ajusta directamente en el <Link to="/catalogo">catálogo</Link> con + y −.
         Al salir, esos botones desaparecen. ¿Dudas? Consulta la <Link to="/guia">Guía de uso</Link>.
       </p>
+      <CostoVigenteBox pass={adminPass} />
       <div className="admin-tabs">
         {TABS.map(([k, label]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
@@ -49,6 +50,44 @@ export default function Admin({ adminPass, onLogin }) {
       {tab === 'inventario' && <InventarioActual pass={adminPass} />}
       {tab === 'reportes' && <Reportes pass={adminPass} />}
       {tab === 'nuevo' && <Nuevo pass={adminPass} />}
+    </div>
+  )
+}
+
+function useCostoVigente(pass) {
+  const [pct, setPct] = useState(null)
+  useEffect(() => { costoVigente(pass).then(setPct) }, [pass])
+  return [pct, setPct]
+}
+
+// Costo del producto como % del precio de venta; muestra el descuento del proveedor equivalente.
+function CostoPct({ valor, onChange, etiqueta = 'Costo (% del precio de venta)' }) {
+  const n = parseFloat(valor)
+  return (
+    <label>{etiqueta}
+      <input type="number" min="1" max="100" step="0.5" value={valor} onChange={(e) => onChange(e.target.value)} />
+      <small>{n > 0 && n <= 100 ? `Descuento del proveedor: ${Math.round((100 - n) * 100) / 100}%` : 'Escribe un % entre 1 y 100'}</small>
+    </label>
+  )
+}
+
+function CostoVigenteBox({ pass }) {
+  const [pct, setPct] = useCostoVigente(pass)
+  const [txt, setTxt] = useState('')
+  const [msg, setMsg] = useState('')
+  useEffect(() => { if (pct != null) setTxt(String(pct)) }, [pct])
+  const guardar = async () => {
+    const n = parseFloat(txt)
+    const { error } = await sb.rpc('admin_set_costo_vigente', { p_pass: pass, p_pct: n })
+    if (error) return setMsg(mensajeError(error))
+    setPct(n); setMsg('Guardado. Los pedidos nuevos usarán este costo.')
+  }
+  if (pct == null) return null
+  return (
+    <div className="costo-vigente">
+      <CostoPct valor={txt} onChange={setTxt} etiqueta="Costo vigente con el proveedor (% del precio de venta)" />
+      <button type="button" onClick={guardar} disabled={parseFloat(txt) === pct}>Guardar</button>
+      {msg && <small>{msg}</small>}
     </div>
   )
 }
@@ -124,7 +163,8 @@ function Items({ p }) {
   )
 }
 
-function Validar({ p, onValidar }) {
+function Validar({ p, onValidar, costoDef }) {
+  const [costo, setCosto] = useState(String(p.costo_pct ?? costoDef ?? COSTO_ANTERIOR))
   const [tipo, setTipo] = useState('monto')
   const [valor, setValor] = useState(Number(p.descuento) > 0 ? String(p.descuento) : '')
   const [envio, setEnvio] = useState(Number(p.envio) > 0 ? String(p.envio) : '')
@@ -151,10 +191,11 @@ function Validar({ p, onValidar }) {
         <label>Fecha de entrega
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </label>
+        <CostoPct valor={costo} onChange={setCosto} />
       </div>
       <p className="validar-neto">Valor neto: <strong>{money(neto)}</strong> (subtotal {money(p.subtotal)})</p>
       <div className="pedido-acciones">
-        <button className="verde" onClick={() => onValidar(p.id, { p_desc_tipo: tipo, p_desc_valor: v, p_envio: parseFloat(envio) || 0, p_fecha_entrega: fecha || null })}>
+        <button className="verde" onClick={() => onValidar(p.id, { p_desc_tipo: tipo, p_desc_valor: v, p_envio: parseFloat(envio) || 0, p_fecha_entrega: fecha || null, costo: parseFloat(costo) })}>
           {p.validado_at ? 'Guardar cambios' : 'Validar y fijar valor neto'}
         </button>
       </div>
@@ -164,6 +205,7 @@ function Validar({ p, onValidar }) {
 
 function Pendientes({ pass }) {
   const { pedidos, msg, llamar, borrar } = usePedidos(pass)
+  const [costoDef] = useCostoVigente(pass)
   const lista = pedidos.filter((p) => ['por_confirmar', 'confirmado'].includes(p.estado))
   const grupos = [
     ['Esperando pago de la reserva', lista.filter((p) => p.estado === 'por_confirmar')],
@@ -213,7 +255,7 @@ function Pendientes({ pass }) {
                   <p className="solicitud">El cliente eligió envío urgente: <strong>{servicioPorId(p.servicio_envio).nombre}</strong>, de {servicioPorId(p.servicio_envio).rango} ({servicioPorId(p.servicio_envio).tiempo}). Fija el costo exacto en "Envío local ($)" al validar.</p>
                 )}
                 {p.fecha_entrega && <p className="pedido-notas">Fecha de entrega: {fechaCorta(p.fecha_entrega)}</p>}
-                {p.estado === 'por_confirmar' && <Validar key={p.id + String(p.total) + String(p.validado_at)} p={p} onValidar={(id, a) => llamar('admin_validar_pedido', { p_id: id, ...a }, 'Pedido validado')} />}
+                {p.estado === 'por_confirmar' && <Validar key={p.id + String(p.total) + String(p.validado_at)} p={p} costoDef={costoDef} onValidar={async (id, { costo, ...a }) => { await sb.rpc('admin_set_costo_pedido', { p_pass: pass, p_id: id, p_pct: costo }); llamar('admin_validar_pedido', { p_id: id, ...a }, 'Pedido validado') }} />}
                 {p.validado_at && (
                   <div className="pedido-acciones">
                     {p.whatsapp && <a className="btn-wa-panel" target="_blank" rel="noreferrer" href={`https://wa.me/${waNumber(p.whatsapp)}?text=${encodeURIComponent(mensajeConfirmacion(p))}`}>Enviar confirmación por WhatsApp</a>}
@@ -465,8 +507,8 @@ function Cotejo({ lote, pass, onCerrar, recargar }) {
   )
 }
 
-function CeldasCosto({ precio, cantidad }) {
-  const costo = Math.round(precio * 50) / 100
+function CeldasCosto({ precio, cantidad, pct }) {
+  const costo = Math.round(precio * pct) / 100
   return (<><td>{money(precio)}</td><td>{money(precio * cantidad)}</td><td>{money(costo)}</td><td>{money(costo * cantidad)}</td></>)
 }
 
@@ -478,6 +520,12 @@ function Proveedor({ pass }) {
   const [generando, setGenerando] = useState(false)
   const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
   const [precios, setPrecios] = useState({})
+  const [costoDef] = useCostoVigente(pass)
+  const [costoSel, setCostoSel] = useState('')
+  const [costosLote, setCostosLote] = useState({})
+  useEffect(() => { if (costoDef != null) setCostoSel((c) => c || String(costoDef)) }, [costoDef])
+  const pctSel = parseFloat(costoSel) > 0 ? parseFloat(costoSel) : (costoDef ?? COSTO_ANTERIOR)
+  const pctLote = (x) => parseFloat(costosLote[x.id]) > 0 ? parseFloat(costosLote[x.id]) : Number(x.costo_pct ?? COSTO_ANTERIOR)
 
   const urgenteVista = vista === 'urgente'
   const todosEncargos = pedidos.filter((p) => p.tipo === 'encargo' && !['pedido', 'recibido'].includes(p.proveedor_estado) && !['cancelado', 'entregado'].includes(p.estado))
@@ -506,15 +554,15 @@ function Proveedor({ pass }) {
   const claveSkus = [...new Set([...pedidos.flatMap((p) => p.items.map((i) => i.sku)), ...lineas.map((l) => l.sku), ...proveedor.flatMap((x) => x.items.map((i) => i.sku))])].sort().join(',')
   useEffect(() => { if (claveSkus) preciosPorSku(claveSkus.split(',')).then(setPrecios) }, [claveSkus])
   const pre = (sku, fallback) => Number(precios[sku] ?? fallback) || 0
-  const totPdf = totales(conCostos(paraPdf, precios))
+  const totPdf = totales(conCostos(paraPdf, precios, pctSel))
 
-  const excel = async (lista, titulo) => {
+  const excel = async (lista, titulo, pct) => {
     setGenerando(true)
-    try { await excelPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
+    try { await excelPedidoProveedor(lista, titulo, pct) } finally { setGenerando(false) }
   }
-  const pdf = async (lista, titulo) => {
+  const pdf = async (lista, titulo, pct) => {
     setGenerando(true)
-    try { await pdfPedidoProveedor(lista, titulo) } finally { setGenerando(false) }
+    try { await pdfPedidoProveedor(lista, titulo, pct) } finally { setGenerando(false) }
   }
   const copiar = async () => {
     const t = `Pedido a proveedor ${MARCA.nombreCorto}\n` + paraPdf.map((i) => `${i.cantidad} x ${i.sku} - ${i.nombre}`).join('\n')
@@ -524,6 +572,16 @@ function Proveedor({ pass }) {
     e.preventDefault()
     await llamar('admin_agregar_linea_proveedor', { p_sku: nuevo.sku.trim(), p_cantidad: parseInt(nuevo.cantidad) || 0, p_nota: nuevo.nota }, 'Pieza agregada a la lista')
     setNuevo({ sku: '', cantidad: '1', nota: '' })
+  }
+  const pedirProveedor = async (urgente) => {
+    const { data, error } = await sb.rpc('admin_pedir_proveedor', { p_pass: pass, p_urgente: urgente })
+    if (error) return alert(mensajeError(error))
+    if (data) await sb.rpc('admin_set_costo_lote', { p_pass: pass, p_id: data, p_pct: pctSel })
+    cargar()
+  }
+  const guardarCostoLote = async (x) => {
+    await sb.rpc('admin_set_costo_lote', { p_pass: pass, p_id: x.id, p_pct: pctLote(x) })
+    cargar()
   }
   const hayAlgo = filasCli.length > 0 || lineasVista.length > 0
 
@@ -559,7 +617,7 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: n }, 'Cantidad actualizada y total del pedido recalculado')}
                       onQuitar={() => { if (window.confirm(`¿Quitar ${i.nombre} del pedido de ${p.nombre_cliente}? Se recalcula el total de su pedido.`)) llamar('admin_editar_item_pedido', { p_id: p.id, p_idx: idx, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
-                  <CeldasCosto precio={pre(i.sku, i.precio)} cantidad={i.cantidad} />
+                  <CeldasCosto precio={pre(i.sku, i.precio)} cantidad={i.cantidad} pct={pctSel} />
                 </tr>
               ))}
               {lineasVista.map((l) => (
@@ -571,7 +629,7 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: n }, 'Cantidad actualizada')}
                       onQuitar={() => { if (window.confirm('¿Quitar esta pieza de la lista?')) llamar('admin_editar_linea_proveedor', { p_id: l.id, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
-                  <CeldasCosto precio={pre(l.sku, 0)} cantidad={l.cantidad} />
+                  <CeldasCosto precio={pre(l.sku, 0)} cantidad={l.cantidad} pct={pctSel} />
                 </tr>
               ))}
             </tbody>
@@ -591,22 +649,25 @@ function Proveedor({ pass }) {
 
       {hayAlgo && (
         <>
+          <div className="costo-vigente">
+            <CostoPct valor={costoSel} onChange={setCostoSel} etiqueta="Costo de este pedido (% del precio de venta)" />
+          </div>
           <label className="solo-disp" style={{ marginTop: '1rem' }}>
             <input type="checkbox" checked={conPendientes} onChange={(e) => setConPendientes(e.target.checked)} />
             Incluir en el PDF y la lista copiada los encargos que aún no pagan reserva
           </label>
           <div className="pedido-acciones">
-            <button disabled={generando || paraPdf.length === 0} onClick={() => pdf(paraPdf, 'Pedido a proveedor')}>
+            <button disabled={generando || paraPdf.length === 0} onClick={() => pdf(paraPdf, 'Pedido a proveedor', pctSel)}>
               {generando ? 'Generando...' : 'Descargar PDF para enviar'}
             </button>
-            <button disabled={generando || paraPdf.length === 0} onClick={() => excel(paraPdf, 'Pedido a proveedor')}>Descargar Excel</button>
+            <button disabled={generando || paraPdf.length === 0} onClick={() => excel(paraPdf, 'Pedido a proveedor', pctSel)}>Descargar Excel</button>
             <button disabled={paraPdf.length === 0} onClick={copiar}>Copiar lista</button>
             <button className="verde" disabled={listos.length === 0 && lineasVista.length === 0}
-              onClick={() => llamar('admin_pedir_proveedor', { p_urgente: urgenteVista }, urgenteVista ? 'Pedido urgente registrado' : 'Pedido al proveedor registrado')}>
+              onClick={() => pedirProveedor(urgenteVista)}>
               {urgenteVista ? 'Ya hice el pedido urgente' : 'Ya hice el pedido al proveedor'}
             </button>
           </div>
-          <p className="pedido-notas"><strong>En el PDF/Excel:</strong> {totPdf.piezas} pieza(s) | Precio total {money(totPdf.precioTotal)} | Costo total (50%) {money(totPdf.costoTotal)}</p>
+          <p className="pedido-notas"><strong>En el PDF/Excel:</strong> {totPdf.piezas} pieza(s) | Precio total {money(totPdf.precioTotal)} | Costo total ({pctSel}%) {money(totPdf.costoTotal)}</p>
           <p className="pedido-notas">El pedido incluye los encargos con reserva pagada ({listos.length}){urgenteVista ? '' : ` y las piezas de reposición (${lineasVista.length})`}.</p>
         </>
       )}
@@ -627,14 +688,18 @@ function Proveedor({ pass }) {
                       onGuardar={(n) => llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: n }, 'Cantidad actualizada')}
                       onQuitar={() => { if (window.confirm(`¿Quitar ${i.sku} de este pedido al proveedor?`)) llamar('admin_editar_proveedor_item', { p_batch_id: x.id, p_sku: i.sku, p_cantidad: 0 }, 'Línea quitada') }} />
                   </td>
-                  <CeldasCosto precio={pre(i.sku, 0)} cantidad={i.cantidad} />
+                  <CeldasCosto precio={pre(i.sku, 0)} cantidad={i.cantidad} pct={pctLote(x)} />
                 </tr>
               ))}</tbody>
             </table>
           </div>
+          <div className="costo-vigente">
+            <CostoPct valor={costosLote[x.id] ?? String(x.costo_pct ?? COSTO_ANTERIOR)} onChange={(v) => setCostosLote({ ...costosLote, [x.id]: v })} etiqueta="Costo de este pedido (% del precio de venta)" />
+            <button type="button" onClick={() => guardarCostoLote(x)}>Guardar costo</button>
+          </div>
           <div className="pedido-acciones">
-            <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
-            <button onClick={() => excel(x.items, `Pedido a proveedor #${x.id}`)}>Descargar Excel</button>
+            <button onClick={() => pdf(x.items, `Pedido a proveedor #${x.id}`, pctLote(x))}>Descargar PDF</button>
+            <button onClick={() => excel(x.items, `Pedido a proveedor #${x.id}`, pctLote(x))}>Descargar Excel</button>
             <button className="verde" onClick={() => setCotejando(x.id)}>Ya llegó: cotejar y recibir</button>
           </div>
         </div>
@@ -668,6 +733,9 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
   const [consigna, setConsigna] = useState(false)
   const [msg, setMsg] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [costo, setCosto] = useState('')
+  const [costoDef] = useCostoVigente(pass)
+  useEffect(() => { if (costoDef != null) setCosto((c) => c || String(costoDef)) }, [costoDef])
 
   useEffect(() => {
     const t = q.trim().replace(/[,()]/g, ' ')
@@ -703,6 +771,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
       p_items: lineas.map((l) => ({ id: l.id, cantidad: parseInt(l.cantidad) || 1, precio: parseFloat(l.precio) || 0 })),
       p_desc_tipo: tipo, p_desc_valor: consigna ? 0 : v, p_notas: notas, p_forzar: forzar, p_consignacion: consigna,
     })
+    if (!error && data?.id && parseFloat(costo) > 0) await sb.rpc('admin_set_costo_pedido', { p_pass: pass, p_id: data.id, p_pct: parseFloat(costo) })
     setGuardando(false)
     if (error) return setMsg(/schema cache|Could not find/i.test(error.message) ? 'Falta ejecutar el SQL de instalación (instalar.sql) en Supabase.' : error.message)
     onGuardada(data)
@@ -765,6 +834,7 @@ function FormVenta({ pass, onGuardada, onCancelar }) {
           </span>
         </label>}
         <label>Notas<input placeholder="Opcional" value={notas} onChange={(e) => setNotas(e.target.value)} /></label>
+        <CostoPct valor={costo} onChange={setCosto} etiqueta="Costo del proveedor (% del precio) *" />
       </div>
 
       <div className="venta-totales">
@@ -1094,8 +1164,8 @@ function Historial({ pass }) {
             </div>
             <ul>{x.items.map((i) => <li key={i.sku}>{i.cantidad} x {i.nombre} ({i.sku}){i.confirmado ? ` | recibido: ${i.recibido}` : ''}</li>)}</ul>
             <div className="pedido-acciones">
-              <button onClick={() => pdfPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar PDF</button>
-              <button onClick={() => excelPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`)}>Descargar Excel</button>
+              <button onClick={() => pdfPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`, Number(x.costo_pct ?? COSTO_ANTERIOR))}>Descargar PDF</button>
+              <button onClick={() => excelPedidoProveedor(x.items, `Pedido a proveedor #${x.id}`, Number(x.costo_pct ?? COSTO_ANTERIOR))}>Descargar Excel</button>
             </div>
           </div>
         ))

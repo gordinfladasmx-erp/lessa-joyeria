@@ -1,7 +1,13 @@
 import { sb } from './supabase'
 import { MARCA } from '../config'
 
-export const PCT_COSTO = 0.5
+// Costo como % del precio de venta (40 = el proveedor nos da 60% de descuento).
+export const COSTO_ANTERIOR = 50
+
+export async function costoVigente(pass) {
+  const { data, error } = await sb.rpc('admin_costo_vigente', { p_pass: pass })
+  return error || data == null ? COSTO_ANTERIOR : Number(data)
+}
 
 // Trae el precio de venta vigente de cada código desde el catálogo.
 export async function preciosPorSku(skus) {
@@ -15,10 +21,10 @@ export async function preciosPorSku(skus) {
 }
 
 // Agrega precio unitario, precio total, costo unitario (50% del precio) y costo total.
-export function conCostos(lista, precios = {}) {
+export function conCostos(lista, precios = {}, pct = COSTO_ANTERIOR) {
   return lista.map((it) => {
     const precio = Number(precios[it.sku] ?? it.precio) || 0
-    const costo = Math.round(precio * PCT_COSTO * 100) / 100
+    const costo = Math.round(precio * pct) / 100
     return { ...it, precio, costo, precioTotal: precio * it.cantidad, costoTotal: costo * it.cantidad }
   })
 }
@@ -30,15 +36,15 @@ export const totales = (l) => ({
   costoTotal: l.reduce((s, i) => s + i.costoTotal, 0),
 })
 
-export async function excelPedidoProveedor(lista, titulo = 'Pedido a proveedor') {
+export async function excelPedidoProveedor(lista, titulo = 'Pedido a proveedor', pct = COSTO_ANTERIOR) {
   const XLSX = await import('xlsx')
-  const l = conCostos(lista, await preciosPorSku(lista.map((i) => i.sku)))
+  const l = conCostos(lista, await preciosPorSku(lista.map((i) => i.sku)), pct)
   const t = totales(l)
   const filas = [
     [`${titulo} | ${MARCA.nombre}`],
     [new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })],
     [],
-    ['Código', 'Descripción', 'Cantidad', 'Precio unitario', 'Precio total', 'Costo unitario (50%)', 'Costo total'],
+    ['Código', 'Descripción', 'Cantidad', 'Precio unitario', 'Precio total', `Costo unitario (${pct}% del precio)`, 'Costo total'],
     ...l.map((i) => [i.sku, i.nombre, i.cantidad, i.precio, i.precioTotal, i.costo, i.costoTotal]),
     [],
     ['TOTAL', `${t.modelos} modelo(s)`, t.piezas, '', t.precioTotal, '', t.costoTotal],

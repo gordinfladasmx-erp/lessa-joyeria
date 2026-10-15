@@ -133,3 +133,8 @@
 
 .tipo-registro { display: inline-flex; margin-bottom: 0.9rem; }
 .tipo-registro button { padding: 0.55rem 1rem; font-size: 0.9rem; }
+
+.costo-vigente { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; margin: 0.75rem 0; }
+.costo-vigente label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.costo-vigente input { max-width: 8rem; }
+.costo-vigente small, .validar-grid small { color: #6b6b65; }

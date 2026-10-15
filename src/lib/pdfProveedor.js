@@ -1,5 +1,5 @@
 import { fotoUrl, money } from './store'
-import { preciosPorSku, conCostos, totales } from './costosProveedor'
+import { preciosPorSku, conCostos, totales, COSTO_ANTERIOR } from './costosProveedor'
 import { MARCA, COLORES } from '../config'
 
 async function aDataUrl(url) {
@@ -18,8 +18,8 @@ async function aDataUrl(url) {
   }
 }
 
-export async function pdfPedidoProveedor(listaBase, titulo = 'Pedido a proveedor') {
-  const lista = conCostos(listaBase, await preciosPorSku(listaBase.map((i) => i.sku)))
+export async function pdfPedidoProveedor(listaBase, titulo = 'Pedido a proveedor', pct = COSTO_ANTERIOR) {
+  const lista = conCostos(listaBase, await preciosPorSku(listaBase.map((i) => i.sku)), pct)
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const logo = await aDataUrl(MARCA.logo)
@@ -71,6 +71,6 @@ export async function pdfPedidoProveedor(listaBase, titulo = 'Pedido a proveedor
   doc.text(`Total: ${t.modelos} modelo(s), ${t.piezas} pieza(s)`, 14, y + 8)
   doc.setFontSize(10)
   doc.text(`Precio total: ${money(t.precioTotal)}`, 14, y + 15)
-  doc.text(`Costo total (50% del precio): ${money(t.costoTotal)}`, 14, y + 21)
+  doc.text(`Costo total (${pct}% del precio): ${money(t.costoTotal)}`, 14, y + 21)
   doc.save(`pedido-proveedor-${new Date().toISOString().slice(0, 10)}.pdf`)
 }

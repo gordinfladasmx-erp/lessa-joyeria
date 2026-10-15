@@ -4,10 +4,12 @@ import { Chart, registerables } from 'chart.js'
 import { sb } from '../lib/supabase'
 import { money, mensajeError } from '../lib/store'
 import { COLORES } from '../config'
+import { costoVigente } from '../lib/costosProveedor'
 
 Chart.register(...registerables)
 
-const COSTO = 0.5
+// Cada pedido guarda su propio costo (% del precio de venta); lo anterior se calculó al 50%.
+const costoDe = (p) => (Number(p.costo_pct) || 50) / 100
 const ROSA = COLORES.primary
 const PALETA = [COLORES.primary, '#D9779B', '#E8C4D6', '#6B6B65', '#C9A227', '#2E7D4F', '#378ADD', '#7F77DD', '#EF9F27', '#1D9E75', '#B3261E', '#9C9A92', '#5B2A86', '#00897B']
 
@@ -49,6 +51,9 @@ export default function Reportes({ pass }) {
   const [rango, setRango] = useState('30')
   const [origen, setOrigen] = useState('todas')
   const [msg, setMsg] = useState('')
+  const [costoInv, setCostoInv] = useState(50)
+  useEffect(() => { costoVigente(pass).then(setCostoInv) }, [pass])
+  const COSTO = costoInv / 100
 
   useEffect(() => {
     (async () => {
@@ -75,7 +80,7 @@ export default function Reportes({ pass }) {
       (origen === 'todas' || (origen === 'manual' ? p.tipo === 'venta' && !p.consignacion_id : origen === 'consignacion' ? !!p.consignacion_id : p.tipo !== 'venta')))
     const ingresos = ventas.reduce((s, p) => s + Number(p.total) - Number(p.envio || 0), 0)
     const envios = ventas.reduce((s, p) => s + Number(p.envio || 0), 0)
-    const costo = ventas.reduce((s, p) => s + Number(p.subtotal || p.total) * COSTO, 0)
+    const costo = ventas.reduce((s, p) => s + Number(p.subtotal || p.total) * costoDe(p), 0)
     const descuentos = ventas.reduce((s, p) => s + Number(p.descuento || 0), 0)
     const uds = ventas.reduce((s, p) => s + unidades(p), 0)
 
@@ -124,7 +129,7 @@ export default function Reportes({ pass }) {
       serie[k] = serie[k] || { ing: 0, gan: 0, uds: 0 }
       serie[k].uds += unidades(p)
       serie[k].ing += Number(p.total) - Number(p.envio || 0)
-      serie[k].gan += Number(p.total) - Number(p.envio || 0) - Number(p.subtotal || p.total) * COSTO
+      serie[k].gan += Number(p.total) - Number(p.envio || 0) - Number(p.subtotal || p.total) * costoDe(p)
     })
     const claves = Object.keys(serie).sort()
 
@@ -164,7 +169,7 @@ export default function Reportes({ pass }) {
       productosActivos: productos.filter((p) => p.activo).length,
       consPiezas, consValor, consVendidas, consDevueltas, consVendidoValor, consPersonas,
     }
-  }, [pedidos, productos, cats, rango, origen])
+  }, [pedidos, productos, cats, rango, origen, COSTO])
 
   const opts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   const optsMoney = { ...opts, scales: { y: { ticks: { callback: (v) => '$' + v.toLocaleString('es-MX') } } } }
@@ -183,7 +188,7 @@ export default function Reportes({ pass }) {
           <button key={k} className={origen === k ? 'on' : ''} onClick={() => setOrigen(k)}>{l}</button>
         ))}
       </div>
-      <p className="admin-nota">El costo de cada producto se calcula como el 50% de su precio de venta. Ventas = pedidos entregados y pagados.</p>
+      <p className="admin-nota">El costo de cada venta usa el % que se confirmó en ese pedido (los registros anteriores, 50%); el inventario se valúa con el costo vigente. Ventas = pedidos entregados y pagados.</p>
 
       <h2>Ventas del periodo</h2>
       <div className="kpis">

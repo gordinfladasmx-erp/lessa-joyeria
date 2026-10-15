@@ -56,7 +56,12 @@ export default function Admin({ adminPass, onLogin }) {
 
 function useCostoVigente(pass) {
   const [pct, setPct] = useState(null)
-  useEffect(() => { costoVigente(pass).then(setPct) }, [pass])
+  useEffect(() => {
+    const leer = () => costoVigente(pass).then(setPct)
+    leer()
+    window.addEventListener('costo-vigente', leer)
+    return () => window.removeEventListener('costo-vigente', leer)
+  }, [pass])
   return [pct, setPct]
 }
 
@@ -81,6 +86,7 @@ function CostoVigenteBox({ pass }) {
     const { error } = await sb.rpc('admin_set_costo_vigente', { p_pass: pass, p_pct: n })
     if (error) return setMsg(mensajeError(error))
     setPct(n); setMsg('Guardado. Los pedidos nuevos usarán este costo.')
+    window.dispatchEvent(new Event('costo-vigente'))
   }
   if (pct == null) return null
   return (
@@ -545,9 +551,7 @@ function Proveedor({ pass }) {
   const [nuevo, setNuevo] = useState({ sku: '', cantidad: '1', nota: '' })
   const [precios, setPrecios] = useState({})
   const [costoDef] = useCostoVigente(pass)
-  const [costoSel, setCostoSel] = useState('')
-  useEffect(() => { if (costoDef != null) setCostoSel((c) => c || String(costoDef)) }, [costoDef])
-  const pctSel = parseFloat(costoSel) > 0 ? parseFloat(costoSel) : (costoDef ?? COSTO_ANTERIOR)
+  const pctSel = costoDef ?? COSTO_ANTERIOR
   const pctLote = (x) => Number(x.costo_pct ?? COSTO_ANTERIOR)
 
   const urgenteVista = vista === 'urgente'
@@ -668,9 +672,7 @@ function Proveedor({ pass }) {
 
       {hayAlgo && (
         <>
-          <div className="costo-vigente">
-            <CostoPct valor={costoSel} onChange={setCostoSel} etiqueta="Costo de este pedido (% del precio de venta)" />
-          </div>
+          <p className="admin-nota">Costo de este pedido: <strong>{pctSel}%</strong> del precio de venta (el costo vigente de la caja de arriba). Si cambia, ajústalo ahí y guárdalo antes de hacer el pedido.</p>
           <label className="solo-disp" style={{ marginTop: '1rem' }}>
             <input type="checkbox" checked={conPendientes} onChange={(e) => setConPendientes(e.target.checked)} />
             Incluir en el PDF y la lista copiada los encargos que aún no pagan reserva

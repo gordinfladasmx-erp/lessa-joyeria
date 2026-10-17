@@ -218,6 +218,7 @@ export default function Catalogo({ cart, onAddToCart, onRemove, adminPass }) {
                   <Foto sku={prod.sku} nombre={prod.nombre} />
                   {agotado && prod.activo !== false && <span className="badge-agotado">Sobre pedido</span>}
                   {sel && <span className="badge-sel">{nPre > 0 ? `✓ Pedido${nPre > 1 ? ` (${nPre})` : ''}` : `✓ En tu carrito${n > 1 ? ` (${n})` : ''}`}</span>}
+                  {prod.nuevo && prod.activo !== false && <span className="badge-nuevo">NEW</span>}
                   {prod.activo === false && <span className="badge-oculto">OCULTO</span>}
                   {adminPass && (
                     <button type="button" className={`btn-ocultar ${prod.activo === false ? 'mostrar' : ''}`}

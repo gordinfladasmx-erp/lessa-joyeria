@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Catalogo from './pages/Catalogo'
 import DestacadosPage from './pages/DestacadosPage'
+import NuevosPage from './pages/NuevosPage'
 import Carrito from './pages/Carrito'
 const Admin = lazy(() => import('./pages/Admin'))
 const Guia = lazy(() => import('./pages/Guia'))
@@ -111,6 +112,7 @@ export default function App() {
             <Link to="/catalogo?categoria=Collares" className="nav-cat">Collares</Link>
             <Link to="/catalogo?categoria=Pulseras" className="nav-cat">Pulseras</Link>
             <Link to="/catalogo?categoria=Anillos" className="nav-cat">Anillos</Link>
+            <Link to="/nuevos" className="nav-dest">Nuevos</Link>
             <Link to="/destacados" className="nav-dest">★ Destacados</Link>
             <Link to="/carrito" className="cart-link" aria-label={`Carrito, ${cartCount} producto(s)`} title="Carrito">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -135,6 +137,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
           <Route path="/destacados" element={<DestacadosPage cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
+          <Route path="/nuevos" element={<NuevosPage cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
           <Route path="/catalogo" element={<Catalogo cart={cart} onAddToCart={addToCart} onRemove={removeFromCart} adminPass={adminPass} />} />
           <Route
             path="/carrito"

@@ -28,6 +28,7 @@ export default function TarjetasDestacadas({ prods, cart = [], onAddToCart, onRe
                 ? <Estrella producto={p} pass={adminPass} onCambio={(id, v) => !v && onQuitar(id)} />
                 : <span className="badge-dest" title="Destacado">★</span>}
               {agotado && <span className="badge-agotado">Sobre pedido</span>}
+              {p.nuevo && <span className="badge-nuevo">NEW</span>}
               {n > 0 && <span className="badge-sel">✓ En tu carrito{n > 1 ? ` (${n})` : ''}</span>}
             </div>
             <h3>{p.nombre}</h3>

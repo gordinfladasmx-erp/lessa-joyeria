@@ -184,7 +184,7 @@ begin
   insert into pedidos_proveedor(items, pedido_ids, urgente) values (agg, coalesce(ids, '{}'), coalesce(p_urgente,false)) returning id into nid;
   update pedidos set proveedor_estado = 'pedido', proveedor_pedido_id = nid, updated_at = now()
    where id = any(coalesce(ids, '{}'));
-  if not coalesce(p_urgente,false) then delete from proveedor_lineas; end if;
+  if not coalesce(p_urgente,false) then delete from proveedor_lineas where true; end if;
   return nid;
 end $$;
 

@@ -104,7 +104,7 @@ begin
   insert into pedidos_proveedor(items, pedido_ids) values (agg, coalesce(ids, '{}')) returning id into nid;
   update pedidos set proveedor_estado = 'pedido', proveedor_pedido_id = nid, entrega_estimada = current_date + 15,
          updated_at = now() where id = any(coalesce(ids, '{}'));
-  delete from proveedor_lineas;
+  delete from proveedor_lineas where true;
   return nid;
 end $$;
 
